@@ -29,7 +29,7 @@ RSpec.describe Botiasloop::Loop do
     context "with direct answer" do
       let(:response) do
         double("response",
-          tool_calls?: false,
+          tool_call?: false,
           content: "This is the answer")
       end
 
@@ -63,14 +63,14 @@ RSpec.describe Botiasloop::Loop do
 
       let(:first_response) do
         double("response",
-          tool_calls?: true,
-          tool_calls: [tool_call],
+          tool_call?: true,
+          tool_call: tool_call,
           content: "")
       end
 
       let(:final_response) do
         double("response",
-          tool_calls?: false,
+          tool_call?: false,
           content: "The output is hello")
       end
 
@@ -104,8 +104,8 @@ RSpec.describe Botiasloop::Loop do
 
       let(:response) do
         double("response",
-          tool_calls?: true,
-          tool_calls: [tool_call],
+          tool_call?: true,
+          tool_call: tool_call,
           content: "")
       end
 
@@ -129,14 +129,14 @@ RSpec.describe Botiasloop::Loop do
 
       let(:first_response) do
         double("response",
-          tool_calls?: true,
-          tool_calls: [tool_call],
+          tool_call?: true,
+          tool_call: tool_call,
           content: "")
       end
 
       let(:final_response) do
         double("response",
-          tool_calls?: false,
+          tool_call?: false,
           content: "There was an error")
       end
 

@@ -27,11 +27,10 @@ module Botiasloop
       @max_iterations.times do
         response = iterate(conversation.history)
 
-        if response.tool_calls?
-          response.tool_calls.each do |tool_call|
-            observation = execute_tool(tool_call)
-            @chat.add_tool_result(tool_call.id, observation)
-          end
+        if response.tool_call?
+          tool_call = response.tool_call
+          observation = execute_tool(tool_call)
+          @chat.add_tool_result(tool_call.id, observation)
         else
           conversation.add("assistant", response.content)
           return response.content
