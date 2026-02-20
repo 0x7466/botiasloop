@@ -3,6 +3,7 @@
 require "json"
 require "securerandom"
 require "time"
+require "fileutils"
 
 module Botiasloop
   class Conversation
