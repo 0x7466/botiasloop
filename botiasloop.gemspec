@@ -21,6 +21,7 @@ Gem::Specification.new do |spec|
   # Runtime dependencies
   spec.add_dependency "ruby_llm", "~> 1.12.1"
   spec.add_dependency "telegram-bot-ruby", "~> 2.5"
+  spec.add_dependency "redcarpet", "~> 3.6"
 
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.13.2"

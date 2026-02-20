@@ -142,7 +142,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
       it "processes the message and sends response" do
         expect(mock_agent).to receive(:chat).with("Hello bot", conversation: anything, log_start: false).and_return("Test response")
-        expect(mock_api).to receive(:send_message).with(chat_id: 123456, text: "Test response")
+        expect(mock_api).to receive(:send_message).with(chat_id: 123456, text: anything, parse_mode: "HTML")
         channel.process_message(message)
       end
 
@@ -266,6 +266,92 @@ RSpec.describe Botiasloop::Channels::Telegram do
       it "returns false for nil username" do
         expect(channel.allowed_user?(nil)).to be false
       end
+    end
+  end
+
+  describe "#to_telegram_html" do
+    let(:channel) { described_class.new(config) }
+
+    it "converts bold markdown to HTML" do
+      result = channel.send(:to_telegram_html, "This is **bold** text")
+      expect(result).to include("<strong>bold</strong>")
+    end
+
+    it "converts italic markdown to HTML" do
+      result = channel.send(:to_telegram_html, "This is *italic* text")
+      expect(result).to include("<em>italic</em>")
+    end
+
+    it "converts strikethrough markdown to HTML" do
+      result = channel.send(:to_telegram_html, "This is ~~deleted~~ text")
+      expect(result).to include("<del>deleted</del>")
+    end
+
+    it "converts inline code to HTML" do
+      result = channel.send(:to_telegram_html, "Use `code` here")
+      expect(result).to include("<code>code</code>")
+    end
+
+    it "converts code blocks to HTML" do
+      result = channel.send(:to_telegram_html, "```ruby\ndef hello\n  puts 'hi'\nend\n```")
+      expect(result).to include("<pre>")
+      expect(result).to match(/<code/)
+    end
+
+    it "converts headers to bold" do
+      result = channel.send(:to_telegram_html, "# Header 1\n## Header 2")
+      expect(result).to include("<b>Header 1</b>")
+      expect(result).to include("<b>Header 2</b>")
+      expect(result).not_to include("<h1>")
+      expect(result).not_to include("<h2>")
+    end
+
+    it "converts unordered lists to formatted text" do
+      result = channel.send(:to_telegram_html, "- Item 1\n- Item 2\n- Item 3")
+      expect(result).to include("• Item 1")
+      expect(result).to include("• Item 2")
+      expect(result).to include("• Item 3")
+      expect(result).not_to include("<ul>")
+      expect(result).not_to include("<li>")
+    end
+
+    it "converts ordered lists to formatted text" do
+      result = channel.send(:to_telegram_html, "1. First\n2. Second\n3. Third")
+      expect(result).to include("1. First")
+      expect(result).to include("2. Second")
+      expect(result).to include("3. Third")
+      expect(result).not_to include("<ol>")
+      expect(result).not_to include("<li>")
+    end
+
+    it "converts tables to columns on separate lines" do
+      result = channel.send(:to_telegram_html, "| Col1 | Col2 | Col3 |\n|------|------|------|\n| A | B | C |")
+      expect(result).to include("Col1")
+      expect(result).to include("Col2")
+      expect(result).to include("Col3")
+      expect(result).to include("A")
+      expect(result).to include("B")
+      expect(result).to include("C")
+      expect(result).not_to include("<table>")
+    end
+
+    it "converts links to HTML" do
+      result = channel.send(:to_telegram_html, "Check [this link](http://example.com)")
+      expect(result).to include('<a href="http://example.com">this link</a>')
+    end
+
+    it "preserves line breaks" do
+      result = channel.send(:to_telegram_html, "Line 1\nLine 2")
+      expect(result).to include("Line 1<br>")
+      expect(result).to include("Line 2")
+    end
+
+    it "removes unsupported HTML tags" do
+      result = channel.send(:to_telegram_html, "Text with <script>alert('xss')</script> script")
+      expect(result).not_to include("<script>")
+      expect(result).not_to include("</script>")
+      expect(result).to include("Text with")
+      expect(result).to include("script")
     end
   end
 end
