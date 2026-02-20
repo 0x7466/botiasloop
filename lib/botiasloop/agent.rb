@@ -20,10 +20,11 @@ module Botiasloop
     #
     # @param message [String] User message
     # @param conversation [Conversation, nil] Existing conversation
+    # @param log_start [Boolean] Whether to log conversation start
     # @return [String] Assistant response
-    def chat(message, conversation: nil)
+    def chat(message, conversation: nil, log_start: true)
       conversation ||= Conversation.new
-      @logger.info "Starting conversation #{conversation.uuid}"
+      @logger.info "Starting conversation #{conversation.uuid}" if log_start
 
       chat = create_chat
       registry = create_registry
@@ -39,13 +40,15 @@ module Botiasloop
       puts
 
       conversation = Conversation.new
+      first_message = true
       loop do
         print "You: "
         input = gets&.chomp
         break if input.nil? || EXIT_COMMANDS.include?(input.downcase)
 
         puts
-        response = chat(input, conversation: conversation)
+        response = chat(input, conversation: conversation, log_start: first_message)
+        first_message = false
         puts "Agent: #{response}"
         puts
       end

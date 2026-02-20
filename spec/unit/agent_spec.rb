@@ -110,10 +110,19 @@ RSpec.describe Botiasloop::Agent do
     it "reuses the same conversation for multiple messages" do
       allow(agent).to receive(:gets).and_return("Hello", "World", "exit")
       allow(agent).to receive(:puts)
-      allow(agent).to receive(:chat).with("Hello", conversation: conversation).and_return("Response1")
-      allow(agent).to receive(:chat).with("World", conversation: conversation).and_return("Response2")
+      allow(agent).to receive(:chat).with("Hello", conversation: conversation, log_start: true).and_return("Response1")
+      allow(agent).to receive(:chat).with("World", conversation: conversation, log_start: false).and_return("Response2")
 
       expect(Botiasloop::Conversation).to receive(:new).once
+
+      agent.interactive
+    end
+
+    it "logs only on first message in interactive mode" do
+      allow(agent).to receive(:gets).and_return("Hello", "World", "exit")
+      allow(agent).to receive(:puts)
+      allow(agent).to receive(:chat).with("Hello", conversation: conversation, log_start: true).and_return("Response1")
+      allow(agent).to receive(:chat).with("World", conversation: conversation, log_start: false).and_return("Response2")
 
       agent.interactive
     end
