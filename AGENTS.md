@@ -1,0 +1,176 @@
+# AGENTS.md - Developer Guide for botiasloop
+
+This document contains essential information for AI agents working on the botiasloop project.
+
+## Project Overview
+
+botiasloop is a minimal agentic AI application built on the ReAct (Reasoning + Acting) loop pattern. It's a Ruby gem that provides an AI agent with shell access and web search capabilities via OpenRouter.
+
+## Build/Lint/Test Commands
+
+```bash
+# Run all tests
+bundle exec rspec
+
+# Run a single test file
+bundle exec rspec spec/unit/agent_spec.rb
+
+# Run a specific test by line number
+bundle exec rspec spec/unit/agent_spec.rb:42
+
+# Run linter
+bundle exec standardrb
+
+# Auto-fix linting issues
+bundle exec standardrb --fix
+
+# Run default rake task (tests + lint)
+bundle exec rake
+
+# Check test coverage (after running tests)
+open coverage/index.html
+```
+
+## Code Style Guidelines
+
+### General
+- Ruby 3.4+ required
+- 100 character line limit
+- Frozen string literals: `# frozen_string_literal: true` at top of every file
+- No trailing whitespace
+
+### Imports
+- Group requires: stdlib first, then gems, then local files
+- Example:
+  ```ruby
+  require "json"
+  require "securerandom"
+  require "ruby_llm"
+  require_relative "botiasloop/version"
+  ```
+
+### Formatting
+- 2 spaces for indentation
+- No parentheses for method calls without arguments
+- Use parentheses for method calls with arguments
+- Prefer `attr_reader` over trivial reader methods
+
+### Naming Conventions
+- Classes: PascalCase (e.g., `ToolRegistry`, `WebSearch`)
+- Methods: snake_case (e.g., `execute_tool`, `build_observation`)
+- Constants: SCREAMING_SNAKE_CASE (e.g., `MAX_ITERATIONS`, `EXIT_COMMANDS`)
+- Files: snake_case matching class name (e.g., `web_search.rb` for `WebSearch`)
+
+### Error Handling
+- Use custom `Botiasloop::Error` class for domain errors
+- Let exceptions bubble up (no global rescue)
+- Tool failures retry 3 times before raising
+- Configuration errors raise immediately
+
+### Documentation
+- Use YARD format for all public methods
+- Include `@param`, `@return`, and `@raise` tags
+- Example:
+  ```ruby
+  # Execute a shell command
+  # @param command [String] Shell command to execute
+  # @return [Hash] Result with stdout, stderr, exit_code
+  # @raise [Error] On execution failure
+  ```
+
+## Architecture Patterns
+
+### Tool System
+Tools inherit from `RubyLLM::Tool`:
+- Use `description` macro to define tool purpose
+- Use `param` macro to define parameters (use `desc:`, not `description:`)
+- Implement `execute(**args)` method
+- Define `self.tool_name` for registry identification
+
+### ReAct Loop
+- Loop runs up to `max_iterations` (default: 20)
+- Each iteration: ask LLM → check for tool call → execute tool → continue
+- Tool results added via `@chat.add_tool_result(tool_call.id, observation)`
+- Final answer returned when no tool call present
+
+### Configuration
+- YAML config at `~/.config/botiasloop/config.yml`
+- Environment variables override YAML (e.g., `BOTIASLOOP_SEARXNG_URL`)
+- Required: `BOTIASLOOP_API_KEY` for OpenRouter
+
+## Critical Implementation Details
+
+### RubyLLM Integration
+**CRITICAL**: Tools must be registered with chat instance:
+```ruby
+chat = RubyLLM.chat(model: config.model)
+chat.with_tool(Tools::Shell)
+chat.with_tool(Tools::WebSearch.new(searxng_url))
+```
+
+**CRITICAL**: Use correct Message API:
+- `response.tool_call?` (singular) - returns boolean
+- `response.tool_call` - returns ToolCall object
+- `tool_call.id`, `tool_call.name`, `tool_call.arguments`
+
+### Conversation Persistence
+- Stored as JSONL at `~/conversations/<uuid>.jsonl`
+- Each line: `{"role": "user", "content": "...", "timestamp": "..."}`
+- Requires `require "fileutils"` for directory creation
+
+### Interactive Mode
+- Create conversation once, reuse for all messages
+- Log "Starting conversation" only on first message
+- Exit commands: `exit`, `quit`, `\q`, Ctrl+C (Interrupt)
+
+## Testing Guidelines
+
+### Mock External Dependencies
+- Mock `RubyLLM.chat` and chat instances
+- Mock `Botiasloop::Conversation` for unit tests
+- Use WebMock for HTTP requests (WebSearch tool)
+
+### Test Structure
+```ruby
+RSpec.describe Botiasloop::Component do
+  let(:mock_dep) { double("dep") }
+  
+  before do
+    allow(Dependency).to receive(:new).and_return(mock_dep)
+  end
+  
+  it "does something" do
+    expect(mock_dep).to receive(:method).with(args)
+    subject.do_something
+  end
+end
+```
+
+### Coverage Requirements
+- Minimum 90% line coverage
+- Test both success and error paths
+- Test tool execution with mocked responses
+
+## Common Pitfalls
+
+1. **Missing requires**: Always add `require "fileutils"` when using FileUtils
+2. **Tool registration**: Creating a Tools::Registry isn't enough - tools must be added to chat via `with_tool()`
+3. **Message API**: Use `tool_call?` not `tool_calls?`
+4. **Conversation reuse**: Interactive mode must pass conversation to each `chat()` call
+5. **Test doubles**: Stub all methods called on mocks to avoid unexpected message errors
+
+## Dependencies
+
+Runtime:
+- `ruby_llm ~> 1.12.1` - LLM integration
+
+Development:
+- `rspec ~> 3.13.2` - Testing
+- `standard ~> 1.54.0` - Linting
+- `simplecov ~> 0.22.0` - Coverage
+- `webmock ~> 3.26.1` - HTTP mocking
+- `vcr ~> 6.4.0` - HTTP recording
+
+## Philosophy
+
+This gem follows the "sharp knives" philosophy - it provides full shell access without restrictions. This is intentional. The gem is designed for dedicated infrastructure, not personal devices.
