@@ -57,7 +57,10 @@ module Botiasloop
         chat_id = message.chat.id
         text = message.text
 
-        return unless allowed_user?(username)
+        unless allowed_user?(username)
+          @logger.warn "[Telegram] Ignored message from unauthorized user @#{username} (chat_id: #{chat_id})"
+          return
+        end
 
         @logger.info "[Telegram] Message from @#{username}: #{text}"
 

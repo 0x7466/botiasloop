@@ -18,7 +18,7 @@ module Botiasloop
       path ||= File.expand_path("~/.config/botiasloop/config.yml")
 
       config = if File.exist?(path)
-        YAML.load_file(path)
+        YAML.load_file(path, symbolize_names: true)
       else
         {}
       end
