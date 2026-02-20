@@ -6,6 +6,41 @@ This document contains essential information for AI agents working on the botias
 
 botiasloop is a minimal agentic AI application built on the ReAct (Reasoning + Acting) loop pattern. It's a Ruby gem that provides an AI agent with shell access and web search capabilities via OpenRouter.
 
+## Rails Doctrine
+
+We follow the [Rails Doctrine](https://rubyonrails.org/doctrine) principles:
+
+- **Optimize for programmer happiness**: Write beautiful, readable Ruby code
+- **Convention over Configuration**: Sensible defaults, minimal setup required
+- **The menu is omakase**: Curated stack (ruby_llm, StandardRB, RSpec)
+- **No one paradigm**: Practical over pure - use what works
+- **Provide sharp knives**: Full shell access without restrictions by design
+
+## Test-First Development (TDD)
+
+All features must be built using TDD:
+
+1. Write a failing test that describes the desired behavior
+2. Write minimal code to make the test pass
+3. Refactor while keeping tests green
+4. Repeat
+
+Never write implementation code without a failing test first. Tests should cover both success and error paths.
+
+## Linting
+
+Code must pass StandardRB with zero offenses:
+
+```bash
+# Check for offenses
+bundle exec standardrb
+
+# Auto-fix offenses
+bundle exec standardrb --fix
+```
+
+Never commit code with linting errors. The CI will reject it.
+
 ## Build/Lint/Test Commands
 
 ```bash
@@ -150,14 +185,6 @@ end
 - Minimum 90% line coverage
 - Test both success and error paths
 - Test tool execution with mocked responses
-
-## Common Pitfalls
-
-1. **Missing requires**: Always add `require "fileutils"` when using FileUtils
-2. **Tool registration**: Creating a Tools::Registry isn't enough - tools must be added to chat via `with_tool()`
-3. **Message API**: Use `tool_call?` not `tool_calls?`
-4. **Conversation reuse**: Interactive mode must pass conversation to each `chat()` call
-5. **Test doubles**: Stub all methods called on mocks to avoid unexpected message errors
 
 ## Dependencies
 
