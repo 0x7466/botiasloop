@@ -7,7 +7,7 @@ RSpec.describe Botiasloop::Tools::Registry do
 
   describe "#initialize" do
     it "creates an empty registry" do
-      expect(registry.names).to eq([])
+      expect(registry.tools.keys).to eq([])
     end
   end
 
@@ -22,7 +22,7 @@ RSpec.describe Botiasloop::Tools::Registry do
 
     it "registers a tool" do
       registry.register(mock_tool_class)
-      expect(registry.names).to include("test_tool")
+      expect(registry.tools.keys).to include("test_tool")
     end
 
     it "allows registering multiple tools" do
@@ -35,7 +35,7 @@ RSpec.describe Botiasloop::Tools::Registry do
       registry.register(mock_tool_class)
       registry.register(tool2)
 
-      expect(registry.names).to contain_exactly("test_tool", "tool2")
+      expect(registry.tools.keys).to contain_exactly("test_tool", "tool2")
     end
   end
 
@@ -72,20 +72,24 @@ RSpec.describe Botiasloop::Tools::Registry do
     end
   end
 
-  describe "#names" do
-    it "returns empty array for new registry" do
-      expect(registry.names).to eq([])
-    end
-
-    it "returns registered tool names" do
-      tool = Class.new do
+  describe "#deregister" do
+    let(:mock_tool_class) do
+      Class.new do
         def self.tool_name
-          "my_tool"
+          "test_tool"
         end
       end
+    end
 
-      registry.register(tool)
-      expect(registry.names).to eq(["my_tool"])
+    it "removes a registered tool" do
+      registry.register(mock_tool_class)
+      registry.deregister("test_tool")
+      expect(registry.tools.keys).to eq([])
+    end
+
+    it "is a no-op for unknown tool" do
+      registry.deregister("unknown_tool")
+      expect(registry.tools.keys).to eq([])
     end
   end
 end

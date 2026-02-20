@@ -17,7 +17,7 @@ VCR.configure do |config|
   config.hook_into :webmock
   config.configure_rspec_metadata!
   config.filter_sensitive_data("<OPENROUTER_API_KEY>") do
-    ENV.fetch("BOTIASLOOP_API_KEY", "test-api-key")
+    ENV.fetch("OPENROUTER_API_KEY", "test-api-key")
   end
 end
 

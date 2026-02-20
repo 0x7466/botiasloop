@@ -5,6 +5,8 @@ require "ruby_llm"
 module Botiasloop
   module Tools
     class Registry
+      attr_reader :tools
+
       def initialize
         @tools = {}
         @tool_instances = {}
@@ -17,6 +19,14 @@ module Botiasloop
       def register(tool_class, **args)
         @tools[tool_class.tool_name] = tool_class
         @tool_instances[tool_class.tool_name] = args
+      end
+
+      # Deregister a tool by name
+      #
+      # @param name [String] Tool name to deregister
+      def deregister(name)
+        @tools.delete(name)
+        @tool_instances.delete(name)
       end
 
       # @return [Array<Hash>] Array of tool schemas
@@ -41,11 +51,6 @@ module Botiasloop
         args = @tool_instances[name]
         tool = args ? tool_class.new(**args) : tool_class.new
         tool.execute(arguments)
-      end
-
-      # @return [Array<String>] Array of registered tool names
-      def names
-        @tools.keys
       end
     end
   end

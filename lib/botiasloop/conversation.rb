@@ -7,15 +7,16 @@ require "fileutils"
 
 module Botiasloop
   class Conversation
+    # @return [String] UUID of the conversation
+    attr_reader :uuid
+
     # Initialize a conversation
     #
     # @param uuid [String, nil] UUID for the conversation (generates new if nil)
     def initialize(uuid = nil)
       @uuid = uuid || SecureRandom.uuid
+      @messages = load_messages
     end
-
-    # @return [String] UUID of the conversation
-    attr_reader :uuid
 
     # Add a message to the conversation
     #
@@ -23,29 +24,38 @@ module Botiasloop
     # @param content [String] Message content
     def add(role, content)
       message = {
-        "role" => role,
-        "content" => content,
-        "timestamp" => Time.now.utc.iso8601
+        role: role,
+        content: content,
+        timestamp: Time.now.utc.iso8601
       }
 
-      FileUtils.mkdir_p(File.dirname(path))
-      File.open(path, "a") do |file|
-        file.puts(message.to_json)
-      end
+      @messages << message
+      persist_messages
     end
 
     # @return [Array<Hash>] Array of message hashes
     def history
-      return [] unless File.exist?(path)
-
-      File.readlines(path).map do |line|
-        JSON.parse(line)
-      end
+      @messages.dup
     end
 
     # @return [String] Path to the conversation file
     def path
       File.expand_path("~/conversations/#{@uuid}.jsonl")
+    end
+
+    private
+
+    def load_messages
+      return [] unless File.exist?(path)
+
+      File.readlines(path).filter_map do |line|
+        line.strip.empty? ? nil : JSON.parse(line, symbolize_names: true)
+      end
+    end
+
+    def persist_messages
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, @messages.map(&:to_json).join("\n"))
     end
   end
 end

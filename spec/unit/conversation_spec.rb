@@ -50,8 +50,8 @@ RSpec.describe Botiasloop::Conversation do
     it "adds a message to the conversation" do
       conversation.add("user", "Hello")
       expect(conversation.history.length).to eq(1)
-      expect(conversation.history.first["role"]).to eq("user")
-      expect(conversation.history.first["content"]).to eq("Hello")
+      expect(conversation.history.first[:role]).to eq("user")
+      expect(conversation.history.first[:content]).to eq("Hello")
     end
 
     it "persists to file" do
@@ -61,10 +61,10 @@ RSpec.describe Botiasloop::Conversation do
       lines = File.readlines(conversation.path)
       expect(lines.length).to eq(1)
 
-      data = JSON.parse(lines.first)
-      expect(data["role"]).to eq("user")
-      expect(data["content"]).to eq("Hello")
-      expect(data["timestamp"]).to be_a(String)
+      data = JSON.parse(lines.first, symbolize_names: true)
+      expect(data[:role]).to eq("user")
+      expect(data[:content]).to eq("Hello")
+      expect(data[:timestamp]).to be_a(String)
     end
 
     it "appends multiple messages" do
@@ -74,11 +74,11 @@ RSpec.describe Botiasloop::Conversation do
       lines = File.readlines(conversation.path)
       expect(lines.length).to eq(2)
 
-      data1 = JSON.parse(lines[0])
-      data2 = JSON.parse(lines[1])
+      data1 = JSON.parse(lines[0], symbolize_names: true)
+      data2 = JSON.parse(lines[1], symbolize_names: true)
 
-      expect(data1["role"]).to eq("user")
-      expect(data2["role"]).to eq("assistant")
+      expect(data1[:role]).to eq("user")
+      expect(data2[:role]).to eq("assistant")
     end
   end
 
@@ -95,8 +95,8 @@ RSpec.describe Botiasloop::Conversation do
 
       history = conversation.history
       expect(history.length).to eq(2)
-      expect(history[0]["content"]).to eq("Hello")
-      expect(history[1]["content"]).to eq("Hi!")
+      expect(history[0][:content]).to eq("Hello")
+      expect(history[1][:content]).to eq("Hi!")
     end
 
     it "loads from file when conversation exists" do
@@ -105,7 +105,14 @@ RSpec.describe Botiasloop::Conversation do
       # Create new instance with same uuid
       conversation2 = described_class.new(fixed_uuid)
       expect(conversation2.history.length).to eq(1)
-      expect(conversation2.history.first["content"]).to eq("Hello")
+      expect(conversation2.history.first[:content]).to eq("Hello")
+    end
+
+    it "returns a copy of messages" do
+      conversation.add("user", "Hello")
+      history = conversation.history
+      history.clear
+      expect(conversation.history.length).to eq(1)
     end
   end
 
@@ -118,8 +125,8 @@ RSpec.describe Botiasloop::Conversation do
       conversation.add("user", "Hello")
 
       lines = File.readlines(conversation.path)
-      data = JSON.parse(lines.first)
-      expect(data["timestamp"]).to eq("2026-02-20T10:00:00Z")
+      data = JSON.parse(lines.first, symbolize_names: true)
+      expect(data[:timestamp]).to eq("2026-02-20T10:00:00Z")
     end
   end
 end
