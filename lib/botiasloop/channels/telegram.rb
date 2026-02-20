@@ -168,6 +168,9 @@ module Botiasloop
         # Convert tables to columns on separate lines
         result = convert_tables(result)
 
+        # Convert <br> tags to newlines (Telegram doesn't support <br>)
+        result = result.gsub(/<br\s*\/?>/, "\n")
+
         # Strip unsupported HTML tags
         strip_unsupported_tags(result)
       end
@@ -213,7 +216,8 @@ module Botiasloop
       def strip_unsupported_tags(html)
         # Telegram supports: <b>, <strong>, <i>, <em>, <u>, <ins>, <s>, <strike>, <del>, <code>, <pre>, <a>
         # Remove all other tags but keep their content
-        allowed_tags = %w[b strong i em u ins s strike del code pre a br]
+        # Note: <br> is converted to newlines before this method is called
+        allowed_tags = %w[b strong i em u ins s strike del code pre a]
 
         result = html.dup
 

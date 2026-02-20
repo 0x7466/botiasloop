@@ -342,8 +342,9 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     it "preserves line breaks" do
       result = channel.send(:to_telegram_html, "Line 1\nLine 2")
-      expect(result).to include("Line 1<br>")
+      expect(result).to include("Line 1\n")
       expect(result).to include("Line 2")
+      expect(result).not_to include("<br>")
     end
 
     it "removes unsupported HTML tags" do
