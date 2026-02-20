@@ -3,7 +3,22 @@
 
 require_relative "../lib/botiasloop"
 
-if ARGV[0] == "gateway"
+if ARGV[0] == "-h" || ARGV[0] == "--help"
+  puts "botiasloop - Minimal agentic AI with ReAct loop"
+  puts
+  puts "Usage: botiasloop [OPTIONS] [MESSAGE]"
+  puts
+  puts "Options:"
+  puts "  -h, --help       Show this help message"
+  puts "  -v, --version    Show version information"
+  puts
+  puts "Commands:"
+  puts "  (no args)        Start interactive REPL mode"
+  puts "  <message>        One-shot mode - process message and exit"
+  puts "  gateway          Start Telegram bot gateway"
+elsif ARGV[0] == "-v" || ARGV[0] == "--version"
+  puts "botiasloop #{Botiasloop::VERSION}"
+elsif ARGV[0] == "gateway"
   # Gateway mode - start Telegram bot
   config = Botiasloop::Config.load
   telegram = Botiasloop::Channels::Telegram.new(config)

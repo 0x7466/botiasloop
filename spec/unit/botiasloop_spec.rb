@@ -27,4 +27,54 @@ RSpec.describe "botiasloop CLI" do
       load File.expand_path("../../../bin/botiasloop", __FILE__)
     end
   end
+
+  describe "help flag" do
+    it "prints help message with -h" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+
+      ARGV.replace(["-h"])
+      load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(output.string).to include("botiasloop")
+      expect(output.string).to include("Usage:")
+      expect(output.string).to include("Options:")
+    end
+
+    it "prints help message with --help" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+
+      ARGV.replace(["--help"])
+      load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(output.string).to include("botiasloop")
+      expect(output.string).to include("Usage:")
+      expect(output.string).to include("Options:")
+    end
+  end
+
+  describe "version flag" do
+    it "prints version with -v" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+
+      ARGV.replace(["-v"])
+      load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(output.string).to include("botiasloop")
+      expect(output.string).to include(Botiasloop::VERSION)
+    end
+
+    it "prints version with --version" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+
+      ARGV.replace(["--version"])
+      load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(output.string).to include("botiasloop")
+      expect(output.string).to include(Botiasloop::VERSION)
+    end
+  end
 end
