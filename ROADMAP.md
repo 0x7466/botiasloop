@@ -5,11 +5,11 @@ This document outlines the planned features and improvements for botiasloop.
 ## Priority Order
 
 ### 1. System Prompt
-- [ ] Add `system_prompt` field to Config
-- [ ] Support loading from file: `~/.config/botiasloop/system_prompt.txt`
-- [ ] Allow per-conversation system prompts
-- [ ] Pass to RubyLLM chat initialization
-- [ ] Default prompt establishes ReAct pattern and available tools
+- [x] ~~Add `system_prompt` field to Config~~ (Not needed - assembled dynamically)
+- [x] ~~Support loading from file: `~/.config/botiasloop/system_prompt.txt`~~ (Not needed - assembled dynamically)
+- [x] ~~Allow per-conversation system prompts~~ (Not needed - assembled dynamically)
+- [x] Pass to RubyLLM chat initialization
+- [x] Default prompt establishes ReAct pattern and available tools
 
 ### 2. Channel Support
 - [ ] Create `Botiasloop::Channels` module

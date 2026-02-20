@@ -26,8 +26,8 @@ module Botiasloop
       conversation ||= Conversation.new
       @logger.info "Starting conversation #{conversation.uuid}" if log_start
 
-      chat = create_chat
       registry = create_registry
+      chat = create_chat(registry)
       loop = Loop.new(chat, registry, max_iterations: @config.max_iterations)
 
       loop.run(conversation, message)
@@ -64,8 +64,9 @@ module Botiasloop
       end
     end
 
-    def create_chat
+    def create_chat(registry)
       chat = RubyLLM.chat(model: @config.model)
+      chat.with_instructions(system_prompt(registry))
       chat.with_tool(Tools::Shell)
       chat.with_tool(Tools::WebSearch.new(@config.searxng_url))
       chat
@@ -76,6 +77,26 @@ module Botiasloop
       registry.register(Tools::Shell)
       registry.register(Tools::WebSearch, searxng_url: @config.searxng_url)
       registry
+    end
+
+    def system_prompt(registry)
+      <<~PROMPT
+        You are Botias, an autonomous AI agent.
+
+        Environment:
+        - OS: #{RUBY_PLATFORM}
+        - Shell: #{ENV.fetch("SHELL", "unknown")}
+        - Working Directory: #{Dir.pwd}
+        - Date: #{Time.now.strftime("%Y-%m-%d")}
+        - Time: #{Time.now.strftime("%H:%M:%S %Z")}
+
+        Available tools:
+        #{registry.tool_classes.map { |t| "- #{t.tool_name}: #{t.description}" }.join("\n")}
+
+        You operate in a ReAct loop: Reason about the task, Act using tools, Observe results.
+        You have full CLI access via the shell tool. Use standard Unix commands for file operations.
+        You can think up to #{@config.max_iterations} times before providing your final answer.
+      PROMPT
     end
   end
 end

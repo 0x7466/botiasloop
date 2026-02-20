@@ -38,6 +38,11 @@ module Botiasloop
         end
       end
 
+      # @return [Array<Class>] Array of registered tool classes
+      def tool_classes
+        @tools.values
+      end
+
       # Execute a tool by name
       #
       # @param name [String] Tool name
