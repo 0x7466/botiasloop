@@ -8,6 +8,7 @@ require_relative "botiasloop/tools/shell"
 require_relative "botiasloop/tools/web_search"
 require_relative "botiasloop/loop"
 require_relative "botiasloop/agent"
+require_relative "botiasloop/channels/telegram"
 
 module Botiasloop
   class Error < StandardError; end

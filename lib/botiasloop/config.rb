@@ -65,5 +65,20 @@ module Botiasloop
         openrouter[:api_key] || raise(Error, "OPENROUTER_API_KEY environment variable is required")
       end
     end
+
+    # @return [Hash] Telegram configuration
+    def telegram
+      @config[:telegram] || {}
+    end
+
+    # @return [String, nil] Telegram bot token
+    def telegram_bot_token
+      telegram[:bot_token]
+    end
+
+    # @return [Array<String>] Allowed Telegram usernames
+    def telegram_allowed_users
+      telegram[:allowed_users] || []
+    end
   end
 end

@@ -3,7 +3,12 @@
 
 require_relative "../lib/botiasloop"
 
-if ARGV.empty?
+if ARGV[0] == "gateway"
+  # Gateway mode - start Telegram bot
+  config = Botiasloop::Config.load
+  telegram = Botiasloop::Channels::Telegram.new(config)
+  telegram.start
+elsif ARGV.empty?
   # Interactive mode
   agent = Botiasloop::Agent.new
   agent.interactive
