@@ -194,22 +194,86 @@ module Botiasloop
         end
       end
 
-      # Convert HTML tables to columns on separate lines with blank lines between rows
+      # Convert HTML tables to properly formatted text wrapped in <pre> tags
       def convert_tables(html)
         html.gsub(/<table[^>]*>.*?<\/table>/m) do |table_block|
-          rows = []
-          # Extract all rows
+          # Extract headers (th elements)
+          headers = table_block.scan(/<th[^>]*>(.*?)<\/th>/).flatten
+
+          # Extract data rows (td elements within tr elements)
+          data_rows = []
           table_block.scan(/<tr[^>]*>(.*?)<\/tr>/m) do |row_match|
             row_html = row_match[0]
-            # Extract cells from this row
-            cells = row_html.scan(/<t[dh][^>]*>(.*?)<\/t[dh]>/).flatten
-            # Add each cell as a separate line
-            rows << cells.join("<br>")
+            # Skip rows that only contain th elements (header row)
+            next if row_html.include?("<th")
+
+            cells = row_html.scan(/<td[^>]*>(.*?)<\/td>/).flatten
+            data_rows << cells if cells.any?
           end
 
-          # Join rows with blank line between them
-          rows.join("<br><br>")
+          # Calculate column widths (minimum 3 characters)
+          num_columns = [headers.length, data_rows.map(&:length).max || 0].max
+          col_widths = Array.new(num_columns, 3)
+
+          # Update widths based on header lengths
+          headers.each_with_index do |header, i|
+            col_widths[i] = [col_widths[i], strip_html_tags(header).length].max
+          end
+
+          # Update widths based on data cell lengths
+          data_rows.each do |row|
+            row.each_with_index do |cell, i|
+              col_widths[i] = [col_widths[i], strip_html_tags(cell).length].max
+            end
+          end
+
+          # Format the table
+          lines = []
+
+          # Format header row with bold tags
+          formatted_headers = headers.map.with_index do |header, i|
+            text = strip_html_tags(header).ljust(col_widths[i])
+            "<b>#{text}</b>"
+          end
+          lines << formatted_headers.join(" ")
+
+          # Format data rows
+          data_rows.each do |row|
+            formatted_cells = row.map.with_index do |cell, i|
+              text = strip_html_tags(cell).ljust(col_widths[i])
+              # Convert inline markdown to HTML within cells
+              convert_inline_markdown(text)
+            end
+            lines << formatted_cells.join(" ")
+          end
+
+          # Wrap in <pre> tags
+          "<pre>#{lines.join("\n")}</pre>"
         end
+      end
+
+      # Strip HTML tags from text (helper for width calculation)
+      def strip_html_tags(html)
+        html.gsub(/<[^>]+>/, "")
+      end
+
+      # Convert inline markdown to HTML (for table cell content)
+      def convert_inline_markdown(text)
+        result = text.dup
+
+        # Bold: **text** -> <strong>text</strong>
+        result.gsub!(/\*\*(.+?)\*\*/, '<strong>\1</strong>')
+
+        # Italic: *text* -> <em>text</em>
+        result.gsub!(/\*(.+?)\*/, '<em>\1</em>')
+
+        # Code: `text` -> <code>text</code>
+        result.gsub!(/`(.+?)`/, '<code>\1</code>')
+
+        # Strikethrough: ~~text~~ -> <del>text</del>
+        result.gsub!(/~~(.+?)~~/, '<del>\1</del>')
+
+        result
       end
 
       # Strip HTML tags not supported by Telegram

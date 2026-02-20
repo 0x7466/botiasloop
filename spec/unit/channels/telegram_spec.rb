@@ -324,15 +324,19 @@ RSpec.describe Botiasloop::Channels::Telegram do
       expect(result).not_to include("<li>")
     end
 
-    it "converts tables to columns on separate lines" do
+    it "converts tables to properly formatted text in pre tags" do
       result = channel.send(:to_telegram_html, "| Col1 | Col2 | Col3 |\n|------|------|------|\n| A | B | C |")
-      expect(result).to include("Col1")
-      expect(result).to include("Col2")
-      expect(result).to include("Col3")
+      expect(result).to include("<pre>")
+      expect(result).to include("</pre>")
+      expect(result).to include("<b>Col1</b>")
+      expect(result).to include("<b>Col2</b>")
+      expect(result).to include("<b>Col3</b>")
       expect(result).to include("A")
       expect(result).to include("B")
       expect(result).to include("C")
       expect(result).not_to include("<table>")
+      expect(result).not_to include("<tr>")
+      expect(result).not_to include("<td>")
     end
 
     it "converts links to HTML" do
