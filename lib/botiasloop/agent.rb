@@ -65,7 +65,10 @@ module Botiasloop
     end
 
     def create_chat
-      RubyLLM.chat(model: @config.model)
+      chat = RubyLLM.chat(model: @config.model)
+      chat.with_tool(Tools::Shell)
+      chat.with_tool(Tools::WebSearch.new(@config.searxng_url))
+      chat
     end
 
     def create_registry

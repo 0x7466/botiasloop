@@ -35,6 +35,7 @@ RSpec.describe Botiasloop::Agent do
       allow(Botiasloop::Loop).to receive(:new).and_return(mock_loop)
       allow(conversation).to receive(:uuid).and_return("test-uuid")
       allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+      allow(mock_chat).to receive(:with_tool)
     end
 
     it "creates a conversation if none provided" do
@@ -60,6 +61,26 @@ RSpec.describe Botiasloop::Agent do
       allow(mock_loop).to receive(:run).and_return("response")
       expect(agent.instance_variable_get(:@logger)).to receive(:info).with(/test-uuid/)
       agent.chat("Hello")
+    end
+
+    it "registers Shell tool with chat" do
+      allow(mock_loop).to receive(:run).and_return("response")
+      expect(mock_chat).to receive(:with_tool).with(Botiasloop::Tools::Shell).and_return(mock_chat)
+      agent.chat("Hello")
+    end
+
+    it "registers WebSearch tool with chat" do
+      allow(mock_loop).to receive(:run).and_return("response")
+      websearch_tool = nil
+      expect(mock_chat).to receive(:with_tool).twice do |tool|
+        if tool.is_a?(Botiasloop::Tools::WebSearch)
+          websearch_tool = tool
+        end
+        mock_chat
+      end
+      agent.chat("Hello")
+      expect(websearch_tool).not_to be_nil
+      expect(websearch_tool.instance_variable_get(:@searxng_url)).to eq("http://searxng:8080")
     end
   end
 
