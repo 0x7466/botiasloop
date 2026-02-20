@@ -65,6 +65,11 @@ RSpec.describe Botiasloop::Agent do
 
   describe "#interactive" do
     let(:agent) { described_class.new(config) }
+    let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "interactive-uuid") }
+
+    before do
+      allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
+    end
 
     it "enters interactive mode" do
       allow(agent).to receive(:gets).and_return("Hello", "exit")
@@ -100,6 +105,17 @@ RSpec.describe Botiasloop::Agent do
       allow(agent).to receive(:puts)
 
       expect { agent.interactive }.not_to raise_error
+    end
+
+    it "reuses the same conversation for multiple messages" do
+      allow(agent).to receive(:gets).and_return("Hello", "World", "exit")
+      allow(agent).to receive(:puts)
+      allow(agent).to receive(:chat).with("Hello", conversation: conversation).and_return("Response1")
+      allow(agent).to receive(:chat).with("World", conversation: conversation).and_return("Response2")
+
+      expect(Botiasloop::Conversation).to receive(:new).once
+
+      agent.interactive
     end
   end
 end

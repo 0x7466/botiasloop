@@ -38,13 +38,14 @@ module Botiasloop
       puts "Type 'exit', 'quit', or '\\q' to exit"
       puts
 
+      conversation = Conversation.new
       loop do
         print "You: "
         input = gets&.chomp
         break if input.nil? || EXIT_COMMANDS.include?(input.downcase)
 
         puts
-        response = chat(input)
+        response = chat(input, conversation: conversation)
         puts "Agent: #{response}"
         puts
       end
