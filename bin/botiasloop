@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/botiasloop"
+
+if ARGV.empty?
+  # Interactive mode
+  agent = Botiasloop::Agent.new
+  agent.interactive
+else
+  # One-shot mode
+  agent = Botiasloop::Agent.new
+  puts agent.chat(ARGV.join(" "))
+end
