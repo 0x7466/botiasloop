@@ -26,6 +26,7 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] `/conversations` - List all conversations
 - [ ] `/switch <label|uuid>` - Switch to different conversation
 - [ ] `/new` - Start new conversation
+- [ ] `/continue` - Continue a conversation that reached max iterations
 - [x] `/help` - Show available commands
 - [ ] Allow skills to register custom slash commands
 - [ ] Different behavior in CLI vs channels

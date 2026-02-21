@@ -4,23 +4,6 @@ require "spec_helper"
 require "yaml"
 require "tempfile"
 
-def with_env(vars)
-  original = {}
-  vars.each do |key, value|
-    original[key] = ENV[key]
-    ENV[key] = value
-  end
-  yield
-ensure
-  original.each do |key, value|
-    if value.nil?
-      ENV.delete(key)
-    else
-      ENV[key] = value
-    end
-  end
-end
-
 RSpec.describe Botiasloop::Config do
   describe ".load" do
     context "with default path" do
@@ -86,7 +69,8 @@ RSpec.describe Botiasloop::Config do
         allow(Dir).to receive(:home).and_return(File.dirname(config_dir))
         allow(File).to receive(:expand_path).and_call_original
         allow(File).to receive(:expand_path).with("~/.config/botiasloop/config.yml").and_return(config_path)
-        File.write(config_path, YAML.dump(searxng_url: "http://default:8080"))
+        # Empty config file so environment variable takes effect
+        File.write(config_path, YAML.dump({}))
       end
 
       after do

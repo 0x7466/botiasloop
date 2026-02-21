@@ -26,15 +26,19 @@ RSpec.describe Botiasloop::Tools::WebSearch do
 
       it "returns search results" do
         result = tool.execute(query: "ruby programming")
-        expect(result[:results]).to be_an(Array)
-        expect(result[:results].length).to eq(2)
+        aggregate_failures do
+          expect(result[:results]).to be_an(Array)
+          expect(result[:results].length).to eq(2)
+        end
       end
 
       it "includes result details" do
         result = tool.execute(query: "ruby programming")
         first_result = result[:results].first
-        expect(first_result["title"]).to eq("Result 1")
-        expect(first_result["url"]).to eq("http://example.com/1")
+        aggregate_failures do
+          expect(first_result["title"]).to eq("Result 1")
+          expect(first_result["url"]).to eq("http://example.com/1")
+        end
       end
     end
 
@@ -83,16 +87,15 @@ RSpec.describe Botiasloop::Tools::WebSearch do
       ]
     end
 
-    let(:result) { described_class::Result.new(results) }
+    subject(:result) { described_class::Result.new(results) }
 
-    it "provides results accessor" do
-      expect(result.results).to eq(results)
-    end
+    it { is_expected.to have_attributes(results: results) }
 
     it "converts to string" do
-      str = result.to_s
-      expect(str).to include("Test")
-      expect(str).to include("http://test.com")
+      aggregate_failures do
+        expect(result.to_s).to include("Test")
+        expect(result.to_s).to include("http://test.com")
+      end
     end
   end
 end

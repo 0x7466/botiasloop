@@ -9,21 +9,27 @@ RSpec.describe Botiasloop::Tools::Shell do
 
     it "executes a simple command" do
       result = tool.execute(command: "echo hello")
-      expect(result[:stdout]).to eq("hello\n")
-      expect(result[:exit_code]).to eq(0)
-      expect(result[:success?]).to be true
+      aggregate_failures do
+        expect(result[:stdout]).to eq("hello\n")
+        expect(result[:exit_code]).to eq(0)
+        expect(result[:success?]).to be true
+      end
     end
 
     it "captures stderr" do
       result = tool.execute(command: "echo error >&2")
-      expect(result[:stderr]).to eq("error\n")
-      expect(result[:stdout]).to eq("")
+      aggregate_failures do
+        expect(result[:stderr]).to eq("error\n")
+        expect(result[:stdout]).to eq("")
+      end
     end
 
     it "returns non-zero exit code on failure" do
       result = tool.execute(command: "exit 1")
-      expect(result[:exit_code]).to eq(1)
-      expect(result[:success?]).to be false
+      aggregate_failures do
+        expect(result[:exit_code]).to eq(1)
+        expect(result[:success?]).to be false
+      end
     end
 
     it "handles multi-line output" do
@@ -33,33 +39,22 @@ RSpec.describe Botiasloop::Tools::Shell do
   end
 
   describe "Result" do
-    let(:result) { described_class::Result.new("stdout", "stderr", 0) }
+    subject(:result) { described_class::Result.new("stdout", "stderr", 0) }
 
-    it "provides stdout accessor" do
-      expect(result.stdout).to eq("stdout")
-    end
-
-    it "provides stderr accessor" do
-      expect(result.stderr).to eq("stderr")
-    end
-
-    it "provides exit_code accessor" do
-      expect(result.exit_code).to eq(0)
-    end
-
-    it "provides success? method" do
-      expect(result.success?).to be true
-    end
+    it { is_expected.to have_attributes(stdout: "stdout", stderr: "stderr", exit_code: 0) }
+    it { is_expected.to be_success }
 
     it "returns false for success? when exit code is non-zero" do
       failed_result = described_class::Result.new("", "error", 1)
-      expect(failed_result.success?).to be false
+      expect(failed_result).not_to be_success
     end
 
     it "converts to string" do
-      expect(result.to_s).to include("stdout")
-      expect(result.to_s).to include("stderr")
-      expect(result.to_s).to include("0")
+      aggregate_failures do
+        expect(result.to_s).to include("stdout")
+        expect(result.to_s).to include("stderr")
+        expect(result.to_s).to include("0")
+      end
     end
   end
 end
