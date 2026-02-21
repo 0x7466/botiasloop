@@ -60,12 +60,12 @@ module Botiasloop
 
     def setup_ruby_llm
       RubyLLM.configure do |config|
-        config.openrouter_api_key = @config.api_key
+        config.openrouter_api_key = @config.openrouter_api_key
       end
     end
 
     def create_chat(registry)
-      chat = RubyLLM.chat(model: @config.model)
+      chat = RubyLLM.chat(model: @config.openrouter_model)
       chat.with_instructions(system_prompt(registry))
       chat.with_tool(Tools::Shell)
       chat.with_tool(Tools::WebSearch.new(@config.searxng_url))

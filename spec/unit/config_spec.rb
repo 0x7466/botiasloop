@@ -40,12 +40,12 @@ RSpec.describe Botiasloop::Config do
 
       context "when config file exists" do
         before do
-          File.write(config_path, YAML.dump(model: "custom/model", max_iterations: 10))
+          File.write(config_path, YAML.dump(providers: {openrouter: {model: "custom/model"}}, max_iterations: 10))
         end
 
         it "loads configuration from file" do
           config = described_class.load
-          expect(config.model).to eq("custom/model")
+          expect(config.openrouter_model).to eq("custom/model")
           expect(config.max_iterations).to eq(10)
         end
       end
@@ -53,7 +53,7 @@ RSpec.describe Botiasloop::Config do
       context "when config file does not exist" do
         it "uses default values" do
           config = described_class.load
-          expect(config.model).to eq("moonshotai/kimi-k2.5")
+          expect(config.openrouter_model).to eq("moonshotai/kimi-k2.5")
           expect(config.max_iterations).to eq(20)
         end
       end
@@ -63,7 +63,7 @@ RSpec.describe Botiasloop::Config do
       let(:temp_file) { Tempfile.new("config.yml") }
 
       before do
-        File.write(temp_file.path, YAML.dump(model: "test/model"))
+        File.write(temp_file.path, YAML.dump(providers: {openrouter: {model: "test/model"}}))
       end
 
       after do
@@ -73,7 +73,7 @@ RSpec.describe Botiasloop::Config do
 
       it "loads from custom path" do
         config = described_class.load(temp_file.path)
-        expect(config.model).to eq("test/model")
+        expect(config.openrouter_model).to eq("test/model")
       end
     end
 
@@ -102,72 +102,62 @@ RSpec.describe Botiasloop::Config do
     end
   end
 
-  describe "#api_key" do
+  describe "#openrouter_api_key" do
     let(:config) { described_class.new({}) }
 
     it "reads from OPENROUTER_API_KEY environment variable" do
       with_env("OPENROUTER_API_KEY" => "test-key-123") do
-        expect(config.api_key).to eq("test-key-123")
+        expect(config.openrouter_api_key).to eq("test-key-123")
       end
     end
 
     it "reads from config file when env var not set" do
-      config = described_class.new({provider: {openrouter: {api_key: "config-key-123"}}})
+      config = described_class.new({providers: {openrouter: {api_key: "config-key-123"}}})
       with_env("OPENROUTER_API_KEY" => nil) do
-        expect(config.api_key).to eq("config-key-123")
+        expect(config.openrouter_api_key).to eq("config-key-123")
       end
     end
 
     it "raises when environment variable and config are not set" do
       with_env("OPENROUTER_API_KEY" => nil) do
-        expect { config.api_key }.to raise_error(Botiasloop::Error, /OPENROUTER_API_KEY/)
+        expect { config.openrouter_api_key }.to raise_error(Botiasloop::Error, /OpenRouter API key required/)
       end
     end
   end
 
-  describe "#provider" do
+  describe "#providers" do
     it "returns empty hash when not configured" do
       config = described_class.new({})
-      expect(config.provider).to eq({})
+      expect(config.providers).to eq({})
     end
 
-    it "returns provider configuration" do
-      config = described_class.new({provider: {openrouter: {api_key: "test"}}})
-      expect(config.provider).to eq({openrouter: {api_key: "test"}})
+    it "returns providers configuration" do
+      config = described_class.new({providers: {openrouter: {api_key: "test"}}})
+      expect(config.providers).to eq({openrouter: {api_key: "test"}})
     end
   end
 
   describe "#openrouter" do
-    it "returns empty hash when not configured" do
+    it "returns default when not configured" do
       config = described_class.new({})
-      expect(config.openrouter).to eq({})
+      expect(config.openrouter).to eq({model: "moonshotai/kimi-k2.5"})
     end
 
     it "returns openrouter configuration" do
-      config = described_class.new({provider: {openrouter: {api_key: "test", model: "model"}}})
+      config = described_class.new({providers: {openrouter: {api_key: "test", model: "model"}}})
       expect(config.openrouter).to eq({api_key: "test", model: "model"})
     end
   end
 
-  describe "#model" do
+  describe "#openrouter_model" do
     it "returns configured model from openrouter provider" do
-      config = described_class.new({provider: {openrouter: {model: "custom/model"}}})
-      expect(config.model).to eq("custom/model")
-    end
-
-    it "returns configured model from top level" do
-      config = described_class.new({model: "custom/model"})
-      expect(config.model).to eq("custom/model")
-    end
-
-    it "prefers openrouter model over top level" do
-      config = described_class.new({model: "top/model", provider: {openrouter: {model: "openrouter/model"}}})
-      expect(config.model).to eq("openrouter/model")
+      config = described_class.new({providers: {openrouter: {model: "custom/model"}}})
+      expect(config.openrouter_model).to eq("custom/model")
     end
 
     it "returns default when not configured" do
       config = described_class.new({})
-      expect(config.model).to eq("moonshotai/kimi-k2.5")
+      expect(config.openrouter_model).to eq("moonshotai/kimi-k2.5")
     end
   end
 

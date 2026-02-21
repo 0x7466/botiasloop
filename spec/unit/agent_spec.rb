@@ -5,10 +5,10 @@ require "spec_helper"
 RSpec.describe Botiasloop::Agent do
   let(:config) do
     instance_double(Botiasloop::Config,
-      model: "test/model",
+      openrouter_model: "test/model",
       max_iterations: 10,
       searxng_url: "http://searxng:8080",
-      api_key: "test-api-key")
+      openrouter_api_key: "test-api-key")
   end
 
   describe "#initialize" do

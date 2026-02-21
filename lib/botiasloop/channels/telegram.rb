@@ -7,13 +7,15 @@ require "redcarpet"
 
 module Botiasloop
   module Channels
-    class Telegram
-      def self.chats_file
-        @chats_file ||= File.expand_path("~/.config/botiasloop/telegram_chats.json")
-      end
+    class Telegram < Base
+      channel_name :telegram
+      requires_config :bot_token
 
-      def self.chats_file=(path)
-        @chats_file = path
+      # Get Telegram-specific configuration
+      #
+      # @return [Hash] Telegram configuration hash
+      def channel_config
+        @config.telegram
       end
 
       # Initialize Telegram channel
@@ -21,14 +23,11 @@ module Botiasloop
       # @param config [Config] Configuration instance
       # @raise [Error] If bot_token is not configured
       def initialize(config)
-        @config = config
-        @logger = Logger.new($stderr)
-        @bot_token = config.telegram_bot_token
-
-        raise Error, "telegram.bot_token is required" unless @bot_token
-
-        @allowed_users = config.telegram_allowed_users
-        @chats = load_chats
+        super
+        cfg = channel_config
+        @bot_token = cfg[:bot_token]
+        @allowed_users = cfg[:allowed_users] || []
+        @bot = nil
       end
 
       # Start the Telegram bot and listen for messages
@@ -43,36 +42,47 @@ module Botiasloop
         @bot = ::Telegram::Bot::Client.new(@bot_token)
         @bot.run do |bot|
           bot.listen do |message|
-            process_message(message) if message.is_a?(::Telegram::Bot::Types::Message)
+            process_message(message.chat.id, message) if message.is_a?(::Telegram::Bot::Types::Message)
           end
         end
       rescue Interrupt
         @logger.info "[Telegram] Shutting down..."
       end
 
-      # Process a single message
+      # Stop the Telegram bot
+      def stop
+        @logger.info "[Telegram] Stopping bot..."
+        # Telegram::Bot::Client doesn't have an explicit stop method,
+        # but the run block will exit on interrupt
+      end
+
+      # Check if bot is running
       #
-      # @param message [Telegram::Bot::Types::Message] Incoming message
-      def process_message(message)
+      # @return [Boolean] True if bot is running
+      def running?
+        !@bot.nil?
+      end
+
+      # Process an incoming Telegram message
+      #
+      # @param chat_id [Integer] Telegram chat ID
+      # @param message [Telegram::Bot::Types::Message] The full message object
+      def process_message(chat_id, message)
         username = message.from&.username
-        chat_id = message.chat.id
         text = message.text
 
-        unless allowed_user?(username)
+        unless authorized?(username)
           @logger.warn "[Telegram] Ignored message from unauthorized user @#{username} (chat_id: #{chat_id})"
           return
         end
 
         @logger.info "[Telegram] Message from @#{username}: #{text}"
 
-        conversation = conversation_for_chat(chat_id, username)
+        conversation = conversation_for(chat_id.to_s)
         agent = Botiasloop::Agent.new(@config)
         response = agent.chat(text, conversation: conversation, log_start: false)
 
-        # Convert Markdown response to Telegram-compatible HTML
-        html_response = to_telegram_html(response)
-
-        @bot.api.send_message(chat_id: chat_id, text: html_response, parse_mode: "HTML")
+        send_response(chat_id.to_s, response)
         @logger.info "[Telegram] Response sent to @#{username}"
       rescue => e
         @logger.error "[Telegram] Error processing message: #{e.message}"
@@ -82,57 +92,41 @@ module Botiasloop
       #
       # @param username [String, nil] Telegram username
       # @return [Boolean] True if allowed
-      def allowed_user?(username)
+      def authorized?(username)
         return false if username.nil? || @allowed_users.empty?
 
         @allowed_users.include?(username)
       end
 
-      # Get or create conversation for a chat
+      # Deliver a formatted response to Telegram
       #
-      # @param chat_id [Integer] Telegram chat ID
-      # @param username [String] Telegram username
-      # @return [Conversation] Conversation instance
-      def conversation_for_chat(chat_id, username)
-        chat_key = chat_id.to_s.to_sym
+      # @param chat_id [String] Telegram chat ID (as string)
+      # @param formatted_content [String] Formatted message content
+      def deliver_response(chat_id, formatted_content)
+        @bot.api.send_message(
+          chat_id: chat_id.to_i,
+          text: formatted_content,
+          parse_mode: "HTML"
+        )
+      end
 
-        if @chats[chat_key]
-          Conversation.new(@chats[chat_key][:conversation_uuid])
-        else
-          conversation = Conversation.new
-          @chats[chat_key] = {
-            conversation_uuid: conversation.uuid,
-            username: username
-          }
-          save_chats
-          conversation
-        end
+      # Format response for Telegram
+      #
+      # @param content [String] Raw response content
+      # @return [String] Telegram-compatible HTML
+      def format_response(content)
+        return "" if content.nil? || content.empty?
+
+        to_telegram_html(content)
       end
 
       private
-
-      def load_chats
-        file_path = self.class.chats_file
-        return {} unless File.exist?(file_path)
-
-        JSON.parse(File.read(file_path), symbolize_names: true)
-      rescue JSON::ParserError
-        {}
-      end
-
-      def save_chats
-        file_path = self.class.chats_file
-        FileUtils.mkdir_p(File.dirname(file_path))
-        File.write(file_path, JSON.pretty_generate(@chats))
-      end
 
       # Convert Markdown to Telegram-compatible HTML
       #
       # @param markdown [String] Markdown text
       # @return [String] Telegram-compatible HTML
       def to_telegram_html(markdown)
-        return "" if markdown.nil? || markdown.empty?
-
         # Configure Redcarpet renderer for Telegram-compatible HTML
         renderer_options = {
           hard_wrap: true,
@@ -294,5 +288,8 @@ module Botiasloop
         result
       end
     end
+
+    # Auto-register Telegram channel when file is loaded
+    Botiasloop::Channels.registry.register(Telegram)
   end
 end

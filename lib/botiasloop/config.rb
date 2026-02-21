@@ -5,7 +5,11 @@ require "yaml"
 module Botiasloop
   class Config
     DEFAULTS = {
-      model: "moonshotai/kimi-k2.5",
+      providers: {
+        openrouter: {
+          model: "moonshotai/kimi-k2.5"
+        }
+      },
       max_iterations: 20,
       searxng_url: "http://localhost:8080"
     }.freeze
@@ -31,19 +35,19 @@ module Botiasloop
       @config = config || {}
     end
 
-    # @return [Hash] Provider configuration
-    def provider
-      @config[:provider] || {}
+    # @return [Hash] Providers configuration
+    def providers
+      @config[:providers] || {}
     end
 
     # @return [Hash] OpenRouter provider configuration
     def openrouter
-      provider[:openrouter] || {}
+      providers[:openrouter] || DEFAULTS[:providers][:openrouter] || {}
     end
 
-    # @return [String] Model identifier
-    def model
-      openrouter[:model] || @config[:model] || DEFAULTS[:model]
+    # @return [String] OpenRouter model identifier
+    def openrouter_model
+      openrouter[:model]
     end
 
     # @return [Integer] Maximum ReAct iterations
@@ -60,10 +64,8 @@ module Botiasloop
 
     # @return [String] OpenRouter API key
     # @raise [Error] If API key is not set
-    def api_key
-      ENV.fetch("OPENROUTER_API_KEY") do
-        openrouter[:api_key] || raise(Error, "OPENROUTER_API_KEY environment variable is required")
-      end
+    def openrouter_api_key
+      openrouter[:api_key] || ENV["OPENROUTER_API_KEY"] || raise(Error, "OpenRouter API key required")
     end
 
     # @return [Hash] Telegram configuration

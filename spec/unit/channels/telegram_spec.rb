@@ -16,19 +16,18 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
-  let(:chats_file) { File.join(temp_dir, "telegram_chats.json") }
+  let(:chats_file) { File.join(temp_dir, "channels", "telegram_chats.json") }
 
   let(:mock_bot) { double("bot") }
   let(:mock_api) { double("api") }
 
   before do
+    # Ensure Telegram is registered in the global registry
+    Botiasloop::Channels.registry.register(described_class)
+
     allow(Dir).to receive(:home).and_return(temp_dir)
     allow(File).to receive(:expand_path).and_call_original
     allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
-    allow(File).to receive(:expand_path).with("~/.config/botiasloop/telegram_chats.json").and_return(chats_file)
-
-    # Set the chats file path for testing
-    Botiasloop::Channels::Telegram.chats_file = chats_file
 
     # Mock Telegram::Bot::Client
     stub_const("Telegram::Bot::Client", double)
@@ -43,11 +42,37 @@ RSpec.describe Botiasloop::Channels::Telegram do
     FileUtils.rm_rf(temp_dir)
   end
 
+  describe "inheritance" do
+    it "inherits from Channels::Base" do
+      expect(described_class.ancestors).to include(Botiasloop::Channels::Base)
+    end
+
+    it "has channel_name :telegram" do
+      expect(described_class.channel_identifier).to eq(:telegram)
+    end
+
+    it "requires :bot_token config" do
+      expect(described_class.required_config_keys).to include(:bot_token)
+    end
+  end
+
+  describe "auto-registration" do
+    it "is registered in the global registry" do
+      registry = Botiasloop::Channels.registry
+      expect(registry[:telegram]).to eq(described_class)
+    end
+  end
+
   describe "#initialize" do
     context "when bot_token is configured" do
       it "initializes successfully" do
         channel = described_class.new(config)
         expect(channel).to be_a(described_class)
+      end
+
+      it "loads allowed_users from config" do
+        channel = described_class.new(config)
+        expect(channel.instance_variable_get(:@allowed_users)).to eq(["testuser"])
       end
     end
 
@@ -89,6 +114,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
       it "logs a warning about no allowed users" do
         expect(logger).to receive(:warn).with(/allowed_users/)
+        allow(mock_bot).to receive(:listen)
         channel.start
       end
     end
@@ -98,15 +124,70 @@ RSpec.describe Botiasloop::Channels::Telegram do
         expect(mock_bot).to receive(:listen).and_yield(nil)
         channel.start
       end
+
+      it "sets bot instance" do
+        allow(mock_bot).to receive(:listen).and_yield(nil)
+        channel.start
+        expect(channel.instance_variable_get(:@bot)).to eq(mock_bot)
+      end
+    end
+  end
+
+  describe "#stop" do
+    let(:channel) { described_class.new(config) }
+    let(:logger) { instance_double(Logger) }
+
+    before do
+      allow(Logger).to receive(:new).and_return(logger)
+      allow(logger).to receive(:info)
+    end
+
+    it "logs stopping message" do
+      expect(logger).to receive(:info).with(/Stopping/)
+      channel.stop
+    end
+  end
+
+  describe "#running?" do
+    let(:channel) { described_class.new(config) }
+
+    it "returns false when bot is not started" do
+      expect(channel.running?).to be false
+    end
+
+    it "returns true when bot is started" do
+      channel.instance_variable_set(:@bot, mock_bot)
+      expect(channel.running?).to be true
     end
   end
 
   describe "#process_message" do
-    let(:channel) { described_class.new(config) }
     let(:mock_agent) { instance_double(Botiasloop::Agent) }
     let(:mock_conversation) { instance_double(Botiasloop::Conversation) }
+    let(:chat_id) { 123456 }
+    let(:message_text) { "Hello bot" }
+    let(:username) { "testuser" }
+
+    let(:message) do
+      double(
+        "message",
+        chat: double("chat", id: chat_id),
+        from: double("from", username: username),
+        text: message_text
+      )
+    end
+
+    let(:logger) { instance_double(Logger) }
+    let(:channel) do
+      # Stub Logger before creating channel
+      allow(Logger).to receive(:new).and_return(logger)
+      described_class.new(config)
+    end
 
     before do
+      allow(logger).to receive(:info)
+      allow(logger).to receive(:warn)
+      allow(logger).to receive(:error)
       allow(Botiasloop::Agent).to receive(:new).and_return(mock_agent)
       allow(mock_agent).to receive(:chat).and_return("Test response")
       allow(mock_api).to receive(:send_message)
@@ -114,128 +195,112 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
 
     context "when user is not in allowed list" do
-      let(:message) do
-        double(
-          "message",
-          chat: double("chat", id: 123456),
-          from: double("from", username: "unauthorized_user"),
-          text: "Hello"
-        )
-      end
+      let(:username) { "unauthorized_user" }
 
       it "silently ignores the message" do
         expect(mock_agent).not_to receive(:chat)
         expect(mock_api).not_to receive(:send_message)
-        channel.process_message(message)
+        channel.process_message(chat_id, message)
+      end
+
+      it "logs warning about unauthorized user" do
+        expect(logger).to receive(:warn).with(/unauthorized/)
+        channel.process_message(chat_id, message)
       end
     end
 
     context "when user is in allowed list" do
-      let(:message) do
-        double(
-          "message",
-          chat: double("chat", id: 123456),
-          from: double("from", username: "testuser"),
-          text: "Hello bot"
-        )
-      end
-
       it "processes the message and sends response" do
-        expect(mock_agent).to receive(:chat).with("Hello bot", conversation: anything, log_start: false).and_return("Test response")
-        expect(mock_api).to receive(:send_message).with(chat_id: 123456, text: anything, parse_mode: "HTML")
-        channel.process_message(message)
+        expect(mock_agent).to receive(:chat).with(
+          message_text,
+          conversation: anything,
+          log_start: false
+        ).and_return("Test response")
+        expect(mock_api).to receive(:send_message).with(
+          chat_id: chat_id,
+          text: anything,
+          parse_mode: "HTML"
+        )
+        channel.process_message(chat_id, message)
       end
 
-      it "creates a new conversation for new chat" do
+      it "uses base class conversation management" do
         allow(mock_conversation).to receive(:uuid).and_return("test-uuid")
         allow(Botiasloop::Conversation).to receive(:new).and_return(mock_conversation)
 
-        channel.process_message(message)
+        channel.process_message(chat_id, message)
 
         expect(File.exist?(chats_file)).to be true
         chats_data = JSON.parse(File.read(chats_file), symbolize_names: true)
-        expect(chats_data[:"123456"]).to include(:conversation_uuid, :username)
+        expect(chats_data[:conversations]).to have_key(:"123456")
       end
     end
 
     context "when chat already exists" do
-      let(:message) do
-        double(
-          "message",
-          chat: double("chat", id: 123456),
-          from: double("from", username: "testuser"),
-          text: "Second message"
-        )
-      end
-
       before do
         FileUtils.mkdir_p(File.dirname(chats_file))
         File.write(chats_file, JSON.dump({
-          "123456" => {
-            conversation_uuid: "existing-uuid",
-            username: "testuser"
+          conversations: {
+            "123456" => "existing-uuid"
           }
         }))
-        # Reload chats from file
-        channel.instance_variable_set(:@chats, channel.send(:load_chats))
+        # Reload conversations from file
+        channel.instance_variable_set(:@conversations, channel.send(:load_conversations))
       end
 
       it "reuses existing conversation" do
-        conversation = instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
-        expect(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(conversation)
+        existing_conversation = instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
+        expect(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(existing_conversation)
         expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
         allow(mock_agent).to receive(:chat).and_return("Test response")
 
-        channel.process_message(message)
+        channel.process_message(chat_id, message)
       end
     end
   end
 
-  describe "#conversation_for_chat" do
+  describe "#conversation_for" do
     let(:channel) { described_class.new(config) }
 
     before do
-      # Ensure the channel reloads chats from file for each test
-      channel.instance_variable_set(:@chats, {})
+      FileUtils.mkdir_p(File.dirname(chats_file))
     end
 
     context "when chat does not exist" do
       it "creates new conversation and saves mapping" do
-        conversation = channel.conversation_for_chat(123456, "testuser")
+        conversation = channel.conversation_for("123456")
 
         expect(conversation).to be_a(Botiasloop::Conversation)
         expect(File.exist?(chats_file)).to be true
 
         chats_data = JSON.parse(File.read(chats_file), symbolize_names: true)
-        expect(chats_data[:"123456"][:username]).to eq("testuser")
-        expect(chats_data[:"123456"][:conversation_uuid]).to eq(conversation.uuid)
+        expect(chats_data[:conversations][:"123456"]).to eq(conversation.uuid)
       end
     end
 
     context "when chat exists" do
       before do
-        FileUtils.mkdir_p(File.dirname(chats_file))
         File.write(chats_file, JSON.dump({
-          "123456" => {
-            conversation_uuid: "existing-uuid",
-            username: "testuser"
+          conversations: {
+            "123456" => "existing-uuid"
           }
         }))
-        # Reload chats from file
-        channel.instance_variable_set(:@chats, channel.send(:load_chats))
+        # Reload conversations from file
+        channel.instance_variable_set(:@conversations, channel.send(:load_conversations))
       end
 
       it "returns existing conversation" do
         existing_conversation = instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
         expect(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(existing_conversation)
         expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
-        conversation = channel.conversation_for_chat(123456, "testuser")
+
+        conversation = channel.conversation_for("123456")
         expect(conversation.uuid).to eq("existing-uuid")
       end
     end
   end
 
-  describe "#allowed_user?" do
+  describe "#authorized?" do
     let(:channel) { described_class.new(config) }
 
     context "when allowed_users is empty" do
@@ -249,27 +314,70 @@ RSpec.describe Botiasloop::Channels::Telegram do
       end
 
       it "returns false for any username" do
-        expect(channel.allowed_user?("anyuser")).to be false
-        expect(channel.allowed_user?(nil)).to be false
+        expect(channel.authorized?("anyuser")).to be false
+        expect(channel.authorized?(nil)).to be false
       end
     end
 
     context "when allowed_users has entries" do
       it "returns true for allowed username" do
-        expect(channel.allowed_user?("testuser")).to be true
+        expect(channel.authorized?("testuser")).to be true
       end
 
       it "returns false for non-allowed username" do
-        expect(channel.allowed_user?("otheruser")).to be false
+        expect(channel.authorized?("otheruser")).to be false
       end
 
       it "returns false for nil username" do
-        expect(channel.allowed_user?(nil)).to be false
+        expect(channel.authorized?(nil)).to be false
       end
     end
   end
 
-  describe "#to_telegram_html" do
+  describe "#format_response" do
+    let(:channel) { described_class.new(config) }
+
+    it "converts markdown to telegram HTML" do
+      result = channel.format_response("**bold** text")
+      expect(result).to include("<strong>bold</strong>")
+    end
+
+    it "returns empty string for nil content" do
+      expect(channel.format_response(nil)).to eq("")
+    end
+
+    it "returns empty string for empty content" do
+      expect(channel.format_response("")).to eq("")
+    end
+  end
+
+  describe "#deliver_response" do
+    let(:channel) { described_class.new(config) }
+    let(:chat_id) { "123456" }
+    let(:formatted_content) { "<b>Hello</b> world" }
+
+    before do
+      channel.instance_variable_set(:@bot, mock_bot)
+    end
+
+    it "sends message via bot API" do
+      expect(mock_api).to receive(:send_message).with(
+        chat_id: 123456,
+        text: formatted_content,
+        parse_mode: "HTML"
+      )
+      channel.deliver_response(chat_id, formatted_content)
+    end
+
+    it "converts string chat_id to integer" do
+      expect(mock_api).to receive(:send_message).with(
+        hash_including(chat_id: 123456)
+      )
+      channel.deliver_response("123456", formatted_content)
+    end
+  end
+
+  describe "private #to_telegram_html" do
     let(:channel) { described_class.new(config) }
 
     it "converts bold markdown to HTML" do
