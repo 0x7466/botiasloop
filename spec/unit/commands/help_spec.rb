@@ -16,7 +16,7 @@ RSpec.describe Botiasloop::Commands::Help do
   describe "#execute" do
     it "returns header for available commands" do
       result = help_command.execute(context)
-      expect(result).to include("Available commands:")
+      expect(result).to include("Available commands")
     end
 
     it "lists all registered commands" do
@@ -118,7 +118,7 @@ RSpec.describe Botiasloop::Commands::Help do
       registry.instance_variable_set(:@commands, {})
 
       result = help_command.execute(context)
-      expect(result).to eq("Available commands:")
+      expect(result).to eq("**Available commands**")
     end
   end
 

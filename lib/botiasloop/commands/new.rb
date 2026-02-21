@@ -10,10 +10,11 @@ module Botiasloop
       description "Start a new conversation"
 
       def execute(context, _args = nil)
-        new_uuid = SecureRandom.uuid
+        new_conversation = Conversation.new
+        context.conversation = new_conversation
 
-        "New conversation started (UUID: #{new_uuid}).\n" \
-        "Use `/switch #{new_uuid}` to return to this conversation later."
+        "New conversation started (UUID: #{new_conversation.uuid}).\n" \
+        "Use `/switch #{new_conversation.uuid}` to return later."
       end
     end
   end

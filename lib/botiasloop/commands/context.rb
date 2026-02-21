@@ -6,7 +6,7 @@ module Botiasloop
     # Provides access to conversation, config, channel, and user info
     class Context
       # @return [Conversation] The current conversation
-      attr_reader :conversation
+      attr_accessor :conversation
 
       # @return [Config] The bot configuration
       attr_reader :config

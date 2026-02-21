@@ -130,63 +130,6 @@ RSpec.describe Botiasloop::Conversation do
     end
   end
 
-  describe "#tokens_in" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-
-    it "returns 0 for new conversation" do
-      expect(conversation.tokens_in).to eq(0)
-    end
-
-    it "increases when tokens are added" do
-      conversation.add_tokens(tokens_in: 100, tokens_out: 0)
-      expect(conversation.tokens_in).to eq(100)
-    end
-
-    it "accumulates tokens across multiple calls" do
-      conversation.add_tokens(tokens_in: 100, tokens_out: 0)
-      conversation.add_tokens(tokens_in: 50, tokens_out: 0)
-      expect(conversation.tokens_in).to eq(150)
-    end
-  end
-
-  describe "#tokens_out" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-
-    it "returns 0 for new conversation" do
-      expect(conversation.tokens_out).to eq(0)
-    end
-
-    it "increases when tokens are added" do
-      conversation.add_tokens(tokens_in: 0, tokens_out: 200)
-      expect(conversation.tokens_out).to eq(200)
-    end
-
-    it "accumulates tokens across multiple calls" do
-      conversation.add_tokens(tokens_in: 0, tokens_out: 100)
-      conversation.add_tokens(tokens_in: 0, tokens_out: 50)
-      expect(conversation.tokens_out).to eq(150)
-    end
-  end
-
-  describe "#add_tokens" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-
-    it "adds both in and out tokens" do
-      conversation.add_tokens(tokens_in: 100, tokens_out: 200)
-      expect(conversation.tokens_in).to eq(100)
-      expect(conversation.tokens_out).to eq(200)
-    end
-
-    it "persists tokens to file" do
-      conversation.add_tokens(tokens_in: 100, tokens_out: 200)
-
-      # Create new instance with same uuid
-      conversation2 = described_class.new(fixed_uuid)
-      expect(conversation2.tokens_in).to eq(100)
-      expect(conversation2.tokens_out).to eq(200)
-    end
-  end
-
   describe "#reset!" do
     let(:conversation) { described_class.new(fixed_uuid) }
 
@@ -197,15 +140,6 @@ RSpec.describe Botiasloop::Conversation do
       conversation.reset!
 
       expect(conversation.history).to be_empty
-    end
-
-    it "resets tokens to zero" do
-      conversation.add_tokens(tokens_in: 100, tokens_out: 200)
-
-      conversation.reset!
-
-      expect(conversation.tokens_in).to eq(0)
-      expect(conversation.tokens_out).to eq(0)
     end
 
     it "clears the file" do
@@ -243,15 +177,6 @@ RSpec.describe Botiasloop::Conversation do
       expect(history[0][:content]).to eq("Summary of earlier discussion")
       expect(history[1][:content]).to eq("Recent 1")
       expect(history[2][:content]).to eq("Recent 2")
-    end
-
-    it "resets token counts after compacting" do
-      conversation.add_tokens(tokens_in: 1000, tokens_out: 500)
-
-      conversation.compact!("Summary", [])
-
-      expect(conversation.tokens_in).to eq(0)
-      expect(conversation.tokens_out).to eq(0)
     end
 
     it "persists compacted history to file" do

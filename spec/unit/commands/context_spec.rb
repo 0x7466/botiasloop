@@ -41,6 +41,15 @@ RSpec.describe Botiasloop::Commands::Context do
       context = described_class.new(conversation: conversation, config: config)
       expect(context.conversation).to eq(conversation)
     end
+
+    it "allows setting a new conversation" do
+      context = described_class.new(conversation: conversation, config: config)
+      new_conversation = instance_double(Botiasloop::Conversation)
+
+      context.conversation = new_conversation
+
+      expect(context.conversation).to eq(new_conversation)
+    end
   end
 
   describe "#config" do

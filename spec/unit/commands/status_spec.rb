@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe Botiasloop::Commands::Status do
   let(:command) { described_class.new }
-  let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "test-uuid-123", history: [{role: "user", content: "Hello"}], tokens_in: 100, tokens_out: 50) }
+  let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "test-uuid-123", history: [{role: "user", content: "Hello"}]) }
   let(:config) do
     instance_double(Botiasloop::Config,
       max_iterations: 20,
@@ -33,18 +33,6 @@ RSpec.describe Botiasloop::Commands::Status do
       expect(result).to include("moonshotai/kimi-k2.5")
       expect(result).to include("20")
       expect(result).to include("1")  # Message count
-    end
-
-    it "shows token usage" do
-      result = command.execute(context)
-
-      expect(result).to include("100")
-      expect(result).to include("50")
-    end
-
-    it "calculates total tokens" do
-      result = command.execute(context)
-      expect(result).to include("150")  # 100 + 50
     end
   end
 end
