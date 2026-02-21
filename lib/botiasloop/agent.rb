@@ -18,11 +18,9 @@ module Botiasloop
     #
     # @param message [String] User message
     # @param conversation [Conversation, nil] Existing conversation
-    # @param log_start [Boolean] Whether to log conversation start
     # @return [String] Assistant response
-    def chat(message, conversation: nil, log_start: true)
+    def chat(message, conversation: nil)
       conversation ||= Conversation.new
-      @logger.info "Starting conversation #{conversation.uuid}" if log_start
 
       registry = create_registry
       provider, model = create_provider_and_model

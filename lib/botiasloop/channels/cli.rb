@@ -27,16 +27,13 @@ module Botiasloop
         puts "Type 'exit', 'quit', or '\\q' to exit"
         puts
 
-        first_message = true
-
         while @running
           print "You: "
           input = $stdin.gets&.chomp
           break if input.nil? || EXIT_COMMANDS.include?(input.downcase)
 
           puts
-          process_message(SOURCE_ID, input, {first_message: first_message})
-          first_message = false
+          process_message(SOURCE_ID, input)
         end
 
         @running = false
@@ -60,32 +57,13 @@ module Botiasloop
         @running
       end
 
-      # Process an incoming message
+      # Extract content from raw message
+      # For CLI, the raw message is already the content string
       #
-      # @param source_id [String] Source identifier (always "cli")
-      # @param content [String] Message content
-      # @param metadata [Hash] Additional metadata
-      def process_message(source_id, content, metadata = {})
-        conversation = conversation_for(source_id)
-
-        # Check for slash commands
-        response = if Commands.command?(content)
-          context = Commands::Context.new(
-            conversation: conversation,
-            config: @config,
-            channel: self,
-            user_id: source_id
-          )
-          Commands.execute(content, context)
-        else
-          agent = Agent.new(@config)
-          agent.chat(content, conversation: conversation, log_start: metadata[:first_message])
-        end
-
-        send_response(source_id, response)
-      rescue => e
-        @logger.error "[CLI] Error processing message: #{e.message}"
-        send_response(source_id, "Error: #{e.message}")
+      # @param raw_message [String] Raw message (already a string)
+      # @return [String] The content
+      def extract_content(raw_message)
+        raw_message
       end
 
       # Check if source is authorized (CLI is always authorized)
@@ -94,6 +72,17 @@ module Botiasloop
       # @return [Boolean] Always true for CLI
       def authorized?(source_id)
         true
+      end
+
+      # Handle errors by sending error message to user
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] User ID
+      # @param error [Exception] The error that occurred
+      # @param raw_message [Object] Raw message object
+      def handle_error(source_id, user_id, error, raw_message)
+        @logger.error "[CLI] Error processing message: #{error.message}"
+        send_response(source_id, "Error: #{error.message}")
       end
 
       # Deliver a formatted response to the CLI

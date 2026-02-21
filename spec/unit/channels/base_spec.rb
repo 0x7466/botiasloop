@@ -137,9 +137,9 @@ RSpec.describe Botiasloop::Channels::Base do
       expect { channel.running? }.to raise_error(NotImplementedError, /running/)
     end
 
-    it "raises NotImplementedError for process_message if not implemented" do
+    it "raises NotImplementedError for extract_content if not implemented" do
       channel = incomplete_class.new(config)
-      expect { channel.process_message("id", "content") }.to raise_error(NotImplementedError, /process_message/)
+      expect { channel.process_message("id", "content") }.to raise_error(NotImplementedError, /extract_content/)
     end
   end
 

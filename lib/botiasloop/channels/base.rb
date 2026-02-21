@@ -76,14 +76,113 @@ module Botiasloop
         raise NotImplementedError, "Subclass must implement #running?"
       end
 
-      # Process an incoming message
+      # Process an incoming message using template method pattern
       #
       # @param source_id [String] Unique identifier for the message source (e.g., chat_id, user_id)
-      # @param content [String] Message content
+      # @param raw_message [Object] Raw message object (varies by channel)
       # @param metadata [Hash] Additional metadata about the message
+      def process_message(source_id, raw_message, metadata = {})
+        # Hook: Extract content from raw message
+        content = extract_content(raw_message)
+        return if content.nil? || content.to_s.empty?
+
+        # Hook: Extract user ID for authorization
+        user_id = extract_user_id(source_id, raw_message)
+
+        # Authorization check
+        unless authorized?(user_id)
+          handle_unauthorized(source_id, user_id, raw_message)
+          return
+        end
+
+        # Hook: Pre-processing
+        before_process(source_id, user_id, content, raw_message)
+
+        # Core processing logic
+        conversation = conversation_for(source_id)
+
+        response = if Commands.command?(content)
+          context = Commands::Context.new(
+            conversation: conversation,
+            config: @config,
+            channel: self,
+            user_id: source_id
+          )
+          Commands.execute(content, context)
+        else
+          agent = Agent.new(@config)
+          agent.chat(content, conversation: conversation)
+        end
+
+        send_response(source_id, response)
+
+        # Hook: Post-processing
+        after_process(source_id, user_id, response, raw_message)
+      rescue => e
+        handle_error(source_id, user_id, e, raw_message)
+      end
+
+      # Extract content from raw message. Subclasses must implement.
+      #
+      # @param raw_message [Object] Raw message object
+      # @return [String] Extracted message content
       # @raise [NotImplementedError] Subclass must implement
-      def process_message(source_id, content, metadata = {})
-        raise NotImplementedError, "Subclass must implement #process_message"
+      def extract_content(raw_message)
+        raise NotImplementedError, "Subclass must implement #extract_content"
+      end
+
+      # Extract user ID from raw message for authorization
+      # Override in subclasses if user ID differs from source_id
+      #
+      # @param source_id [String] Source identifier
+      # @param raw_message [Object] Raw message object
+      # @return [String] User ID for authorization
+      def extract_user_id(source_id, raw_message)
+        source_id
+      end
+
+      # Hook called before processing a message
+      # Override in subclasses for custom pre-processing (e.g., logging)
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] User ID
+      # @param content [String] Message content
+      # @param raw_message [Object] Raw message object
+      def before_process(source_id, user_id, content, raw_message)
+        # No-op by default
+      end
+
+      # Hook called after processing a message
+      # Override in subclasses for custom post-processing (e.g., logging)
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] User ID
+      # @param response [String] Response content
+      # @param raw_message [Object] Raw message object
+      def after_process(source_id, user_id, response, raw_message)
+        # No-op by default
+      end
+
+      # Handle unauthorized access
+      # Override in subclasses for custom unauthorized handling
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] User ID that was denied
+      # @param raw_message [Object] Raw message object
+      def handle_unauthorized(source_id, user_id, raw_message)
+        @logger.warn "[#{self.class.channel_identifier}] Unauthorized access from #{user_id} (source: #{source_id})"
+      end
+
+      # Handle errors during message processing
+      # Override in subclasses for custom error handling
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] User ID
+      # @param error [Exception] The error that occurred
+      # @param raw_message [Object] Raw message object
+      def handle_error(source_id, user_id, error, raw_message)
+        @logger.error "[#{self.class.channel_identifier}] Error processing message: #{error.message}"
+        raise error
       end
 
       # Check if a source is authorized to use this channel
@@ -106,6 +205,7 @@ module Botiasloop
         else
           conversation = Conversation.new
           @conversations[source_key] = conversation.uuid
+          @logger.info "Starting conversation #{conversation.uuid}"
           save_conversations
           conversation
         end

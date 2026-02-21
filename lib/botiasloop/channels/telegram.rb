@@ -37,7 +37,9 @@ module Botiasloop
 
         @bot.run do |bot|
           bot.listen do |message|
-            process_message(message.chat.id, message) if message.is_a?(::Telegram::Bot::Types::Message)
+            next unless message.is_a?(::Telegram::Bot::Types::Message) && message.text
+
+            process_message(message.chat.id.to_s, message)
           end
         end
       rescue Interrupt
@@ -58,41 +60,60 @@ module Botiasloop
         !@bot.nil?
       end
 
-      # Process an incoming Telegram message
+      # Extract content from Telegram message object
       #
-      # @param chat_id [Integer] Telegram chat ID
-      # @param message [Telegram::Bot::Types::Message] The full message object
-      def process_message(chat_id, message)
-        username = message.from&.username
-        text = message.text
+      # @param raw_message [Telegram::Bot::Types::Message] Telegram message
+      # @return [String] Message text
+      def extract_content(raw_message)
+        raw_message.text
+      end
 
-        unless authorized?(username)
-          @logger.warn "[Telegram] Ignored message from unauthorized user @#{username} (chat_id: #{chat_id})"
-          return
-        end
+      # Extract username from Telegram message for authorization
+      #
+      # @param source_id [String] Source identifier (chat_id)
+      # @param raw_message [Telegram::Bot::Types::Message] Telegram message
+      # @return [String, nil] Username from message
+      def extract_user_id(source_id, raw_message)
+        raw_message.from&.username
+      end
 
-        @logger.info "[Telegram] Message from @#{username}: #{text}"
+      # Log message before processing
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] Username
+      # @param content [String] Message text
+      # @param raw_message [Telegram::Bot::Types::Message] Telegram message
+      def before_process(source_id, user_id, content, raw_message)
+        @logger.info "[Telegram] Message from @#{user_id}: #{content}"
+      end
 
-        conversation = conversation_for(chat_id.to_s)
+      # Log successful response after processing
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] Username
+      # @param response [String] Response content
+      # @param raw_message [Telegram::Bot::Types::Message] Telegram message
+      def after_process(source_id, user_id, response, raw_message)
+        @logger.info "[Telegram] Response sent to @#{user_id}"
+      end
 
-        # Check for slash commands
-        response = if Botiasloop::Commands.command?(text)
-          context = Botiasloop::Commands::Context.new(
-            conversation: conversation,
-            config: @config,
-            channel: self,
-            user_id: chat_id.to_s
-          )
-          Botiasloop::Commands.execute(text, context)
-        else
-          agent = Botiasloop::Agent.new(@config)
-          agent.chat(text, conversation: conversation, log_start: false)
-        end
+      # Handle unauthorized access with specific logging
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] Username that was denied
+      # @param raw_message [Telegram::Bot::Types::Message] Telegram message
+      def handle_unauthorized(source_id, user_id, raw_message)
+        @logger.warn "[Telegram] Ignored message from unauthorized user @#{user_id} (chat_id: #{source_id})"
+      end
 
-        send_response(chat_id.to_s, response)
-        @logger.info "[Telegram] Response sent to @#{username}"
-      rescue => e
-        @logger.error "[Telegram] Error processing message: #{e.message}"
+      # Handle errors by logging only (don't notify user)
+      #
+      # @param source_id [String] Source identifier
+      # @param user_id [String] Username
+      # @param error [Exception] The error that occurred
+      # @param raw_message [Telegram::Bot::Types::Message] Telegram message
+      def handle_error(source_id, user_id, error, raw_message)
+        @logger.error "[Telegram] Error processing message: #{error.message}"
       end
 
       # Check if username is in allowed list

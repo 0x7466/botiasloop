@@ -160,6 +160,18 @@ RSpec.describe Botiasloop::Channels::CLI do
     end
   end
 
+  describe "#extract_content" do
+    let(:channel) { described_class.new(config) }
+
+    it "returns the raw message as-is for CLI" do
+      expect(channel.extract_content("Hello World")).to eq("Hello World")
+    end
+
+    it "handles empty strings" do
+      expect(channel.extract_content("")).to eq("")
+    end
+  end
+
   describe "#process_message" do
     let(:channel) { described_class.new(config) }
     let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "cli-test-uuid") }
@@ -173,13 +185,8 @@ RSpec.describe Botiasloop::Channels::CLI do
     end
 
     it "processes non-command messages through agent" do
-      expect(agent).to receive(:chat).with("Hello", conversation: conversation, log_start: true).and_return("Response")
-      channel.process_message("cli", "Hello", {first_message: true})
-    end
-
-    it "logs only on first message" do
-      expect(agent).to receive(:chat).with("Hello", conversation: conversation, log_start: false).and_return("Response")
-      channel.process_message("cli", "Hello", {first_message: false})
+      expect(agent).to receive(:chat).with("Hello", conversation: conversation).and_return("Response")
+      channel.process_message("cli", "Hello")
     end
 
     it "handles slash commands" do
@@ -187,20 +194,32 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow(Botiasloop::Commands).to receive(:execute).and_return("Help text")
 
       expect(agent).not_to receive(:chat)
-      channel.process_message("cli", "/help", {first_message: true})
+      channel.process_message("cli", "/help")
     end
 
     it "sends response after processing" do
       allow(agent).to receive(:chat).and_return("Response text")
       expect(channel).to receive(:send_response).with("cli", "Response text")
-      channel.process_message("cli", "Hello", {first_message: true})
+      channel.process_message("cli", "Hello")
     end
 
     it "handles errors gracefully" do
       allow(agent).to receive(:chat).and_raise(StandardError.new("Test error"))
       expect(channel).to receive(:send_response).with("cli", /Error: Test error/)
       expect(channel.instance_variable_get(:@logger)).to receive(:error).with(/Test error/)
-      channel.process_message("cli", "Hello", {first_message: true})
+      channel.process_message("cli", "Hello")
+    end
+  end
+
+  describe "#handle_error" do
+    let(:channel) { described_class.new(config) }
+
+    it "logs the error and sends response to user" do
+      error = StandardError.new("Test error")
+      expect(channel.instance_variable_get(:@logger)).to receive(:error).with("[CLI] Error processing message: Test error")
+      expect(channel).to receive(:send_response).with("cli", "Error: Test error")
+
+      channel.handle_error("cli", "cli", error, "Hello")
     end
   end
 

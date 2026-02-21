@@ -69,12 +69,6 @@ RSpec.describe Botiasloop::Agent do
       expect(result).to eq("This is the response")
     end
 
-    it "logs the conversation" do
-      allow(mock_loop).to receive(:run).and_return("response")
-      expect(agent.instance_variable_get(:@logger)).to receive(:info).with(/test-uuid/)
-      agent.chat("Hello")
-    end
-
     it "creates provider and model" do
       allow(mock_loop).to receive(:run).and_return("response")
       expect(RubyLLM::Models).to receive(:find).with("test/model").and_return(mock_model)

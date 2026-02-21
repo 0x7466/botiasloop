@@ -213,12 +213,12 @@ RSpec.describe Botiasloop::Channels::Telegram do
       it "silently ignores the message" do
         expect(mock_agent).not_to receive(:chat)
         expect(mock_api).not_to receive(:send_message)
-        channel.process_message(chat_id, message)
+        channel.process_message(chat_id.to_s, message)
       end
 
       it "logs warning about unauthorized user" do
         expect(logger).to receive(:warn).with(/unauthorized/)
-        channel.process_message(chat_id, message)
+        channel.process_message(chat_id.to_s, message)
       end
     end
 
@@ -226,22 +226,21 @@ RSpec.describe Botiasloop::Channels::Telegram do
       it "processes the message and sends response" do
         expect(mock_agent).to receive(:chat).with(
           message_text,
-          conversation: anything,
-          log_start: false
+          conversation: anything
         ).and_return("Test response")
         expect(mock_api).to receive(:send_message).with(
           chat_id: chat_id,
           text: anything,
           parse_mode: "HTML"
         )
-        channel.process_message(chat_id, message)
+        channel.process_message(chat_id.to_s, message)
       end
 
       it "uses base class conversation management" do
         allow(mock_conversation).to receive(:uuid).and_return("test-uuid")
         allow(Botiasloop::Conversation).to receive(:new).and_return(mock_conversation)
 
-        channel.process_message(chat_id, message)
+        channel.process_message(chat_id.to_s, message)
 
         expect(File.exist?(chats_file)).to be true
         chats_data = JSON.parse(File.read(chats_file), symbolize_names: true)
@@ -267,7 +266,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
         expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
         allow(mock_agent).to receive(:chat).and_return("Test response")
 
-        channel.process_message(chat_id, message)
+        channel.process_message(chat_id.to_s, message)
       end
     end
   end
@@ -347,6 +346,106 @@ RSpec.describe Botiasloop::Channels::Telegram do
       it "returns false for nil username" do
         expect(channel.authorized?(nil)).to be false
       end
+    end
+  end
+
+  describe "#extract_content" do
+    let(:channel) { described_class.new(config) }
+    let(:message_text) { "Hello bot" }
+    let(:message) do
+      instance_double(
+        Telegram::Bot::Types::Message,
+        text: message_text,
+        from: instance_double(Telegram::Bot::Types::User, username: "testuser"),
+        chat: instance_double(Telegram::Bot::Types::Chat, id: 123456)
+      )
+    end
+
+    it "extracts text from Telegram message" do
+      expect(channel.extract_content(message)).to eq("Hello bot")
+    end
+  end
+
+  describe "#extract_user_id" do
+    let(:channel) { described_class.new(config) }
+    let(:message) do
+      instance_double(
+        Telegram::Bot::Types::Message,
+        text: "Hello",
+        from: instance_double(Telegram::Bot::Types::User, username: "testuser"),
+        chat: instance_double(Telegram::Bot::Types::Chat, id: 123456)
+      )
+    end
+
+    it "extracts username from Telegram message" do
+      expect(channel.extract_user_id("123456", message)).to eq("testuser")
+    end
+
+    it "handles messages without username" do
+      message_no_user = instance_double(
+        Telegram::Bot::Types::Message,
+        text: "Hello",
+        from: nil,
+        chat: instance_double(Telegram::Bot::Types::Chat, id: 123456)
+      )
+      expect(channel.extract_user_id("123456", message_no_user)).to be_nil
+    end
+  end
+
+  describe "#before_process" do
+    let(:channel) { described_class.new(config) }
+    let(:logger) { channel.instance_variable_get(:@logger) }
+
+    before do
+      allow(logger).to receive(:info)
+    end
+
+    it "logs message receipt" do
+      expect(logger).to receive(:info).with("[Telegram] Message from @testuser: Hello")
+      channel.before_process("123456", "testuser", "Hello", nil)
+    end
+  end
+
+  describe "#after_process" do
+    let(:channel) { described_class.new(config) }
+    let(:logger) { channel.instance_variable_get(:@logger) }
+
+    before do
+      allow(logger).to receive(:info)
+    end
+
+    it "logs response sent" do
+      expect(logger).to receive(:info).with("[Telegram] Response sent to @testuser")
+      channel.after_process("123456", "testuser", "Response text", nil)
+    end
+  end
+
+  describe "#handle_unauthorized" do
+    let(:channel) { described_class.new(config) }
+    let(:logger) { channel.instance_variable_get(:@logger) }
+
+    before do
+      allow(logger).to receive(:warn)
+    end
+
+    it "logs warning about unauthorized user" do
+      expect(logger).to receive(:warn).with("[Telegram] Ignored message from unauthorized user @baduser (chat_id: 123456)")
+      channel.handle_unauthorized("123456", "baduser", nil)
+    end
+  end
+
+  describe "#handle_error" do
+    let(:channel) { described_class.new(config) }
+    let(:logger) { channel.instance_variable_get(:@logger) }
+
+    before do
+      allow(logger).to receive(:error)
+    end
+
+    it "logs error without re-raising" do
+      error = StandardError.new("Test error")
+      expect(logger).to receive(:error).with("[Telegram] Error processing message: Test error")
+      expect { channel.handle_error("123456", "testuser", error, nil) }.not_to raise_error
     end
   end
 
