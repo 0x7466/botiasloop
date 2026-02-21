@@ -129,4 +129,141 @@ RSpec.describe Botiasloop::Conversation do
       expect(data[:timestamp]).to eq("2026-02-20T10:00:00Z")
     end
   end
+
+  describe "#tokens_in" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    it "returns 0 for new conversation" do
+      expect(conversation.tokens_in).to eq(0)
+    end
+
+    it "increases when tokens are added" do
+      conversation.add_tokens(tokens_in: 100, tokens_out: 0)
+      expect(conversation.tokens_in).to eq(100)
+    end
+
+    it "accumulates tokens across multiple calls" do
+      conversation.add_tokens(tokens_in: 100, tokens_out: 0)
+      conversation.add_tokens(tokens_in: 50, tokens_out: 0)
+      expect(conversation.tokens_in).to eq(150)
+    end
+  end
+
+  describe "#tokens_out" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    it "returns 0 for new conversation" do
+      expect(conversation.tokens_out).to eq(0)
+    end
+
+    it "increases when tokens are added" do
+      conversation.add_tokens(tokens_in: 0, tokens_out: 200)
+      expect(conversation.tokens_out).to eq(200)
+    end
+
+    it "accumulates tokens across multiple calls" do
+      conversation.add_tokens(tokens_in: 0, tokens_out: 100)
+      conversation.add_tokens(tokens_in: 0, tokens_out: 50)
+      expect(conversation.tokens_out).to eq(150)
+    end
+  end
+
+  describe "#add_tokens" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    it "adds both in and out tokens" do
+      conversation.add_tokens(tokens_in: 100, tokens_out: 200)
+      expect(conversation.tokens_in).to eq(100)
+      expect(conversation.tokens_out).to eq(200)
+    end
+
+    it "persists tokens to file" do
+      conversation.add_tokens(tokens_in: 100, tokens_out: 200)
+
+      # Create new instance with same uuid
+      conversation2 = described_class.new(fixed_uuid)
+      expect(conversation2.tokens_in).to eq(100)
+      expect(conversation2.tokens_out).to eq(200)
+    end
+  end
+
+  describe "#reset!" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    it "clears all messages" do
+      conversation.add("user", "Hello")
+      conversation.add("assistant", "Hi!")
+
+      conversation.reset!
+
+      expect(conversation.history).to be_empty
+    end
+
+    it "resets tokens to zero" do
+      conversation.add_tokens(tokens_in: 100, tokens_out: 200)
+
+      conversation.reset!
+
+      expect(conversation.tokens_in).to eq(0)
+      expect(conversation.tokens_out).to eq(0)
+    end
+
+    it "clears the file" do
+      conversation.add("user", "Hello")
+      conversation.reset!
+
+      expect(File.exist?(conversation.path)).to be true
+      lines = File.readlines(conversation.path)
+      expect(lines).to all(be_empty.or(be_nil))
+    end
+  end
+
+  describe "#compact!" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    before do
+      # Add some messages
+      10.times do |i|
+        conversation.add(i.even? ? "user" : "assistant", "Message #{i}")
+      end
+    end
+
+    it "replaces old messages with summary" do
+      summary = "Summary of earlier discussion"
+      recent_messages = [
+        {role: "user", content: "Recent 1"},
+        {role: "assistant", content: "Recent 2"}
+      ]
+
+      conversation.compact!(summary, recent_messages)
+
+      history = conversation.history
+      expect(history.length).to eq(3)  # summary system + 2 recent
+      expect(history[0][:role]).to eq("system")
+      expect(history[0][:content]).to eq("Summary of earlier discussion")
+      expect(history[1][:content]).to eq("Recent 1")
+      expect(history[2][:content]).to eq("Recent 2")
+    end
+
+    it "resets token counts after compacting" do
+      conversation.add_tokens(tokens_in: 1000, tokens_out: 500)
+
+      conversation.compact!("Summary", [])
+
+      expect(conversation.tokens_in).to eq(0)
+      expect(conversation.tokens_out).to eq(0)
+    end
+
+    it "persists compacted history to file" do
+      summary = "Summary"
+      recent = [{role: "user", content: "Last message"}]
+
+      conversation.compact!(summary, recent)
+
+      # Reload from file
+      conversation2 = described_class.new(fixed_uuid)
+      expect(conversation2.history.length).to eq(2)
+      expect(conversation2.history[0][:content]).to eq("Summary")
+    end
+  end
 end

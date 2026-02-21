@@ -20,6 +20,9 @@ module Botiasloop
         telegram: {
           allowed_users: []
         }
+      },
+      commands: {
+        summarize: {}
       }
 
     # Validation
