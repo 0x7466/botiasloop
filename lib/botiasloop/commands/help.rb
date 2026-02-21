@@ -15,7 +15,7 @@ module Botiasloop
       def execute(context, _args = nil)
         commands = Botiasloop::Commands.registry.all
 
-        lines = ["Available commands:"]
+        lines = ["**Available commands**"]
 
         commands.each do |cmd_class|
           name = cmd_class.command_name

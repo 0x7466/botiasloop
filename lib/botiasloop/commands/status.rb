@@ -11,17 +11,17 @@ module Botiasloop
         conversation = context.conversation
         config = context.config
 
-        lines = ["Conversation Status"]
-        lines << "-" * 40
+        lines = ["**Conversation Status**"]
+        
         lines << "UUID: #{conversation.uuid}"
         lines << "Model: #{config.providers["openrouter"]["model"]}"
         lines << "Max iterations: #{config.max_iterations}"
         lines << "Messages: #{conversation.history.length}"
         lines << ""
-        lines << "Token Usage:"
-        lines << "  Input:  #{conversation.tokens_in}"
-        lines << "  Output: #{conversation.tokens_out}"
-        lines << "  Total:  #{conversation.tokens_in + conversation.tokens_out}"
+        lines << "**Token Usage:**"
+        lines << "Input:  #{conversation.tokens_in}"
+        lines << "Output: #{conversation.tokens_out}"
+        lines << "Total:  #{conversation.tokens_in + conversation.tokens_out}"
 
         lines.join("\n")
       end

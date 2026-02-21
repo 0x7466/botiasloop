@@ -151,7 +151,7 @@ module Botiasloop
       def to_telegram_html(markdown)
         # Configure Redcarpet renderer for Telegram-compatible HTML
         renderer_options = {
-          hard_wrap: true,
+          hard_wrap: false,
           filter_html: false
         }
 
