@@ -36,6 +36,9 @@ RSpec.describe Botiasloop::Channels::Telegram do
     allow(mock_bot).to receive(:api).and_return(mock_api)
     allow(mock_bot).to receive(:run).and_yield(mock_bot)
     allow(mock_bot).to receive(:listen)
+
+    # Mock set_my_commands API call
+    allow(mock_api).to receive(:set_my_commands)
   end
 
   after do

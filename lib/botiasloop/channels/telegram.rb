@@ -40,6 +40,8 @@ module Botiasloop
         @logger.info "[Telegram] Starting bot..."
 
         @bot = ::Telegram::Bot::Client.new(@bot_token)
+        register_bot_commands
+
         @bot.run do |bot|
           bot.listen do |message|
             process_message(message.chat.id, message) if message.is_a?(::Telegram::Bot::Types::Message)
@@ -79,8 +81,20 @@ module Botiasloop
         @logger.info "[Telegram] Message from @#{username}: #{text}"
 
         conversation = conversation_for(chat_id.to_s)
-        agent = Botiasloop::Agent.new(@config)
-        response = agent.chat(text, conversation: conversation, log_start: false)
+
+        # Check for slash commands
+        response = if Botiasloop::Commands.command?(text)
+          context = Botiasloop::Commands::Context.new(
+            conversation: conversation,
+            config: @config,
+            channel: self,
+            user_id: chat_id.to_s
+          )
+          Botiasloop::Commands.execute(text, context)
+        else
+          agent = Botiasloop::Agent.new(@config)
+          agent.chat(text, conversation: conversation, log_start: false)
+        end
 
         send_response(chat_id.to_s, response)
         @logger.info "[Telegram] Response sent to @#{username}"
@@ -121,6 +135,21 @@ module Botiasloop
       end
 
       private
+
+      # Register bot commands with Telegram
+      def register_bot_commands
+        commands = Botiasloop::Commands.registry.all.map do |cmd_class|
+          {
+            command: cmd_class.command_name.to_s,
+            description: cmd_class.description || "No description"
+          }
+        end
+
+        @bot.api.set_my_commands(commands: commands)
+        @logger.info "[Telegram] Registered #{commands.length} bot commands"
+      rescue => e
+        @logger.warn "[Telegram] Failed to register bot commands: #{e.message}"
+      end
 
       # Convert Markdown to Telegram-compatible HTML
       #

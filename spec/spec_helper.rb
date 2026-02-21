@@ -21,6 +21,32 @@ VCR.configure do |config|
   end
 end
 
+# Custom matcher module for command registry
+module CommandRegistryMatchers
+  class CommandRegistryMatcher
+    def initialize(name)
+      @name = name
+    end
+
+    def matches?(registry)
+      @registry = registry
+      registry[@name].is_a?(Class)
+    end
+
+    def failure_message
+      "expected #{@registry.inspect} to have command :#{@name}"
+    end
+
+    def failure_message_when_negated
+      "expected #{@registry.inspect} not to have command :#{@name}"
+    end
+  end
+
+  def have_command(name)
+    CommandRegistryMatcher.new(name)
+  end
+end
+
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"
@@ -31,4 +57,7 @@ RSpec.configure do |config|
   config.expect_with :rspec do |c|
     c.syntax = :expect
   end
+
+  # Include custom matchers
+  config.include(CommandRegistryMatchers)
 end

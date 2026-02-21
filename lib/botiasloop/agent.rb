@@ -47,7 +47,15 @@ module Botiasloop
         break if input.nil? || EXIT_COMMANDS.include?(input.downcase)
 
         puts
-        response = chat(input, conversation: conversation, log_start: first_message)
+
+        # Check for slash commands
+        response = if Commands.command?(input)
+          context = Commands::Context.new(conversation: conversation, config: @config)
+          Commands.execute(input, context)
+        else
+          chat(input, conversation: conversation, log_start: first_message)
+        end
+
         first_message = false
         puts "Agent: #{response}"
         puts
