@@ -37,15 +37,17 @@ RSpec.describe Botiasloop::Agent do
     let(:agent) { described_class.new(config) }
     let(:conversation) { instance_double(Botiasloop::Conversation) }
     let(:mock_loop) { instance_double(Botiasloop::Loop) }
-    let(:mock_chat) { double("chat") }
+    let(:mock_provider) { double("provider") }
+    let(:mock_provider_class) { double("provider_class") }
+    let(:mock_model) { double("model") }
 
     before do
       allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
       allow(Botiasloop::Loop).to receive(:new).and_return(mock_loop)
       allow(conversation).to receive(:uuid).and_return("test-uuid")
-      allow(RubyLLM).to receive(:chat).and_return(mock_chat)
-      allow(mock_chat).to receive(:with_tool)
-      allow(mock_chat).to receive(:with_instructions)
+      allow(RubyLLM::Models).to receive(:find).and_return(mock_model)
+      allow(RubyLLM::Provider).to receive(:for).and_return(mock_provider_class)
+      allow(mock_provider_class).to receive(:new).and_return(mock_provider)
     end
 
     it "creates a conversation if none provided" do
@@ -73,24 +75,24 @@ RSpec.describe Botiasloop::Agent do
       agent.chat("Hello")
     end
 
-    it "registers Shell tool with chat" do
+    it "creates provider and model" do
       allow(mock_loop).to receive(:run).and_return("response")
-      expect(mock_chat).to receive(:with_tool).with(Botiasloop::Tools::Shell).and_return(mock_chat)
+      expect(RubyLLM::Models).to receive(:find).with("test/model").and_return(mock_model)
+      expect(RubyLLM::Provider).to receive(:for).with("test/model").and_return(mock_provider_class)
+      expect(mock_provider_class).to receive(:new).with(RubyLLM.config).and_return(mock_provider)
       agent.chat("Hello")
     end
 
-    it "registers WebSearch tool with chat when configured" do
+    it "creates loop with provider, model and registry" do
       allow(mock_loop).to receive(:run).and_return("response")
-      websearch_tool = nil
-      expect(mock_chat).to receive(:with_tool).twice do |tool|
-        if tool.is_a?(Botiasloop::Tools::WebSearch)
-          websearch_tool = tool
-        end
-        mock_chat
+      expect(Botiasloop::Loop).to receive(:new) do |provider, model, registry, **kwargs|
+        expect(provider).to eq(mock_provider)
+        expect(model).to eq(mock_model)
+        expect(registry).to be_a(Botiasloop::Tools::Registry)
+        expect(kwargs[:max_iterations]).to eq(10)
+        mock_loop
       end
       agent.chat("Hello")
-      expect(websearch_tool).not_to be_nil
-      expect(websearch_tool.instance_variable_get(:@searxng_url)).to eq("http://searxng:8080")
     end
 
     context "when web_search is not configured" do
@@ -108,24 +110,22 @@ RSpec.describe Botiasloop::Agent do
 
       let(:agent_without_web_search) { described_class.new(config_without_web_search) }
 
-      it "does not register WebSearch tool when not configured" do
+      it "creates registry without web_search tool" do
         allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
         allow(Botiasloop::Loop).to receive(:new).and_return(mock_loop)
         allow(conversation).to receive(:uuid).and_return("test-uuid")
-        allow(RubyLLM).to receive(:chat).and_return(mock_chat)
-        allow(mock_chat).to receive(:with_tool)
-        allow(mock_chat).to receive(:with_instructions)
+        allow(RubyLLM::Models).to receive(:find).and_return(mock_model)
+        allow(RubyLLM::Provider).to receive(:for).and_return(mock_provider_class)
+        allow(mock_provider_class).to receive(:new).and_return(mock_provider)
         allow(mock_loop).to receive(:run).and_return("response")
 
-        websearch_tool = nil
-        expect(mock_chat).to receive(:with_tool).once do |tool|
-          if tool.is_a?(Botiasloop::Tools::WebSearch)
-            websearch_tool = tool
-          end
-          mock_chat
+        expect(Botiasloop::Loop).to receive(:new) do |provider, model, registry, **kwargs|
+          expect(registry.tool_classes).not_to include(Botiasloop::Tools::WebSearch)
+          expect(registry.tool_classes).to include(Botiasloop::Tools::Shell)
+          mock_loop
         end
+
         agent_without_web_search.chat("Hello")
-        expect(websearch_tool).to be_nil
       end
     end
   end

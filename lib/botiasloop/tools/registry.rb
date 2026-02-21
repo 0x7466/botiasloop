@@ -7,6 +7,14 @@ module Botiasloop
     class Registry
       attr_reader :tools
 
+      EMPTY_PARAMETERS_SCHEMA = {
+        "type" => "object",
+        "properties" => {},
+        "required" => [],
+        "additionalProperties" => false,
+        "strict" => true
+      }.freeze
+
       def initialize
         @tools = {}
         @tool_instances = {}
@@ -29,12 +37,12 @@ module Botiasloop
         @tool_instances.delete(name)
       end
 
-      # @return [Array<Hash>] Array of tool schemas
+      # Generate OpenAI-compatible tool schemas
+      # @return [Hash] Hash of tool instances keyed by tool name symbol
       def schemas
-        @tools.values.map do |tool_class|
+        @tools.transform_values do |tool_class|
           args = @tool_instances[tool_class.tool_name]
-          tool = args ? tool_class.new(**args) : tool_class.new
-          tool.class.schema
+          args ? tool_class.new(**args) : tool_class.new
         end
       end
 
@@ -55,7 +63,7 @@ module Botiasloop
 
         args = @tool_instances[name]
         tool = args ? tool_class.new(**args) : tool_class.new
-        tool.execute(arguments)
+        tool.execute(**arguments.transform_keys(&:to_sym))
       end
     end
   end

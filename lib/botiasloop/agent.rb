@@ -27,8 +27,8 @@ module Botiasloop
       @logger.info "Starting conversation #{conversation.uuid}" if log_start
 
       registry = create_registry
-      chat = create_chat(registry)
-      loop = Loop.new(chat, registry, max_iterations: @config.max_iterations)
+      provider, model = create_provider_and_model
+      loop = Loop.new(provider, model, registry, max_iterations: @config.max_iterations)
 
       loop.run(conversation, message)
     rescue MaxIterationsExceeded => e
@@ -74,12 +74,12 @@ module Botiasloop
       end
     end
 
-    def create_chat(registry)
-      chat = RubyLLM.chat(model: @config.providers["openrouter"]["model"])
-      chat.with_instructions(system_prompt(registry))
-      chat.with_tool(Tools::Shell)
-      chat.with_tool(Tools::WebSearch.new(web_search_url)) if web_search_configured?
-      chat
+    def create_provider_and_model
+      model_id = @config.providers["openrouter"]["model"]
+      model = RubyLLM::Models.find(model_id)
+      provider_class = RubyLLM::Provider.for(model_id)
+      provider = provider_class.new(RubyLLM.config)
+      [provider, model]
     end
 
     def create_registry

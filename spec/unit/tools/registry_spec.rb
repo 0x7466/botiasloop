@@ -40,8 +40,8 @@ RSpec.describe Botiasloop::Tools::Registry do
   end
 
   describe "#schemas" do
-    it "returns array of tool schemas" do
-      expect(registry.schemas).to be_an(Array)
+    it "returns hash of tool instances" do
+      expect(registry.schemas).to be_a(Hash)
     end
   end
 

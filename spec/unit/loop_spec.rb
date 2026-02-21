@@ -3,20 +3,25 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::Loop do
-  let(:mock_chat) { double("chat") }
+  let(:mock_provider) { double("provider") }
+  let(:mock_model) { double("model") }
   let(:mock_registry) { double("registry") }
-  let(:loop) { described_class.new(mock_chat, mock_registry, max_iterations: 5) }
+  let(:loop) { described_class.new(mock_provider, mock_model, mock_registry, max_iterations: 5) }
   let(:conversation) { instance_double(Botiasloop::Conversation) }
+  let(:logger) { instance_double(Logger) }
 
   before do
     allow(conversation).to receive(:add)
     allow(conversation).to receive(:history).and_return([])
-    allow(mock_chat).to receive(:add_tool_result)
+    allow(Logger).to receive(:new).and_return(logger)
+    allow(logger).to receive(:info)
+    allow(mock_registry).to receive(:schemas).and_return({})
   end
 
   describe "#initialize" do
-    it "stores chat and registry" do
-      expect(loop.instance_variable_get(:@chat)).to eq(mock_chat)
+    it "stores provider, model and registry" do
+      expect(loop.instance_variable_get(:@provider)).to eq(mock_provider)
+      expect(loop.instance_variable_get(:@model)).to eq(mock_model)
       expect(loop.instance_variable_get(:@registry)).to eq(mock_registry)
     end
 
@@ -34,7 +39,7 @@ RSpec.describe Botiasloop::Loop do
       end
 
       before do
-        allow(mock_chat).to receive(:ask).and_return(response)
+        allow(mock_provider).to receive(:complete).and_return(response)
       end
 
       it "returns the response content" do
@@ -64,7 +69,7 @@ RSpec.describe Botiasloop::Loop do
       let(:first_response) do
         double("response",
           tool_call?: true,
-          tool_call: tool_call,
+          tool_calls: {"call_123" => tool_call},
           content: "")
       end
 
@@ -76,7 +81,7 @@ RSpec.describe Botiasloop::Loop do
 
       before do
         call_count = 0
-        allow(mock_chat).to receive(:ask) do
+        allow(mock_provider).to receive(:complete) do
           call_count += 1
           (call_count == 1) ? first_response : final_response
         end
@@ -92,6 +97,11 @@ RSpec.describe Botiasloop::Loop do
         result = loop.run(conversation, "Run echo hello")
         expect(result).to eq("The output is hello")
       end
+
+      it "logs the tool call" do
+        expect(logger).to receive(:info).with(/\[Tool\] Executing shell/)
+        loop.run(conversation, "Run echo hello")
+      end
     end
 
     context "with max iterations exceeded" do
@@ -105,12 +115,12 @@ RSpec.describe Botiasloop::Loop do
       let(:response) do
         double("response",
           tool_call?: true,
-          tool_call: tool_call,
+          tool_calls: {"call_456" => tool_call},
           content: "")
       end
 
       before do
-        allow(mock_chat).to receive(:ask).and_return(response)
+        allow(mock_provider).to receive(:complete).and_return(response)
         allow(mock_registry).to receive(:execute).and_return({stdout: "test"})
       end
 
@@ -130,7 +140,7 @@ RSpec.describe Botiasloop::Loop do
       let(:first_response) do
         double("response",
           tool_call?: true,
-          tool_call: tool_call,
+          tool_calls: {"call_789" => tool_call},
           content: "")
       end
 
@@ -142,7 +152,7 @@ RSpec.describe Botiasloop::Loop do
 
       before do
         call_count = 0
-        allow(mock_chat).to receive(:ask) do
+        allow(mock_provider).to receive(:complete) do
           call_count += 1
           (call_count == 1) ? first_response : final_response
         end
