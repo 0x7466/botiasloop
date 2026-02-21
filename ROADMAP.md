@@ -26,7 +26,7 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] `/conversations` - List all conversations
 - [ ] `/switch <label|uuid>` - Switch to different conversation
 - [ ] `/new` - Start new conversation
-- [ ] `/help` - Show available commands
+- [x] `/help` - Show available commands
 - [ ] Allow skills to register custom slash commands
 - [ ] Different behavior in CLI vs channels
 
@@ -186,6 +186,23 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] Document best practices for agent-managed cron
 - [ ] Example skill demonstrating cron job creation
 - [ ] No separate workflow engine needed (sharp knives philosophy)
+
+### Identity and Operator Configuration
+- [ ] Load IDENTITY.md from `~/IDENTITY.md`
+- [ ] Load OPERATOR.md from `~/OPERATOR.md`
+- [ ] IDENTITY.md defines agent personality, name, and behavior
+- [ ] OPERATOR.md defines operator preferences and context
+- [ ] Both files support Markdown formatting
+- [ ] Dynamic reloading without restart
+
+### Daemon / Background Running
+- [ ] Systemd service support (Linux)
+- [ ] launchd support (macOS)
+- [ ] Background process with PID file
+- [ ] Signal handling (SIGTERM, SIGHUP for reload)
+- [ ] Graceful shutdown with conversation persistence
+- [ ] Docker daemon mode support
+- [ ] Log to file when running as daemon
 
 ## Implementation Principles
 
