@@ -5,21 +5,18 @@ This document outlines the planned features and improvements for botiasloop.
 ## Priority Order
 
 ### 1. System Prompt
-- [x] ~~Add `system_prompt` field to Config~~ (Not needed - assembled dynamically)
-- [x] ~~Support loading from file: `~/.config/botiasloop/system_prompt.txt`~~ (Not needed - assembled dynamically)
-- [x] ~~Allow per-conversation system prompts~~ (Not needed - assembled dynamically)
 - [x] Pass to RubyLLM chat initialization
 - [x] Default prompt establishes ReAct pattern and available tools
 
 ### 2. Channel Support
-- [ ] Create `Botiasloop::Channels` module
-- [ ] Each channel is a separate class with common interface
+- [x] Create `Botiasloop::Channels` module
+- [x] Each channel is a separate class with common interface
 - [ ] Support multiple channels simultaneously
 - [ ] **Webhook** channel - HTTP endpoint for integrations
-- [ ] **Telegram** channel - Bot API integration
+- [x] **Telegram** channel - Bot API integration
 - [ ] **Matrix** channel - Matrix protocol support
-- [ ] Handle channel-specific message formatting
-- [ ] Channel configuration in YAML
+- [x] Handle channel-specific message formatting
+- [x] Channel configuration in YAML
 
 ### 3. Slash Commands
 - [ ] `/reset` - Clear conversation history

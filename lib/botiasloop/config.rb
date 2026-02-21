@@ -57,9 +57,7 @@ module Botiasloop
 
     # @return [String] SearXNG URL
     def searxng_url
-      ENV.fetch("BOTIASLOOP_SEARXNG_URL") do
-        @config[:searxng_url] || DEFAULTS[:searxng_url]
-      end
+      @config[:searxng_url] || ENV["BOTIASLOOP_SEARXNG_URL"] || DEFAULTS[:searxng_url]
     end
 
     # @return [String] OpenRouter API key
