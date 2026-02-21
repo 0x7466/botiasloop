@@ -3,37 +3,71 @@
 
 require_relative "../lib/botiasloop"
 
-if ARGV[0] == "-h" || ARGV[0] == "--help"
+def print_help
   puts "botiasloop - Minimal agentic AI with ReAct loop"
   puts
-  puts "Usage: botiasloop [OPTIONS] [MESSAGE]"
+  puts "Usage: botiasloop [OPTIONS] [COMMAND]"
   puts
   puts "Options:"
   puts "  -h, --help       Show this help message"
   puts "  -v, --version    Show version information"
   puts
   puts "Commands:"
-  puts "  (no args)        Start interactive REPL mode"
-  puts "  <message>        One-shot mode - process message and exit"
-  puts "  gateway          Start Telegram bot gateway"
+  puts "  cli              Start interactive REPL mode"
+  puts "  gateway          Start gateway (Telegram bot and other channels)"
+  puts "  help             Show this help message"
+end
+
+if ARGV[0] == "-h" || ARGV[0] == "--help"
+  print_help
 elsif ARGV[0] == "-v" || ARGV[0] == "--version"
   puts "botiasloop #{Botiasloop::VERSION}"
 elsif ARGV[0] == "gateway"
-  # Gateway mode - auto-start all registered channels
+  # Gateway mode - auto-start all registered channels except CLI
   config = Botiasloop::Config.new
   registry = Botiasloop::Channels.registry
-  registry.auto_start(config)
-  
+
+  # Get all channels except CLI (CLI is for interactive use only)
+  gateway_channels = registry.channels.reject { |name, _class| name == :cli }
+
+  if gateway_channels.empty?
+    puts "No gateway channels configured."
+    puts "Configure at least one channel (e.g., Telegram) in ~/.config/botiasloop/config.yml"
+    exit 1
+  end
+
+  started_channels = []
+  gateway_channels.each do |identifier, channel_class|
+    begin
+      instance = channel_class.new(config)
+      instance.start
+      registry.instances[identifier] = instance
+      started_channels << instance
+    rescue => e
+      # Stop any channels that were already started
+      started_channels.each(&:stop)
+      registry.instances.clear
+      puts "Failed to start #{identifier}: #{e.message}"
+      exit 1
+    end
+  end
+
   # Keep running until interrupted
   loop do
     sleep 1
   end
-elsif ARGV.empty?
-  # Interactive mode
-  agent = Botiasloop::Agent.new
-  agent.interactive
+elsif ARGV[0] == "cli"
+  # CLI interactive mode
+  config = Botiasloop::Config.new
+  cli_channel = Botiasloop::Channels::CLI.new(config)
+  cli_channel.start
+elsif ARGV.empty? || ARGV[0] == "help"
+  # Default to help when no args or explicit help command
+  print_help
 else
-  # One-shot mode
-  agent = Botiasloop::Agent.new
-  puts agent.chat(ARGV.join(" "))
+  # Unknown command
+  puts "Unknown command: #{ARGV[0]}"
+  puts
+  print_help
+  exit 1
 end

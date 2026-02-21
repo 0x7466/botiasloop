@@ -5,8 +5,6 @@ require "logger"
 
 module Botiasloop
   class Agent
-    EXIT_COMMANDS = %w[exit quit \q].freeze
-
     # Initialize the agent
     #
     # @param config [Config, nil] Configuration instance (loads default if nil)
@@ -33,37 +31,6 @@ module Botiasloop
       loop.run(conversation, message)
     rescue MaxIterationsExceeded => e
       e.message
-    end
-
-    # Run in interactive mode
-    def interactive
-      puts "botiasloop v#{VERSION} - Interactive Mode"
-      puts "Type 'exit', 'quit', or '\\q' to exit"
-      puts
-
-      conversation = Conversation.new
-      first_message = true
-      loop do
-        print "You: "
-        input = gets&.chomp
-        break if input.nil? || EXIT_COMMANDS.include?(input.downcase)
-
-        puts
-
-        # Check for slash commands
-        response = if Commands.command?(input)
-          context = Commands::Context.new(conversation: conversation, config: @config)
-          Commands.execute(input, context)
-        else
-          chat(input, conversation: conversation, log_start: first_message)
-        end
-
-        first_message = false
-        puts "Agent: #{response}"
-        puts
-      end
-    rescue Interrupt
-      puts "\nGoodbye!"
     end
 
     private

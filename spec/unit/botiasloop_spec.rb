@@ -3,28 +3,56 @@
 require "spec_helper"
 
 RSpec.describe "botiasloop CLI" do
-  let(:agent) { instance_double(Botiasloop::Agent) }
+  let(:config) do
+    Botiasloop::Config.new({
+      "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
+    })
+  end
+
+  let(:cli_channel) { instance_double(Botiasloop::Channels::CLI) }
 
   before do
-    allow(Botiasloop::Agent).to receive(:new).and_return(agent)
+    allow(Botiasloop::Config).to receive(:new).and_return(config)
+    allow(Botiasloop::Channels::CLI).to receive(:new).and_return(cli_channel)
+    allow(cli_channel).to receive(:start)
   end
 
-  describe "one-shot mode" do
-    it "passes arguments to agent.chat" do
-      allow(agent).to receive(:chat).with("hello world").and_return("response")
-      allow($stdout).to receive(:puts)
-
-      ARGV.replace(["hello", "world"])
-      load File.expand_path("../../../bin/botiasloop", __FILE__)
-    end
-  end
-
-  describe "interactive mode" do
-    it "calls agent.interactive when no args" do
-      allow(agent).to receive(:interactive)
+  describe "no arguments" do
+    it "prints help message" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
 
       ARGV.replace([])
       load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(output.string).to include("botiasloop")
+      expect(output.string).to include("Usage:")
+      expect(output.string).to include("Commands:")
+    end
+  end
+
+  describe "cli command" do
+    it "starts CLI channel" do
+      allow(cli_channel).to receive(:start)
+
+      ARGV.replace(["cli"])
+      load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(cli_channel).to have_received(:start)
+    end
+  end
+
+  describe "help command" do
+    it "prints help message with 'help' command" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+
+      ARGV.replace(["help"])
+      load File.expand_path("../../../bin/botiasloop", __FILE__)
+
+      expect(output.string).to include("botiasloop")
+      expect(output.string).to include("Usage:")
+      expect(output.string).to include("Commands:")
     end
   end
 
@@ -75,6 +103,24 @@ RSpec.describe "botiasloop CLI" do
 
       expect(output.string).to include("botiasloop")
       expect(output.string).to include(Botiasloop::VERSION)
+    end
+  end
+
+  describe "unknown command" do
+    it "prints error message and help" do
+      output = StringIO.new
+      allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+      allow($stderr).to receive(:puts) { |msg| output.puts(msg) }
+
+      ARGV.replace(["unknown"])
+      begin
+        load File.expand_path("../../../bin/botiasloop", __FILE__)
+      rescue SystemExit => e
+        expect(e.status).to eq(1)
+      end
+
+      expect(output.string).to include("Unknown command")
+      expect(output.string).to include("botiasloop")
     end
   end
 end

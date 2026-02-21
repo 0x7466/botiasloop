@@ -11,6 +11,7 @@ require_relative "botiasloop/loop"
 require_relative "botiasloop/agent"
 require_relative "botiasloop/channels"
 require_relative "botiasloop/channels/base"
+require_relative "botiasloop/channels/cli"
 require_relative "botiasloop/channels/telegram"
 
 module Botiasloop
