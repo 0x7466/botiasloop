@@ -5,10 +5,13 @@ require "spec_helper"
 RSpec.describe Botiasloop::Channels do
   let(:config) do
     Botiasloop::Config.new({
-      test_channel_one: {token: "token1"},
-      test_channel_two: {token: "token2"},
-      telegram: {bot_token: "test-token"},
-      failing_channel: {token: "token3"}
+      "channels" => {
+        "test_channel_one" => {"token" => "token1"},
+        "test_channel_two" => {"token" => "token2"},
+        "telegram" => {"bot_token" => "test-token"},
+        "failing_channel" => {"token" => "token3"}
+      },
+      "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
     })
   end
 
@@ -24,11 +27,6 @@ RSpec.describe Botiasloop::Channels do
       requires_config :token
 
       attr_reader :started, :stopped
-
-      # Override to access config from the hash directly
-      def channel_config
-        @config.instance_variable_get(:@config)[:test_channel_one] || {}
-      end
 
       def initialize(config)
         super
@@ -64,11 +62,6 @@ RSpec.describe Botiasloop::Channels do
 
       attr_reader :started, :stopped
 
-      # Override to access config from the hash directly
-      def channel_config
-        @config.instance_variable_get(:@config)[:test_channel_two] || {}
-      end
-
       def initialize(config)
         super
         @started = false
@@ -101,11 +94,6 @@ RSpec.describe Botiasloop::Channels do
       channel_name :failing_channel
       requires_config :token
 
-      # Override to access config from the hash directly
-      def channel_config
-        @config.instance_variable_get(:@config)[:failing_channel] || {}
-      end
-
       def initialize(config)
         super
       end
@@ -120,6 +108,33 @@ RSpec.describe Botiasloop::Channels do
 
       def running?
         false
+      end
+
+      def process_message(source_id, content, metadata = {})
+        # noop
+      end
+    end
+  end
+
+  let(:missing_config_channel_class) do
+    Class.new(Botiasloop::Channels::Base) do
+      channel_name :missing_config_channel
+      requires_config :unconfigured_key
+
+      def initialize(config)
+        super
+      end
+
+      def start
+        @running = true
+      end
+
+      def stop
+        @running = false
+      end
+
+      def running?
+        @running ||= false
       end
 
       def process_message(source_id, content, metadata = {})
@@ -181,7 +196,26 @@ RSpec.describe Botiasloop::Channels do
       expect(registry.instances[:test_channel_one]).to be_a(channel_one_class)
     end
 
-    it "exits on channel startup failure" do
+    it "skips channels with missing required configuration" do
+      registry = described_class::Registry.new
+      registry.register(channel_one_class)
+      registry.register(missing_config_channel_class)
+
+      # Config with only channel_one configured
+      partial_config = Botiasloop::Config.new({
+        "channels" => {
+          "test_channel_one" => {"token" => "token1"}
+        },
+        "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
+      })
+
+      registry.auto_start(partial_config)
+
+      expect(registry.instances).to have_key(:test_channel_one)
+      expect(registry.instances).not_to have_key(:missing_config_channel)
+    end
+
+    it "exits on channel startup failure (non-config errors)" do
       registry = described_class::Registry.new
       registry.register(failing_channel_class)
 

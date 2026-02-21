@@ -114,8 +114,8 @@ RSpec.describe Botiasloop::Loop do
         allow(mock_registry).to receive(:execute).and_return({stdout: "test"})
       end
 
-      it "raises error when max iterations reached" do
-        expect { loop.run(conversation, "Test") }.to raise_error(Botiasloop::Error, /Max iterations/)
+      it "raises MaxIterationsExceeded when max iterations reached" do
+        expect { loop.run(conversation, "Test") }.to raise_error(Botiasloop::MaxIterationsExceeded)
       end
     end
 

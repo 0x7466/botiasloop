@@ -34,12 +34,23 @@ module Botiasloop
       # @raise [Error] If any channel fails to start
       def auto_start(config)
         started_channels = []
+        skipped_channels = []
 
         @channels.each do |identifier, channel_class|
           instance = channel_class.new(config)
           instance.start
           @instances[identifier] = instance
           started_channels << instance
+        rescue Botiasloop::Error => e
+          if e.message.match?(/Missing required configuration/)
+            # Skip channels that are not configured
+            skipped_channels << identifier
+            next
+          end
+          # Stop any channels that were already started
+          started_channels.each(&:stop)
+          @instances.clear
+          raise Error, "Failed to start #{identifier}: #{e.message}"
         rescue => e
           # Stop any channels that were already started
           started_channels.each(&:stop)

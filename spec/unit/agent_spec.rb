@@ -4,11 +4,20 @@ require "spec_helper"
 
 RSpec.describe Botiasloop::Agent do
   let(:config) do
-    instance_double(Botiasloop::Config,
-      openrouter_model: "test/model",
-      max_iterations: 10,
-      searxng_url: "http://searxng:8080",
-      openrouter_api_key: "test-api-key")
+    Botiasloop::Config.new({
+      "max_iterations" => 10,
+      "tools" => {
+        "web_search" => {
+          "searxng_url" => "http://searxng:8080"
+        }
+      },
+      "providers" => {
+        "openrouter" => {
+          "api_key" => "test-api-key",
+          "model" => "test/model"
+        }
+      }
+    })
   end
 
   describe "#initialize" do
@@ -18,7 +27,7 @@ RSpec.describe Botiasloop::Agent do
     end
 
     it "loads default config if none provided" do
-      allow(Botiasloop::Config).to receive(:load).and_return(config)
+      allow(Botiasloop::Config).to receive(:new).and_return(config)
       agent = described_class.new
       expect(agent.instance_variable_get(:@config)).to eq(config)
     end
@@ -70,7 +79,7 @@ RSpec.describe Botiasloop::Agent do
       agent.chat("Hello")
     end
 
-    it "registers WebSearch tool with chat" do
+    it "registers WebSearch tool with chat when configured" do
       allow(mock_loop).to receive(:run).and_return("response")
       websearch_tool = nil
       expect(mock_chat).to receive(:with_tool).twice do |tool|
@@ -82,6 +91,42 @@ RSpec.describe Botiasloop::Agent do
       agent.chat("Hello")
       expect(websearch_tool).not_to be_nil
       expect(websearch_tool.instance_variable_get(:@searxng_url)).to eq("http://searxng:8080")
+    end
+
+    context "when web_search is not configured" do
+      let(:config_without_web_search) do
+        Botiasloop::Config.new({
+          "max_iterations" => 10,
+          "providers" => {
+            "openrouter" => {
+              "api_key" => "test-api-key",
+              "model" => "test/model"
+            }
+          }
+        })
+      end
+
+      let(:agent_without_web_search) { described_class.new(config_without_web_search) }
+
+      it "does not register WebSearch tool when not configured" do
+        allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
+        allow(Botiasloop::Loop).to receive(:new).and_return(mock_loop)
+        allow(conversation).to receive(:uuid).and_return("test-uuid")
+        allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+        allow(mock_chat).to receive(:with_tool)
+        allow(mock_chat).to receive(:with_instructions)
+        allow(mock_loop).to receive(:run).and_return("response")
+
+        websearch_tool = nil
+        expect(mock_chat).to receive(:with_tool).once do |tool|
+          if tool.is_a?(Botiasloop::Tools::WebSearch)
+            websearch_tool = tool
+          end
+          mock_chat
+        end
+        agent_without_web_search.chat("Hello")
+        expect(websearch_tool).to be_nil
+      end
     end
   end
 

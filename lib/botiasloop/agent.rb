@@ -11,7 +11,7 @@ module Botiasloop
     #
     # @param config [Config, nil] Configuration instance (loads default if nil)
     def initialize(config = nil)
-      @config = config || Config.load
+      @config = config || Config.new
       @logger = Logger.new($stderr)
       setup_ruby_llm
     end
@@ -31,6 +31,8 @@ module Botiasloop
       loop = Loop.new(chat, registry, max_iterations: @config.max_iterations)
 
       loop.run(conversation, message)
+    rescue MaxIterationsExceeded => e
+      e.message
     end
 
     # Run in interactive mode
@@ -68,23 +70,32 @@ module Botiasloop
 
     def setup_ruby_llm
       RubyLLM.configure do |config|
-        config.openrouter_api_key = @config.openrouter_api_key
+        config.openrouter_api_key = @config.providers["openrouter"]["api_key"]
       end
     end
 
     def create_chat(registry)
-      chat = RubyLLM.chat(model: @config.openrouter_model)
+      chat = RubyLLM.chat(model: @config.providers["openrouter"]["model"])
       chat.with_instructions(system_prompt(registry))
       chat.with_tool(Tools::Shell)
-      chat.with_tool(Tools::WebSearch.new(@config.searxng_url))
+      chat.with_tool(Tools::WebSearch.new(web_search_url)) if web_search_configured?
       chat
     end
 
     def create_registry
       registry = Tools::Registry.new
       registry.register(Tools::Shell)
-      registry.register(Tools::WebSearch, searxng_url: @config.searxng_url)
+      registry.register(Tools::WebSearch, searxng_url: web_search_url) if web_search_configured?
       registry
+    end
+
+    def web_search_configured?
+      url = web_search_url
+      url && !url.empty?
+    end
+
+    def web_search_url
+      @config.tools["web_search"]["searxng_url"]
     end
 
     def system_prompt(registry)

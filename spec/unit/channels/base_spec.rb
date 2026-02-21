@@ -8,10 +8,13 @@ RSpec.describe Botiasloop::Channels::Base do
   let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
   let(:config) do
     Botiasloop::Config.new({
-      test_channel: {
-        token: "test-token",
-        allowed_users: ["testuser"]
-      }
+      "channels" => {
+        "test_channel" => {
+          "token" => "test-token",
+          "allowed_users" => ["testuser"]
+        }
+      },
+      "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
     })
   end
 
@@ -22,11 +25,6 @@ RSpec.describe Botiasloop::Channels::Base do
       requires_config :token
 
       attr_reader :started, :stopped, :processed_messages
-
-      # Override to access config from the hash directly
-      def channel_config
-        @config.instance_variable_get(:@config)[:test_channel] || {}
-      end
 
       def initialize(config)
         super
@@ -83,7 +81,10 @@ RSpec.describe Botiasloop::Channels::Base do
     end
 
     it "raises error if required config is missing" do
-      incomplete_config = Botiasloop::Config.new({test_channel: {}})
+      incomplete_config = Botiasloop::Config.new({
+        "channels" => {"test_channel" => {}},
+        "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
+      })
       expect { test_channel_class.new(incomplete_config) }.to raise_error(Botiasloop::Error, /token/)
     end
 
@@ -110,7 +111,7 @@ RSpec.describe Botiasloop::Channels::Base do
     end
 
     it "provides channel-specific config via method" do
-      expect(channel.channel_config).to eq({token: "test-token", allowed_users: ["testuser"]})
+      expect(channel.channel_config).to eq({"token" => "test-token", "allowed_users" => ["testuser"]})
     end
   end
 
@@ -212,9 +213,11 @@ RSpec.describe Botiasloop::Channels::Base do
     context "when channel overrides authorized?" do
       let(:auth_channel_class) do
         Class.new(test_channel_class) do
+          channel_name :test_channel
+
           def authorized?(source_id)
             cfg = channel_config
-            allowed_users = cfg[:allowed_users] || []
+            allowed_users = cfg["allowed_users"] || []
             return false if source_id.nil? || allowed_users.empty?
             allowed_users.include?(source_id)
           end
@@ -238,10 +241,13 @@ RSpec.describe Botiasloop::Channels::Base do
       context "when allowed_users is empty" do
         let(:empty_config) do
           Botiasloop::Config.new({
-            test_channel: {
-              token: "test-token",
-              allowed_users: []
-            }
+            "channels" => {
+              "test_channel" => {
+                "token" => "test-token",
+                "allowed_users" => []
+              }
+            },
+            "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
           })
         end
 

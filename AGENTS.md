@@ -198,6 +198,45 @@ Development:
 - `webmock ~> 3.26.1` - HTTP mocking
 - `vcr ~> 6.4.0` - HTTP recording
 
+## Development Environment (mise)
+
+This project uses [mise](https://mise.jdx.dev/) (formerly rtx) for managing Ruby version and dependencies. mise is a unified version manager for development tools.
+
+### Setup
+
+```bash
+# Install mise if not already installed
+curl https://mise.run | sh
+
+# Install Ruby and dependencies (run in project root)
+mise install
+```
+
+### Common Commands
+
+```bash
+# Show current tool versions
+mise list
+
+# Install/update dependencies from mise.toml
+mise install
+
+# Run commands with mise-managed Ruby
+mise exec ruby -- bundle install
+mise exec ruby -- bundle exec rspec
+
+# Or activate mise in your shell
+mise activate
+# Then use commands directly
+bundle install
+bundle exec rspec
+```
+
+### Configuration
+
+- `.mise.toml` - Project-level tool configuration
+- `.tool-versions` - Alternative version file (legacy)
+
 ## Philosophy
 
 This gem follows the "sharp knives" philosophy - it provides full shell access without restrictions. This is intentional. The gem is designed for dedicated infrastructure, not personal devices.

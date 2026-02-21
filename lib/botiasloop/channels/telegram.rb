@@ -11,13 +11,6 @@ module Botiasloop
       channel_name :telegram
       requires_config :bot_token
 
-      # Get Telegram-specific configuration
-      #
-      # @return [Hash] Telegram configuration hash
-      def channel_config
-        @config.telegram
-      end
-
       # Initialize Telegram channel
       #
       # @param config [Config] Configuration instance
@@ -25,8 +18,8 @@ module Botiasloop
       def initialize(config)
         super
         cfg = channel_config
-        @bot_token = cfg[:bot_token]
-        @allowed_users = cfg[:allowed_users] || []
+        @bot_token = cfg["bot_token"]
+        @allowed_users = cfg["allowed_users"] || []
         @bot = nil
       end
 

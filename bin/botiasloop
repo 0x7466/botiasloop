@@ -20,7 +20,7 @@ elsif ARGV[0] == "-v" || ARGV[0] == "--version"
   puts "botiasloop #{Botiasloop::VERSION}"
 elsif ARGV[0] == "gateway"
   # Gateway mode - auto-start all registered channels
-  config = Botiasloop::Config.load
+  config = Botiasloop::Config.new
   registry = Botiasloop::Channels.registry
   registry.auto_start(config)
   

@@ -37,7 +37,7 @@ module Botiasloop
         end
       end
 
-      raise Error, "Max iterations (#{@max_iterations}) exceeded"
+      raise MaxIterationsExceeded.new(@max_iterations)
     end
 
     private

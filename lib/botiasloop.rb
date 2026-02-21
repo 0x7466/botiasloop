@@ -15,4 +15,13 @@ require_relative "botiasloop/channels/telegram"
 
 module Botiasloop
   class Error < StandardError; end
+
+  class MaxIterationsExceeded < Error
+    attr_reader :max_iterations
+
+    def initialize(max_iterations)
+      @max_iterations = max_iterations
+      super("I've reached my thinking limit (#{max_iterations} iterations). Please try a more specific question.")
+    end
+  end
 end

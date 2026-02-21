@@ -8,10 +8,13 @@ require "fileutils"
 RSpec.describe Botiasloop::Channels::Telegram do
   let(:config) do
     Botiasloop::Config.new({
-      telegram: {
-        bot_token: "test-token-123",
-        allowed_users: ["testuser"]
-      }
+      "channels" => {
+        "telegram" => {
+          "bot_token" => "test-token-123",
+          "allowed_users" => ["testuser"]
+        }
+      },
+      "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
     })
   end
 
@@ -82,9 +85,13 @@ RSpec.describe Botiasloop::Channels::Telegram do
     context "when bot_token is not configured" do
       let(:config) do
         Botiasloop::Config.new({
-          telegram: {
-            allowed_users: ["testuser"]
-          }
+          "channels" => {
+            "telegram" => {
+              "bot_token" => nil,
+              "allowed_users" => ["testuser"]
+            }
+          },
+          "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
         })
       end
 
@@ -108,10 +115,13 @@ RSpec.describe Botiasloop::Channels::Telegram do
     context "when allowed_users is empty" do
       let(:config) do
         Botiasloop::Config.new({
-          telegram: {
-            bot_token: "test-token-123",
-            allowed_users: []
-          }
+          "channels" => {
+            "telegram" => {
+              "bot_token" => "test-token-123",
+              "allowed_users" => []
+            }
+          },
+          "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
         })
       end
 
@@ -309,10 +319,13 @@ RSpec.describe Botiasloop::Channels::Telegram do
     context "when allowed_users is empty" do
       let(:config) do
         Botiasloop::Config.new({
-          telegram: {
-            bot_token: "test-token-123",
-            allowed_users: []
-          }
+          "channels" => {
+            "telegram" => {
+              "bot_token" => "test-token-123",
+              "allowed_users" => []
+            }
+          },
+          "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
         })
       end
 

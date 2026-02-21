@@ -54,9 +54,7 @@ module Botiasloop
       #
       # @return [Hash] Channel configuration hash
       def channel_config
-        @config.send(self.class.channel_identifier) || {}
-      rescue NoMethodError
-        {}
+        @config.channels[self.class.channel_identifier.to_s] || {}
       end
 
       # Start the channel and begin listening for messages
@@ -147,7 +145,8 @@ module Botiasloop
 
         cfg = channel_config
         missing_keys = required_keys.reject do |key|
-          cfg.key?(key) && !cfg[key].nil? && cfg[key] != ""
+          str_key = key.to_s
+          cfg.key?(str_key) && !cfg[str_key].nil? && cfg[str_key] != ""
         end
 
         return if missing_keys.empty?
