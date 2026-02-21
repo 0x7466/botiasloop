@@ -10,7 +10,7 @@ module Botiasloop
       description "Start a new conversation"
 
       def execute(context, _args = nil)
-        new_conversation = Conversation.new
+        new_conversation = ConversationManager.create_new(context.user_id)
         context.conversation = new_conversation
 
         "New conversation started (UUID: #{new_conversation.uuid}).\n" \

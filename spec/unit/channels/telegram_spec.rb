@@ -19,7 +19,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
-  let(:chats_file) { File.join(temp_dir, "channels", "telegram_chats.json") }
+  let(:conversations_file) { File.join(temp_dir, "conversations.json") }
 
   let(:mock_bot) { double("bot") }
   let(:mock_api) { double("api") }
@@ -31,6 +31,8 @@ RSpec.describe Botiasloop::Channels::Telegram do
     allow(Dir).to receive(:home).and_return(temp_dir)
     allow(File).to receive(:expand_path).and_call_original
     allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
+    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(conversations_file)
+    Botiasloop::ConversationManager.clear_all
 
     # Mock Telegram::Bot::Client
     stub_const("Telegram::Bot::Client", double)
@@ -236,28 +238,22 @@ RSpec.describe Botiasloop::Channels::Telegram do
         channel.process_message(chat_id.to_s, message)
       end
 
-      it "uses base class conversation management" do
+      it "uses ConversationManager for conversation state" do
         allow(mock_conversation).to receive(:uuid).and_return("test-uuid")
         allow(Botiasloop::Conversation).to receive(:new).and_return(mock_conversation)
 
         channel.process_message(chat_id.to_s, message)
 
-        expect(File.exist?(chats_file)).to be true
-        chats_data = JSON.parse(File.read(chats_file), symbolize_names: true)
+        expect(File.exist?(conversations_file)).to be true
+        chats_data = JSON.parse(File.read(conversations_file), symbolize_names: true)
         expect(chats_data[:conversations]).to have_key(:"123456")
       end
     end
 
     context "when chat already exists" do
       before do
-        FileUtils.mkdir_p(File.dirname(chats_file))
-        File.write(chats_file, JSON.dump({
-          conversations: {
-            "123456" => "existing-uuid"
-          }
-        }))
-        # Reload conversations from file
-        channel.instance_variable_set(:@conversations, channel.send(:load_conversations))
+        FileUtils.mkdir_p(File.dirname(conversations_file))
+        Botiasloop::ConversationManager.switch(chat_id.to_s, "existing-uuid")
       end
 
       it "reuses existing conversation" do
@@ -275,30 +271,24 @@ RSpec.describe Botiasloop::Channels::Telegram do
     let(:channel) { described_class.new(config) }
 
     before do
-      FileUtils.mkdir_p(File.dirname(chats_file))
+      FileUtils.mkdir_p(File.dirname(conversations_file))
     end
 
     context "when chat does not exist" do
-      it "creates new conversation and saves mapping" do
+      it "creates new conversation and saves mapping via ConversationManager" do
         conversation = channel.conversation_for("123456")
 
         expect(conversation).to be_a(Botiasloop::Conversation)
-        expect(File.exist?(chats_file)).to be true
+        expect(File.exist?(conversations_file)).to be true
 
-        chats_data = JSON.parse(File.read(chats_file), symbolize_names: true)
+        chats_data = JSON.parse(File.read(conversations_file), symbolize_names: true)
         expect(chats_data[:conversations][:"123456"]).to eq(conversation.uuid)
       end
     end
 
     context "when chat exists" do
       before do
-        File.write(chats_file, JSON.dump({
-          conversations: {
-            "123456" => "existing-uuid"
-          }
-        }))
-        # Reload conversations from file
-        channel.instance_variable_set(:@conversations, channel.send(:load_conversations))
+        Botiasloop::ConversationManager.switch("123456", "existing-uuid")
       end
 
       it "returns existing conversation" do

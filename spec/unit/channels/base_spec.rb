@@ -58,6 +58,9 @@ RSpec.describe Botiasloop::Channels::Base do
     allow(Dir).to receive(:home).and_return(temp_dir)
     allow(File).to receive(:expand_path).and_call_original
     allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
+    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(File.join(temp_dir, "conversations.json"))
+    # Clear ConversationManager state before each test
+    Botiasloop::ConversationManager.clear_all
   end
 
   after do
@@ -100,11 +103,6 @@ RSpec.describe Botiasloop::Channels::Base do
       expect(channel.instance_variable_get(:@config)).to eq(config)
     end
 
-    it "initializes empty conversations hash" do
-      conversations = channel.instance_variable_get(:@conversations)
-      expect(conversations).to eq({})
-    end
-
     it "creates a logger" do
       logger = channel.instance_variable_get(:@logger)
       expect(logger).to be_a(Logger)
@@ -145,11 +143,6 @@ RSpec.describe Botiasloop::Channels::Base do
 
   describe "#conversation_for" do
     let(:channel) { test_channel_class.new(config) }
-    let(:chats_file) { File.join(temp_dir, "channels", "test_channel_chats.json") }
-
-    before do
-      FileUtils.mkdir_p(File.dirname(chats_file))
-    end
 
     context "when source does not exist" do
       it "creates a new conversation" do
@@ -157,48 +150,94 @@ RSpec.describe Botiasloop::Channels::Base do
         expect(conversation).to be_a(Botiasloop::Conversation)
       end
 
-      it "stores the mapping" do
+      it "stores the mapping in ConversationManager" do
         conversation = channel.conversation_for("user123")
-        conversations = channel.instance_variable_get(:@conversations)
-        expect(conversations["user123"]).to eq(conversation.uuid)
+        uuid = Botiasloop::ConversationManager.current_uuid_for("user123")
+        expect(uuid).to eq(conversation.uuid)
       end
 
-      it "saves to persistent storage" do
+      it "saves to persistent storage via ConversationManager" do
         channel.conversation_for("user123")
-        expect(File.exist?(chats_file)).to be true
+        mapping_file = File.join(temp_dir, "conversations.json")
+        expect(File.exist?(mapping_file)).to be true
 
-        saved_data = JSON.parse(File.read(chats_file), symbolize_names: true)
+        saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
         expect(saved_data[:conversations]).to have_key(:user123)
       end
     end
 
     context "when source already exists" do
       before do
-        File.write(chats_file, JSON.dump({
-          conversations: {
-            "user123" => "existing-uuid"
-          }
-        }))
-        # Reload conversations from file
-        channel.instance_variable_set(:@conversations, channel.send(:load_conversations))
+        Botiasloop::ConversationManager.switch("user123", "existing-uuid")
       end
 
       it "returns existing conversation" do
-        existing_conversation = instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
-        expect(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(existing_conversation)
-
         result = channel.conversation_for("user123")
         expect(result.uuid).to eq("existing-uuid")
       end
 
       it "does not create a new conversation" do
-        allow(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(
-          instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
-        )
         expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
-
         channel.conversation_for("user123")
       end
+    end
+  end
+
+  describe "#process_message with commands" do
+    let(:process_test_channel_class) do
+      Class.new(described_class) do
+        channel_name :process_test_channel
+
+        attr_reader :delivered_responses
+
+        def initialize(config)
+          super
+          @delivered_responses = []
+        end
+
+        def start
+        end
+
+        def stop
+        end
+
+        def running?
+          false
+        end
+
+        def extract_content(raw_message)
+          raw_message
+        end
+
+        def authorized?(source_id)
+          true
+        end
+
+        def deliver_response(source_id, formatted_content)
+          @delivered_responses << {source_id: source_id, content: formatted_content}
+        end
+      end
+    end
+    let(:channel) { process_test_channel_class.new(config) }
+    let(:mock_agent) { instance_double(Botiasloop::Agent) }
+
+    before do
+      allow(Botiasloop::Agent).to receive(:new).and_return(mock_agent)
+      allow(mock_agent).to receive(:chat).and_return("Agent response")
+    end
+
+    it "updates ConversationManager when /new command changes conversation" do
+      # First, establish an initial conversation
+      initial_conversation = channel.conversation_for("user123")
+      initial_uuid = initial_conversation.uuid
+
+      # Now execute the /new command that will switch conversations
+      channel.process_message("user123", "/new")
+
+      # Verify the conversation was switched in ConversationManager
+      current_uuid = Botiasloop::ConversationManager.current_uuid_for("user123")
+      expect(current_uuid).not_to eq(initial_uuid)
+      expect(current_uuid).to be_a(String)
     end
   end
 
@@ -308,59 +347,6 @@ RSpec.describe Botiasloop::Channels::Base do
     it "raises NotImplementedError (subclasses must implement)" do
       channel = test_channel_class.new(config)
       expect { channel.deliver_response("id", "content") }.to raise_error(NotImplementedError, /deliver_response/)
-    end
-  end
-
-  describe "persistence methods" do
-    let(:channel) { test_channel_class.new(config) }
-    let(:chats_file) { File.join(temp_dir, "channels", "test_channel_chats.json") }
-
-    before do
-      FileUtils.mkdir_p(File.dirname(chats_file))
-    end
-
-    describe "#save_conversations" do
-      it "saves conversations to JSON file" do
-        channel.instance_variable_set(:@conversations, {"user1" => "uuid1", "user2" => "uuid2"})
-        channel.send(:save_conversations)
-
-        saved = JSON.parse(File.read(chats_file), symbolize_names: true)
-        expect(saved[:conversations]).to eq({user1: "uuid1", user2: "uuid2"})
-      end
-
-      it "creates directory if needed" do
-        FileUtils.rm_rf(File.dirname(chats_file))
-        channel.instance_variable_set(:@conversations, {"user1" => "uuid1"})
-        channel.send(:save_conversations)
-
-        expect(File.directory?(File.dirname(chats_file))).to be true
-      end
-    end
-
-    describe "#load_conversations" do
-      it "returns empty hash if file does not exist" do
-        result = channel.send(:load_conversations)
-        expect(result).to eq({})
-      end
-
-      it "returns empty hash on JSON parse error" do
-        File.write(chats_file, "invalid json")
-        result = channel.send(:load_conversations)
-        expect(result).to eq({})
-      end
-
-      it "loads conversations from file" do
-        File.write(chats_file, JSON.dump({conversations: {"user1" => "uuid1"}}))
-        result = channel.send(:load_conversations)
-        expect(result).to eq({"user1" => "uuid1"})
-      end
-    end
-
-    describe "#chats_file_path" do
-      it "returns path based on channel identifier" do
-        path = channel.send(:chats_file_path)
-        expect(path).to eq(chats_file)
-      end
     end
   end
 

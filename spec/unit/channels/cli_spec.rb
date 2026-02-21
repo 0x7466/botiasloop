@@ -12,12 +12,14 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
-  let(:chats_file) { File.join(temp_dir, "channels", "cli_chats.json") }
+  let(:conversations_file) { File.join(temp_dir, "conversations.json") }
 
   before do
     allow(Dir).to receive(:home).and_return(temp_dir)
     allow(File).to receive(:expand_path).and_call_original
     allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
+    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(conversations_file)
+    Botiasloop::ConversationManager.clear_all
   end
 
   after do
@@ -242,7 +244,7 @@ RSpec.describe Botiasloop::Channels::CLI do
     let(:channel) { described_class.new(config) }
 
     before do
-      FileUtils.mkdir_p(File.dirname(chats_file))
+      FileUtils.mkdir_p(File.dirname(conversations_file))
     end
 
     it "uses 'cli' as fixed source_id for conversation_for" do
@@ -250,20 +252,18 @@ RSpec.describe Botiasloop::Channels::CLI do
       expect(conversation).to be_a(Botiasloop::Conversation)
     end
 
-    it "saves conversations to cli_chats.json" do
+    it "saves conversations to global conversations.json via ConversationManager" do
       channel.conversation_for("cli")
-      channel.send(:save_conversations)
 
-      expect(File.exist?(chats_file)).to be true
-      saved = JSON.parse(File.read(chats_file), symbolize_names: true)
+      expect(File.exist?(conversations_file)).to be true
+      saved = JSON.parse(File.read(conversations_file), symbolize_names: true)
       expect(saved[:conversations]).to have_key(:cli)
     end
 
-    it "reuses existing conversation" do
+    it "reuses existing conversation via ConversationManager" do
       conversation1 = channel.conversation_for("cli")
-      channel.send(:save_conversations)
 
-      # Create new channel instance and reload
+      # Create new channel instance - should get same conversation via ConversationManager
       channel2 = described_class.new(config)
       conversation2 = channel2.conversation_for("cli")
 

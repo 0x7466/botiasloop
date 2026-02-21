@@ -44,7 +44,6 @@ module Botiasloop
       def initialize(config)
         @config = config
         @logger = Logger.new($stderr)
-        @conversations = load_conversations
 
         validate_required_config!
       end
@@ -194,21 +193,12 @@ module Botiasloop
       end
 
       # Get or create a conversation for a source
+      # Uses the global ConversationManager for state management.
       #
       # @param source_id [String] Source identifier
       # @return [Conversation] Conversation instance
       def conversation_for(source_id)
-        source_key = source_id.to_s
-
-        if @conversations[source_key]
-          Conversation.new(@conversations[source_key])
-        else
-          conversation = Conversation.new
-          @conversations[source_key] = conversation.uuid
-          @logger.info "Starting conversation #{conversation.uuid}"
-          save_conversations
-          conversation
-        end
+        ConversationManager.current_for(source_id)
       end
 
       # Format a response for this channel
@@ -252,29 +242,6 @@ module Botiasloop
         return if missing_keys.empty?
 
         raise Error, "#{self.class.channel_identifier}: Missing required configuration: #{missing_keys.join(", ")}"
-      end
-
-      def chats_file_path
-        config_dir = File.expand_path("~/.config/botiasloop")
-        File.join(config_dir, "channels", "#{self.class.channel_identifier}_chats.json")
-      end
-
-      def load_conversations
-        file_path = chats_file_path
-        return {} unless File.exist?(file_path)
-
-        data = JSON.parse(File.read(file_path), symbolize_names: true)
-        conversations = data[:conversations] || {}
-        # Convert symbol keys back to strings for consistent access
-        conversations.transform_keys(&:to_s)
-      rescue JSON::ParserError
-        {}
-      end
-
-      def save_conversations
-        file_path = chats_file_path
-        FileUtils.mkdir_p(File.dirname(file_path))
-        File.write(file_path, JSON.pretty_generate({conversations: @conversations}))
       end
     end
   end
