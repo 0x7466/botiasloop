@@ -9,7 +9,8 @@ RSpec.describe Botiasloop::Commands::Conversations do
   let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: "test-user") }
 
   before do
-    allow(Botiasloop::ConversationManager).to receive(:all_mappings).and_return({})
+    allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return([])
+    allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: true).and_return([])
     allow(Botiasloop::ConversationManager).to receive(:current_uuid_for).with("test-user").and_return("current-uuid-123")
   end
 
@@ -21,14 +22,14 @@ RSpec.describe Botiasloop::Commands::Conversations do
 
   describe ".description" do
     it "returns command description" do
-      expect(described_class.description).to eq("List all conversations")
+      expect(described_class.description).to eq("List all conversations (use '/conversations archived' to list archived)")
     end
   end
 
   describe "#execute" do
     context "when there are no conversations" do
       before do
-        allow(Botiasloop::ConversationManager).to receive(:all_mappings).and_return({})
+        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return([])
       end
 
       it "shows no conversations message" do
@@ -39,12 +40,12 @@ RSpec.describe Botiasloop::Commands::Conversations do
 
     context "when there are conversations" do
       before do
-        mappings = {
-          "current-uuid-123" => {"user_id" => "test-user", "label" => "my-project"},
-          "other-uuid-456" => {"user_id" => "test-user", "label" => nil},
-          "another-uuid-789" => {"user_id" => "test-user", "label" => "another-label"}
-        }
-        allow(Botiasloop::ConversationManager).to receive(:all_mappings).and_return(mappings)
+        conversations = [
+          {uuid: "current-uuid-123", label: "my-project", updated_at: Time.now},
+          {uuid: "other-uuid-456", label: nil, updated_at: Time.now - 60},
+          {uuid: "another-uuid-789", label: "another-label", updated_at: Time.now - 120}
+        ]
+        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return(conversations)
       end
 
       it "lists all conversations" do
@@ -76,10 +77,10 @@ RSpec.describe Botiasloop::Commands::Conversations do
       let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: nil) }
 
       before do
-        mappings = {
-          "conv-uuid-1" => {"user_id" => "any-user", "label" => "label1"}
-        }
-        allow(Botiasloop::ConversationManager).to receive(:all_mappings).and_return(mappings)
+        conversations = [
+          {uuid: "conv-uuid-1", label: "label1", updated_at: Time.now}
+        ]
+        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with(nil, archived: false).and_return(conversations)
         allow(Botiasloop::ConversationManager).to receive(:current_uuid_for).with(nil).and_return(nil)
       end
 

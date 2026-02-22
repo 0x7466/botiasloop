@@ -3,12 +3,15 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::Conversation do
-  before do
+  before(:all) do
     Botiasloop::Database.setup!
+    Botiasloop::Database.reset!
   end
 
-  after do
-    Botiasloop::Database.reset!
+  before do
+    # Ensure clean state for each test within the transaction
+    Botiasloop::Conversation.dataset.delete
+    Botiasloop::Conversation::Message.dataset.delete
   end
 
   describe "validations" do
@@ -129,12 +132,15 @@ RSpec.describe Botiasloop::Conversation do
 end
 
 RSpec.describe Botiasloop::Conversation::Message do
-  before do
+  before(:all) do
     Botiasloop::Database.setup!
+    Botiasloop::Database.reset!
   end
 
-  after do
-    Botiasloop::Database.reset!
+  before do
+    # Ensure clean state for each test within the transaction
+    Botiasloop::Conversation.dataset.delete
+    Botiasloop::Conversation::Message.dataset.delete
   end
 
   describe "validations" do

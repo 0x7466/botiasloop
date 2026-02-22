@@ -18,9 +18,6 @@ RSpec.describe Botiasloop::Channels::Telegram do
     })
   end
 
-  let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
-  let(:conversations_file) { File.join(temp_dir, "conversations.json") }
-
   let(:mock_bot) { double("bot") }
   let(:mock_api) { double("api") }
 
@@ -28,10 +25,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
     # Ensure Telegram is registered in the global registry
     Botiasloop::Channels.registry.register(described_class)
 
-    allow(Dir).to receive(:home).and_return(temp_dir)
-    allow(File).to receive(:expand_path).and_call_original
-    allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
-    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(conversations_file)
+    # Clear database state
     Botiasloop::ConversationManager.clear_all
 
     # Mock Telegram::Bot::Client
@@ -44,10 +38,6 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     # Mock set_my_commands API call
     allow(mock_api).to receive(:set_my_commands)
-  end
-
-  after do
-    FileUtils.rm_rf(temp_dir)
   end
 
   describe "inheritance" do
@@ -268,31 +258,30 @@ RSpec.describe Botiasloop::Channels::Telegram do
       end
 
       it "uses ConversationManager for conversation state" do
-        allow(mock_conversation).to receive(:uuid).and_return("test-uuid")
-        allow(Botiasloop::Conversation).to receive(:new).and_return(mock_conversation)
-
         channel.process_message(chat_id.to_s, message)
 
-        expect(File.exist?(conversations_file)).to be true
-        chats_data = JSON.parse(File.read(conversations_file), symbolize_names: true)
-        expect(chats_data).to have_key(:"test-uuid")
-        expect(chats_data[:"test-uuid"]).to include(:user_id, :label)
+        # Verify conversation was created and associated with the user
+        current_uuid = Botiasloop::ConversationManager.current_uuid_for(chat_id.to_s)
+        expect(current_uuid).not_to be_nil
+
+        db_conv = Botiasloop::Conversation.find(id: current_uuid)
+        expect(db_conv.user_id).to eq(chat_id.to_s)
       end
     end
 
     context "when chat already exists" do
       before do
-        FileUtils.mkdir_p(File.dirname(conversations_file))
-        Botiasloop::ConversationManager.switch(chat_id.to_s, "existing-uuid")
+        Botiasloop::Conversation.create(id: "existing-uuid", user_id: chat_id.to_s, is_current: true)
       end
 
       it "reuses existing conversation" do
-        existing_conversation = instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
-        expect(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(existing_conversation)
-        expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
         allow(mock_agent).to receive(:chat).and_return("Test response")
 
+        # Process message - should use existing conversation
         channel.process_message(chat_id.to_s, message)
+
+        # Verify the conversation was retrieved
+        expect(Botiasloop::ConversationManager.current_uuid_for(chat_id.to_s)).to eq("existing-uuid")
       end
     end
   end
@@ -300,33 +289,25 @@ RSpec.describe Botiasloop::Channels::Telegram do
   describe "#conversation_for" do
     let(:channel) { described_class.new(config) }
 
-    before do
-      FileUtils.mkdir_p(File.dirname(conversations_file))
-    end
-
     context "when chat does not exist" do
       it "creates new conversation and saves mapping via ConversationManager" do
         conversation = channel.conversation_for("123456")
 
         expect(conversation).to be_a(Botiasloop::Conversation)
-        expect(File.exist?(conversations_file)).to be true
 
-        chats_data = JSON.parse(File.read(conversations_file), symbolize_names: true)
-        expect(chats_data).to have_key(conversation.uuid.to_sym)
-        expect(chats_data[conversation.uuid.to_sym][:user_id]).to eq("123456")
+        # Verify via database
+        db_conv = Botiasloop::Conversation.find(id: conversation.uuid)
+        expect(db_conv).not_to be_nil
+        expect(db_conv.user_id).to eq("123456")
       end
     end
 
     context "when chat exists" do
       before do
-        Botiasloop::ConversationManager.switch("123456", "existing-uuid")
+        Botiasloop::Conversation.create(id: "existing-uuid", user_id: "123456", is_current: true)
       end
 
       it "returns existing conversation" do
-        existing_conversation = instance_double(Botiasloop::Conversation, uuid: "existing-uuid")
-        expect(Botiasloop::Conversation).to receive(:new).with("existing-uuid").and_return(existing_conversation)
-        expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
-
         conversation = channel.conversation_for("123456")
         expect(conversation.uuid).to eq("existing-uuid")
       end

@@ -51,7 +51,7 @@ RSpec.describe Botiasloop::Commands::Switch do
 
       it "returns success message with conversation details" do
         result = command.execute(context, "my-project")
-        expect(result).to include("Switched to conversation")
+        expect(result).to include("**Conversation switched**")
         expect(result).to include("target-uuid-456")
         expect(result).to include("my-project")
         expect(result).to include("Messages: 5")

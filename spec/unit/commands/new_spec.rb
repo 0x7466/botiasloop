@@ -6,6 +6,10 @@ RSpec.describe Botiasloop::Commands::New do
   let(:command) { described_class.new }
   let(:config) { instance_double(Botiasloop::Config) }
 
+  before do
+    Botiasloop::ConversationManager.clear_all
+  end
+
   describe ".command_name" do
     it "returns :new" do
       expect(described_class.command_name).to eq(:new)
@@ -22,7 +26,7 @@ RSpec.describe Botiasloop::Commands::New do
     it "returns a string message" do
       allow(SecureRandom).to receive(:uuid).and_return("new-uuid-456")
       original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config)
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config, user_id: "test-user")
 
       result = command.execute(context)
 
@@ -32,7 +36,7 @@ RSpec.describe Botiasloop::Commands::New do
     it "updates context.conversation to a new conversation" do
       allow(SecureRandom).to receive(:uuid).and_return("new-uuid-456")
       original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config)
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config, user_id: "test-user")
 
       command.execute(context)
 
@@ -44,7 +48,7 @@ RSpec.describe Botiasloop::Commands::New do
     it "returns message with new conversation UUID" do
       allow(SecureRandom).to receive(:uuid).and_return("new-uuid-456")
       original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config)
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config, user_id: "test-user")
 
       result = command.execute(context)
 
@@ -56,7 +60,7 @@ RSpec.describe Botiasloop::Commands::New do
     it "includes instructions to switch back" do
       allow(SecureRandom).to receive(:uuid).and_return("test-uuid")
       original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config)
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config, user_id: "test-user")
 
       result = command.execute(context)
 
@@ -65,7 +69,7 @@ RSpec.describe Botiasloop::Commands::New do
 
     it "context.conversation has a different UUID than the original" do
       original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config)
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, config: config, user_id: "test-user")
 
       command.execute(context)
 

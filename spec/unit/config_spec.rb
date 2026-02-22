@@ -5,6 +5,11 @@ require "yaml"
 require "tempfile"
 
 RSpec.describe Botiasloop::Config do
+  before do
+    # Override config file path to prevent loading user's real config
+    allow(Anyway::Settings).to receive(:default_config_path).and_return(->(_) { "/nonexistent/botiasloop/config.yml" })
+  end
+
   describe ".new" do
     context "with defaults" do
       it "uses default max_iterations" do
@@ -14,7 +19,13 @@ RSpec.describe Botiasloop::Config do
       end
 
       it "uses default openrouter model" do
-        config = described_class.new({})
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "api_key" => "test-key"
+            }
+          }
+        })
         expect(config.providers["openrouter"]["model"]).to eq("moonshotai/kimi-k2.5")
       end
 
@@ -47,15 +58,16 @@ RSpec.describe Botiasloop::Config do
       end
 
       it "preserves default model when only api_key is set" do
+        # Explicitly set only api_key to verify default model is preserved
         config = described_class.new({
           "providers" => {
             "openrouter" => {
-              "api_key" => "test-key"
+              "api_key" => "test-key-only"
             }
           }
         })
-        expect(config.providers["openrouter"]["api_key"]).to eq("test-key")
-        # Deep merge preserves defaults
+        expect(config.providers["openrouter"]["api_key"]).to eq("test-key-only")
+        # Deep merge should preserve the default model
         expect(config.providers["openrouter"]["model"]).to eq("moonshotai/kimi-k2.5")
       end
     end

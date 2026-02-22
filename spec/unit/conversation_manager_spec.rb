@@ -1,21 +1,10 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "fileutils"
-require "tempfile"
 
 RSpec.describe Botiasloop::ConversationManager do
-  let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
-
   before do
-    # Mock all filesystem paths to use temp directory - NEVER touch real user directories
-    allow(described_class).to receive(:mapping_file).and_return(File.join(temp_dir, "conversations.json"))
-    allow(described_class).to receive(:current_file).and_return(File.join(temp_dir, "current.json"))
     described_class.clear_all
-  end
-
-  after do
-    FileUtils.rm_rf(temp_dir)
   end
 
   describe ".current_for" do
@@ -31,24 +20,26 @@ RSpec.describe Botiasloop::ConversationManager do
         uuid = described_class.current_uuid_for("user123")
         expect(uuid).to eq(conversation.uuid)
 
-        mapping_file = File.join(temp_dir, "conversations.json")
-        saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-        expect(saved_data[uuid.to_sym]).to eq({user_id: "user123", label: nil})
+        # Verify via database
+        db_conv = Botiasloop::Conversation.find(id: uuid)
+        expect(db_conv.user_id).to eq("user123")
+        expect(db_conv.label).to be_nil
       end
 
       it "saves to persistent storage" do
-        described_class.current_for("user123")
-        mapping_file = File.join(temp_dir, "conversations.json")
-        expect(File.exist?(mapping_file)).to be true
+        conversation = described_class.current_for("user123")
+        uuid = conversation.uuid
 
-        saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-        expect(saved_data.values).to all(include(:user_id, :label))
+        # Verify via database
+        db_conv = Botiasloop::Conversation.find(id: uuid)
+        expect(db_conv).not_to be_nil
+        expect(db_conv.user_id).to eq("user123")
       end
     end
 
     context "when user already has a conversation" do
       before do
-        described_class.switch("user123", "existing-uuid")
+        Botiasloop::Conversation.create(id: "existing-uuid", user_id: "user123", is_current: true)
       end
 
       it "returns existing conversation" do
@@ -74,32 +65,39 @@ RSpec.describe Botiasloop::ConversationManager do
 
   describe ".switch" do
     it "switches user to the specified conversation uuid" do
+      Botiasloop::Conversation.create(id: "new-uuid", user_id: "user123")
       described_class.switch("user123", "new-uuid")
       expect(described_class.current_uuid_for("user123")).to eq("new-uuid")
     end
 
     it "returns the switched-to conversation" do
+      Botiasloop::Conversation.create(id: "new-uuid", user_id: "user123")
       conversation = described_class.switch("user123", "new-uuid")
       expect(conversation).to be_a(Botiasloop::Conversation)
       expect(conversation.uuid).to eq("new-uuid")
     end
 
     it "persists the switch with user_id" do
+      Botiasloop::Conversation.create(id: "persisted-uuid", user_id: "user123")
       described_class.switch("user123", "persisted-uuid")
-      mapping_file = File.join(temp_dir, "conversations.json")
-      saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-      expect(saved_data[:"persisted-uuid"]).to eq({user_id: "user123", label: nil})
+
+      # Verify via database
+      db_conv = Botiasloop::Conversation.find(id: "persisted-uuid")
+      expect(db_conv.user_id).to eq("user123")
+      expect(db_conv.label).to be_nil
+      expect(db_conv.is_current).to be true
     end
 
     it "overwrites existing mapping" do
-      described_class.switch("user123", "first-uuid")
+      Botiasloop::Conversation.create(id: "first-uuid", user_id: "user123", is_current: true)
+      Botiasloop::Conversation.create(id: "second-uuid", user_id: "user123")
       described_class.switch("user123", "second-uuid")
       expect(described_class.current_uuid_for("user123")).to eq("second-uuid")
     end
 
     it "clears label when switching to different conversation" do
-      described_class.switch("user123", "first-uuid")
-      described_class.label("first-uuid", "old-label")
+      Botiasloop::Conversation.create(id: "first-uuid", user_id: "user123", label: "old-label", is_current: true)
+      Botiasloop::Conversation.create(id: "second-uuid", user_id: "user123")
       described_class.switch("user123", "second-uuid")
 
       # second-uuid should have no label initially
@@ -107,17 +105,14 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "switches by label when label exists" do
-      described_class.switch("user123", "target-uuid")
-      described_class.label("target-uuid", "my-project")
-
-      # Clear memory to test fresh lookup
-      described_class.instance_variable_set(:@mapping, nil)
+      Botiasloop::Conversation.create(id: "target-uuid", user_id: "user123", label: "my-project", is_current: true)
 
       conversation = described_class.switch("user123", "my-project")
       expect(conversation.uuid).to eq("target-uuid")
     end
 
     it "treats identifier as UUID when no label matches" do
+      Botiasloop::Conversation.create(id: "new-uuid-123", user_id: "user123")
       conversation = described_class.switch("user123", "new-uuid-123")
       expect(conversation.uuid).to eq("new-uuid-123")
     end
@@ -135,10 +130,7 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "strips whitespace from identifier" do
-      described_class.switch("user123", "target-uuid")
-      described_class.label("target-uuid", "my-project")
-
-      described_class.instance_variable_set(:@mapping, nil)
+      Botiasloop::Conversation.create(id: "target-uuid", user_id: "user123", label: "my-project", is_current: true)
 
       conversation = described_class.switch("user123", "  my-project  ")
       expect(conversation.uuid).to eq("target-uuid")
@@ -167,7 +159,7 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "overwrites existing mapping" do
-      described_class.switch("user123", "old-uuid")
+      Botiasloop::Conversation.create(id: "old-uuid", user_id: "user123", is_current: true)
       described_class.create_new("user123")
       expect(described_class.current_uuid_for("user123")).to eq("new-generated-uuid")
     end
@@ -184,7 +176,7 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "returns the uuid when user has a conversation" do
-      described_class.switch("user123", "test-uuid")
+      Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
       expect(described_class.current_uuid_for("user123")).to eq("test-uuid")
     end
   end
@@ -195,8 +187,8 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "returns all conversation mappings" do
-      described_class.switch("user1", "uuid1")
-      described_class.switch("user2", "uuid2")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user1", is_current: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user2", is_current: true)
 
       mappings = described_class.all_mappings
       expect(mappings).to eq({
@@ -206,7 +198,7 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "returns a copy of mappings" do
-      described_class.switch("user1", "uuid1")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user1", is_current: true)
       mappings = described_class.all_mappings
       mappings["uuid2"] = {"user_id" => "user2", "label" => nil}
 
@@ -217,18 +209,17 @@ RSpec.describe Botiasloop::ConversationManager do
 
   describe ".remove" do
     it "removes the user's conversation mapping" do
-      described_class.switch("user123", "test-uuid")
+      Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
       described_class.remove("user123")
       expect(described_class.current_uuid_for("user123")).to be_nil
     end
 
     it "persists the removal" do
-      described_class.switch("user123", "test-uuid")
+      Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
       described_class.remove("user123")
 
-      mapping_file = File.join(temp_dir, "conversations.json")
-      saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-      expect(saved_data).not_to have_key(:"test-uuid")
+      # Verify via database - conversation should be destroyed
+      expect(Botiasloop::Conversation.find(id: "test-uuid")).to be_nil
     end
 
     it "handles removing non-existent user gracefully" do
@@ -238,26 +229,25 @@ RSpec.describe Botiasloop::ConversationManager do
 
   describe ".clear_all" do
     it "removes all conversation mappings" do
-      described_class.switch("user1", "uuid1")
-      described_class.switch("user2", "uuid2")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user1", is_current: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user2", is_current: true)
       described_class.clear_all
 
       expect(described_class.all_mappings).to eq({})
     end
 
     it "persists the cleared state" do
-      described_class.switch("user1", "uuid1")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user1", is_current: true)
       described_class.clear_all
 
-      mapping_file = File.join(temp_dir, "conversations.json")
-      saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-      expect(saved_data).to eq({})
+      # Verify via database - all conversations should be deleted
+      expect(Botiasloop::Conversation.count).to eq(0)
     end
   end
 
   describe ".label" do
     before do
-      described_class.switch("user123", "test-uuid")
+      Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
     end
 
     it "returns nil when conversation has no label" do
@@ -265,7 +255,7 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "returns the label when set" do
-      described_class.label("test-uuid", "my-label")
+      described_class.set_label("test-uuid", "my-label")
       expect(described_class.label("test-uuid")).to eq("my-label")
     end
 
@@ -276,82 +266,80 @@ RSpec.describe Botiasloop::ConversationManager do
 
   describe ".label= (setter)" do
     before do
-      described_class.switch("user123", "test-uuid")
+      Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
     end
 
     it "sets the label for a conversation" do
-      described_class.label("test-uuid", "my-project")
+      described_class.set_label("test-uuid", "my-project")
       expect(described_class.label("test-uuid")).to eq("my-project")
     end
 
     it "persists the label" do
-      described_class.label("test-uuid", "persisted-label")
+      described_class.set_label("test-uuid", "persisted-label")
 
-      mapping_file = File.join(temp_dir, "conversations.json")
-      saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-      expect(saved_data[:"test-uuid"][:label]).to eq("persisted-label")
+      # Verify via database - reload from DB
+      db_conv = Botiasloop::Conversation.find(id: "test-uuid")
+      expect(db_conv.label).to eq("persisted-label")
     end
 
     it "allows valid characters: alphanumeric, dashes, underscores" do
       valid_labels = ["my-project", "my_project", "MyProject123", "test-123_test"]
       valid_labels.each do |label|
-        described_class.label("test-uuid", label)
+        described_class.set_label("test-uuid", label)
         expect(described_class.label("test-uuid")).to eq(label)
       end
     end
 
     it "raises error for invalid characters" do
-      invalid_labels = ["my label", "my.label", "my/label", "label@email", "label#hash"]
+      invalid_labels = ["my label", "my.project", "my/label", "label@email", "label#hash"]
       invalid_labels.each do |label|
         expect {
-          described_class.label("test-uuid", label)
+          described_class.set_label("test-uuid", label)
         }.to raise_error(Botiasloop::Error, /Invalid label format/)
       end
     end
 
     it "raises error when label already used by same user for different conversation" do
-      described_class.label("test-uuid", "shared-label")
-      described_class.switch("user123", "another-uuid")
+      described_class.set_label("test-uuid", "shared-label")
+      Botiasloop::Conversation.create(id: "another-uuid", user_id: "user123")
 
       expect {
-        described_class.label("another-uuid", "shared-label")
+        described_class.set_label("another-uuid", "shared-label")
       }.to raise_error(Botiasloop::Error, /Label 'shared-label' already in use/)
     end
 
     it "allows same label for different users" do
-      described_class.label("test-uuid", "shared-label")
-      described_class.switch("user456", "different-uuid")
-      described_class.label("different-uuid", "shared-label")
+      described_class.set_label("test-uuid", "shared-label")
+      Botiasloop::Conversation.create(id: "different-uuid", user_id: "user456", is_current: true)
+      described_class.set_label("different-uuid", "shared-label")
 
       expect(described_class.label("test-uuid")).to eq("shared-label")
       expect(described_class.label("different-uuid")).to eq("shared-label")
     end
 
     it "allows updating label for same conversation" do
-      described_class.label("test-uuid", "first-label")
-      described_class.label("test-uuid", "second-label")
+      described_class.set_label("test-uuid", "first-label")
+      described_class.set_label("test-uuid", "second-label")
 
       expect(described_class.label("test-uuid")).to eq("second-label")
     end
 
     it "allows setting same label on same conversation (no-op)" do
-      described_class.label("test-uuid", "same-label")
-      expect { described_class.label("test-uuid", "same-label") }.not_to raise_error
+      described_class.set_label("test-uuid", "same-label")
+      expect { described_class.set_label("test-uuid", "same-label") }.not_to raise_error
     end
 
     it "raises error for non-existent conversation" do
       expect {
-        described_class.label("non-existent-uuid", "label")
+        described_class.set_label("non-existent-uuid", "label")
       }.to raise_error(Botiasloop::Error, /Conversation not found/)
     end
   end
 
   describe ".label_exists?" do
     before do
-      described_class.switch("user123", "uuid1")
-      described_class.switch("user456", "uuid2")
-      described_class.label("uuid1", "user1-label")
-      described_class.label("uuid2", "user2-label")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user123", label: "user1-label", is_current: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user456", label: "user2-label", is_current: true)
     end
 
     it "returns true when label exists for user" do
@@ -377,19 +365,18 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "returns all conversations for a user with labels" do
-      described_class.switch("user123", "uuid1")
-      described_class.switch("user123", "uuid2")
-      described_class.label("uuid1", "first-convo")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user123", label: "first-convo", is_current: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user123")
 
       conversations = described_class.list_by_user("user123")
       expect(conversations.length).to eq(2)
-      expect(conversations).to include({uuid: "uuid1", label: "first-convo"})
-      expect(conversations).to include({uuid: "uuid2", label: nil})
+      expect(conversations).to include(hash_including({uuid: "uuid1", label: "first-convo"}))
+      expect(conversations).to include(hash_including({uuid: "uuid2", label: nil}))
     end
 
     it "only returns conversations for specified user" do
-      described_class.switch("user123", "uuid1")
-      described_class.switch("user456", "uuid2")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user123", is_current: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user456", is_current: true)
 
       conversations = described_class.list_by_user("user123")
       expect(conversations.length).to eq(1)
@@ -399,10 +386,8 @@ RSpec.describe Botiasloop::ConversationManager do
 
   describe ".find_by_label" do
     before do
-      described_class.switch("user123", "uuid1")
-      described_class.switch("user456", "uuid2")
-      described_class.label("uuid1", "my-project")
-      described_class.label("uuid2", "other-project")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user123", label: "my-project", is_current: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user456", label: "other-project", is_current: true)
     end
 
     it "returns uuid for existing label" do
@@ -419,49 +404,28 @@ RSpec.describe Botiasloop::ConversationManager do
   end
 
   describe "persistence across instances" do
-    it "loads existing mappings from file" do
-      # Create a mapping
-      described_class.switch("user123", "persisted-uuid")
+    it "loads existing mappings from database" do
+      # Create a conversation in database
+      Botiasloop::Conversation.create(id: "persisted-uuid", user_id: "user123", is_current: true)
 
-      # Clear the in-memory cache
-      described_class.instance_variable_set(:@mapping, nil)
-
-      # Now accessing current_for should load from file
+      # Now accessing current_for should load from database
       conversation = described_class.current_for("user123")
       expect(conversation.uuid).to eq("persisted-uuid")
     end
 
-    it "loads labels from file" do
-      described_class.switch("user123", "persisted-uuid")
-      described_class.label("persisted-uuid", "my-label")
+    it "loads labels from database" do
+      Botiasloop::Conversation.create(id: "persisted-uuid", user_id: "user123", label: "my-label", is_current: true)
 
-      # Clear the in-memory cache
-      described_class.instance_variable_set(:@mapping, nil)
-
-      # Label should be loaded from file
+      # Label should be loaded from database
       expect(described_class.label("persisted-uuid")).to eq("my-label")
-    end
-
-    it "handles corrupted JSON gracefully" do
-      mapping_file = File.join(temp_dir, "conversations.json")
-      FileUtils.mkdir_p(File.dirname(mapping_file))
-      File.write(mapping_file, "invalid json{")
-
-      # Clear the in-memory cache
-      described_class.instance_variable_set(:@mapping, nil)
-
-      # Should return empty hash and create new conversation
-      conversation = described_class.current_for("user123")
-      expect(conversation).to be_a(Botiasloop::Conversation)
     end
   end
 
   describe ".archive" do
     context "when archiving by label" do
       before do
-        described_class.switch("user123", "target-uuid")
-        described_class.label("target-uuid", "my-project")
-        described_class.switch("user123", "other-uuid") # Create another conversation to avoid "current" error
+        Botiasloop::Conversation.create(id: "target-uuid", user_id: "user123", label: "my-project")
+        Botiasloop::Conversation.create(id: "other-uuid", user_id: "user123", is_current: true)
       end
 
       it "archives a conversation by label" do
@@ -483,8 +447,9 @@ RSpec.describe Botiasloop::ConversationManager do
       end
 
       it "raises error when archiving current conversation with identifier" do
-        # Switch back to target-uuid to make it current
-        described_class.switch("user123", "target-uuid")
+        # Make target-uuid current
+        Botiasloop::Conversation.where(id: "target-uuid").update(is_current: true)
+        Botiasloop::Conversation.where(id: "other-uuid").update(is_current: false)
 
         expect {
           described_class.archive("user123", "my-project")
@@ -494,8 +459,8 @@ RSpec.describe Botiasloop::ConversationManager do
 
     context "when archiving by UUID" do
       before do
-        described_class.switch("user123", "target-uuid")
-        described_class.switch("user123", "other-uuid") # Create another conversation
+        Botiasloop::Conversation.create(id: "target-uuid", user_id: "user123")
+        Botiasloop::Conversation.create(id: "other-uuid", user_id: "user123", is_current: true)
       end
 
       it "archives a conversation by UUID" do
@@ -510,8 +475,7 @@ RSpec.describe Botiasloop::ConversationManager do
 
     context "when archiving current conversation (no identifier)" do
       before do
-        described_class.switch("user123", "current-uuid")
-        described_class.label("current-uuid", "current-project")
+        Botiasloop::Conversation.create(id: "current-uuid", user_id: "user123", label: "current-project", is_current: true)
       end
 
       it "archives current conversation and creates a new one" do
@@ -542,7 +506,7 @@ RSpec.describe Botiasloop::ConversationManager do
 
     context "with nil identifier" do
       before do
-        described_class.switch("user123", "existing-uuid")
+        Botiasloop::Conversation.create(id: "existing-uuid", user_id: "user123", is_current: true)
       end
 
       it "archives current conversation when nil" do
@@ -555,12 +519,8 @@ RSpec.describe Botiasloop::ConversationManager do
 
   describe "archive integration with other methods" do
     before do
-      described_class.switch("user123", "uuid1")
-      described_class.label("uuid1", "first-project")
-      described_class.switch("user123", "uuid2")
-      described_class.label("uuid2", "second-project")
-      # Archive the first conversation
-      described_class.archive("user123", "first-project")
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user123", label: "first-project", archived: true)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user123", label: "second-project", is_current: true)
     end
 
     it "excludes archived conversations from list_by_user by default" do
@@ -614,13 +574,21 @@ RSpec.describe Botiasloop::ConversationManager do
     end
 
     it "creates new conversation when current_for encounters only archived conversations" do
-      # Archive uuid2 as well
+      # Create a third conversation and make it current first
+      Botiasloop::Conversation.create(id: "uuid3", user_id: "user123", is_current: true)
+      Botiasloop::Conversation.where(id: "uuid2").update(is_current: false)
+
+      # Archive uuid2
       described_class.archive("user123", "second-project")
 
-      # Now current_for should create a new conversation
+      # Make uuid3 archived as well (current cannot be archived with identifier)
+      described_class.archive("user123")
+
+      # Now current_for should create a new conversation since all are archived
       conversation = described_class.current_for("user123")
       expect(conversation.uuid).not_to eq("uuid1")
       expect(conversation.uuid).not_to eq("uuid2")
+      expect(conversation.uuid).not_to eq("uuid3")
     end
 
     it "preserves label after archiving and unarchiving" do
@@ -639,14 +607,9 @@ RSpec.describe Botiasloop::ConversationManager do
       time2 = Time.now - 1800 # 30 minutes ago
       time3 = Time.now # now
 
-      described_class.switch("user123", "uuid1")
-      Botiasloop::Conversation.find(id: "uuid1").update(updated_at: time1)
-
-      described_class.switch("user123", "uuid2")
-      Botiasloop::Conversation.find(id: "uuid2").update(updated_at: time2)
-
-      described_class.switch("user123", "uuid3")
-      Botiasloop::Conversation.find(id: "uuid3").update(updated_at: time3)
+      Botiasloop::Conversation.create(id: "uuid1", user_id: "user123", updated_at: time1, is_current: false)
+      Botiasloop::Conversation.create(id: "uuid2", user_id: "user123", updated_at: time2, is_current: false)
+      Botiasloop::Conversation.create(id: "uuid3", user_id: "user123", updated_at: time3, is_current: true)
 
       conversations = described_class.list_by_user("user123", archived: nil)
       uuids = conversations.map { |c| c[:uuid] }

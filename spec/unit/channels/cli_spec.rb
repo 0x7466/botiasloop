@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "tempfile"
-require "fileutils"
 
 RSpec.describe Botiasloop::Channels::CLI do
   let(:config) do
@@ -11,19 +9,8 @@ RSpec.describe Botiasloop::Channels::CLI do
     })
   end
 
-  let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
-  let(:conversations_file) { File.join(temp_dir, "conversations.json") }
-
   before do
-    allow(Dir).to receive(:home).and_return(temp_dir)
-    allow(File).to receive(:expand_path).and_call_original
-    allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
-    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(conversations_file)
     Botiasloop::ConversationManager.clear_all
-  end
-
-  after do
-    FileUtils.rm_rf(temp_dir)
   end
 
   describe "inheritance" do
@@ -243,22 +230,18 @@ RSpec.describe Botiasloop::Channels::CLI do
   describe "conversation persistence" do
     let(:channel) { described_class.new(config) }
 
-    before do
-      FileUtils.mkdir_p(File.dirname(conversations_file))
-    end
-
     it "uses 'cli' as fixed source_id for conversation_for" do
       conversation = channel.conversation_for("cli")
       expect(conversation).to be_a(Botiasloop::Conversation)
     end
 
-    it "saves conversations to global conversations.json via ConversationManager" do
+    it "saves conversations to database via ConversationManager" do
       conversation = channel.conversation_for("cli")
 
-      expect(File.exist?(conversations_file)).to be true
-      saved = JSON.parse(File.read(conversations_file), symbolize_names: true)
-      expect(saved).to have_key(conversation.uuid.to_sym)
-      expect(saved[conversation.uuid.to_sym]).to include(:user_id, :label)
+      # Verify via database
+      db_conv = Botiasloop::Conversation.find(id: conversation.uuid)
+      expect(db_conv).not_to be_nil
+      expect(db_conv.user_id).to eq("cli")
     end
 
     it "reuses existing conversation via ConversationManager" do

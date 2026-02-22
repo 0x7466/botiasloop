@@ -1,11 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "fileutils"
-require "tempfile"
 
 RSpec.describe Botiasloop::Channels::Base do
-  let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
   let(:config) do
     Botiasloop::Config.new({
       "channels" => {
@@ -55,16 +52,8 @@ RSpec.describe Botiasloop::Channels::Base do
   end
 
   before do
-    allow(Dir).to receive(:home).and_return(temp_dir)
-    allow(File).to receive(:expand_path).and_call_original
-    allow(File).to receive(:expand_path).with("~/.config/botiasloop").and_return(temp_dir)
-    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(File.join(temp_dir, "conversations.json"))
-    # Clear ConversationManager state before each test
+    # Clear database state before each test
     Botiasloop::ConversationManager.clear_all
-  end
-
-  after do
-    FileUtils.rm_rf(temp_dir)
   end
 
   describe ".channel_name" do
@@ -158,18 +147,17 @@ RSpec.describe Botiasloop::Channels::Base do
 
       it "saves to persistent storage via ConversationManager" do
         conversation = channel.conversation_for("user123")
-        mapping_file = File.join(temp_dir, "conversations.json")
-        expect(File.exist?(mapping_file)).to be true
 
-        saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-        expect(saved_data).to have_key(conversation.uuid.to_sym)
-        expect(saved_data[conversation.uuid.to_sym]).to include(:user_id, :label)
+        # Verify via database
+        db_conv = Botiasloop::Conversation.find(id: conversation.uuid)
+        expect(db_conv).not_to be_nil
+        expect(db_conv.user_id).to eq("user123")
       end
     end
 
     context "when source already exists" do
       before do
-        Botiasloop::ConversationManager.switch("user123", "existing-uuid")
+        Botiasloop::Conversation.create(id: "existing-uuid", user_id: "user123", is_current: true)
       end
 
       it "returns existing conversation" do
@@ -178,7 +166,7 @@ RSpec.describe Botiasloop::Channels::Base do
       end
 
       it "does not create a new conversation" do
-        expect(Botiasloop::Conversation).not_to receive(:new).with(no_args)
+        expect(Botiasloop::Conversation).not_to receive(:create)
         channel.conversation_for("user123")
       end
     end
