@@ -8,6 +8,8 @@ require_relative "commands/status"
 require_relative "commands/reset"
 require_relative "commands/new"
 require_relative "commands/compact"
+require_relative "commands/label"
+require_relative "commands/conversations"
 
 module Botiasloop
   # Slash commands module

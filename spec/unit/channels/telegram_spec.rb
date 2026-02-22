@@ -246,7 +246,8 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
         expect(File.exist?(conversations_file)).to be true
         chats_data = JSON.parse(File.read(conversations_file), symbolize_names: true)
-        expect(chats_data[:conversations]).to have_key(:"123456")
+        expect(chats_data).to have_key(:"test-uuid")
+        expect(chats_data[:"test-uuid"]).to include(:user_id, :label)
       end
     end
 
@@ -282,7 +283,8 @@ RSpec.describe Botiasloop::Channels::Telegram do
         expect(File.exist?(conversations_file)).to be true
 
         chats_data = JSON.parse(File.read(conversations_file), symbolize_names: true)
-        expect(chats_data[:conversations][:"123456"]).to eq(conversation.uuid)
+        expect(chats_data).to have_key(conversation.uuid.to_sym)
+        expect(chats_data[conversation.uuid.to_sym][:user_id]).to eq("123456")
       end
     end
 

@@ -19,13 +19,13 @@ This document outlines the planned features and improvements for botiasloop.
 - [x] Channel configuration in YAML
 
 ### 3. Slash Commands
-- [ ] `/reset` - Clear conversation history
-- [ ] `/status` - Show current model, token usage, iteration count
+- [x] `/reset` - Clear conversation history
+- [x] `/status` - Show current model, token usage, iteration count
 - [ ] `/model <name>` - Switch model for this conversation
-- [ ] `/label <name>` - Set label for current conversation
-- [ ] `/conversations` - List all conversations
+- [x] `/label <name>` - Set label for current conversation
+- [x] `/conversations` - List all conversations
 - [ ] `/switch <label|uuid>` - Switch to different conversation
-- [ ] `/new` - Start new conversation
+- [x] `/new` - Start new conversation
 - [ ] `/continue` - Continue a conversation that reached max iterations
 - [x] `/help` - Show available commands
 - [ ] Allow skills to register custom slash commands
@@ -37,8 +37,8 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] `/archive <label>` - archive old conversation
 
 ### 5. Conversation Labels
-- [ ] Add `label` field to Conversation
-- [ ] Labels are unique per user (not globally unique)
+- [x] Add `label` field to Conversation
+- [x] Labels are unique per user (not globally unique)
 - [ ] Switch conversations: `/switch holiday-planning` instead of `/switch a1b2c3...`
 - [ ] Auto-generate labels if not provided (e.g., "conversation-1", "conversation-2")
 

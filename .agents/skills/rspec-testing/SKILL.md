@@ -347,6 +347,42 @@ end
 let!(:user) { User.create!(name: "test") }  # Rolled back after each example
 ```
 
+### 11. Filesystem Isolation (CRITICAL)
+
+**NEVER** touch real user directories like `~/.config/`, `~/conversations/`, or any path outside of temp directories. This can destroy user data.
+
+**Pattern:** Mock all filesystem paths to use temp directories:
+
+```ruby
+RSpec.describe Botiasloop::Conversation do
+  let(:temp_dir) { Dir.mktmpdir("botiasloop_test") }
+
+  before do
+    # Mock ALL paths that would touch real directories
+    allow(Dir).to receive(:home).and_return(temp_dir)
+    allow(File).to receive(:expand_path).and_call_original
+    allow(File).to receive(:expand_path).with("~/conversations/#{uuid}.jsonl").and_return(File.join(temp_dir, "conversations", "#{uuid}.jsonl"))
+    allow(File).to receive(:expand_path).with("~/.config/botiasloop/conversations.json").and_return(File.join(temp_dir, "conversations.json"))
+    allow(File).to receive(:expand_path).with("~/.config/botiasloop/current.json").and_return(File.join(temp_dir, "current.json"))
+    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(File.join(temp_dir, "conversations.json"))
+    allow(Botiasloop::ConversationManager).to receive(:current_file).and_return(File.join(temp_dir, "current.json"))
+  end
+
+  after do
+    # ONLY cleanup temp directory
+    FileUtils.rm_rf(temp_dir)
+  end
+end
+```
+
+**CRITICAL RULES:**
+- Mock `Dir.home` to return temp directory
+- Mock ALL `File.expand_path` calls with home directory paths
+- Mock manager class methods that return file paths
+- Only cleanup `temp_dir` in `after` hooks
+- **NEVER** use `FileUtils.rm_rf(File.expand_path("~/.config"))` or similar
+- **NEVER** use `FileUtils.rm_rf(File.expand_path("~/conversations"))` or similar
+
 ## Running Tests
 
 ```bash

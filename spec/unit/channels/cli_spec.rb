@@ -253,11 +253,12 @@ RSpec.describe Botiasloop::Channels::CLI do
     end
 
     it "saves conversations to global conversations.json via ConversationManager" do
-      channel.conversation_for("cli")
+      conversation = channel.conversation_for("cli")
 
       expect(File.exist?(conversations_file)).to be true
       saved = JSON.parse(File.read(conversations_file), symbolize_names: true)
-      expect(saved[:conversations]).to have_key(:cli)
+      expect(saved).to have_key(conversation.uuid.to_sym)
+      expect(saved[conversation.uuid.to_sym]).to include(:user_id, :label)
     end
 
     it "reuses existing conversation via ConversationManager" do

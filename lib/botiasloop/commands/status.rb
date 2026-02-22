@@ -13,11 +13,18 @@ module Botiasloop
 
         lines = ["**Conversation Status**"]
         lines << "UUID: #{conversation.uuid}"
+        lines << "Label: #{format_label(conversation)}"
         lines << "Model: #{config.providers["openrouter"]["model"]}"
         lines << "Max iterations: #{config.max_iterations}"
         lines << "Messages: #{conversation.history.length}"
 
         lines.join("\n")
+      end
+
+      private
+
+      def format_label(conversation)
+        conversation.label? ? conversation.label : "(none - use /label <name> to set)"
       end
     end
   end

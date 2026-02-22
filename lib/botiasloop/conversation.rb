@@ -18,6 +18,29 @@ module Botiasloop
       @messages = load_messages
     end
 
+    # Get the label for this conversation
+    #
+    # @return [String, nil] Label or nil if not set
+    def label
+      ConversationManager.label(@uuid)
+    end
+
+    # Set the label for this conversation
+    #
+    # @param value [String] Label value
+    # @return [String] The label value
+    # @raise [Error] If label format is invalid or already in use
+    def label=(value)
+      ConversationManager.label(@uuid, value)
+    end
+
+    # Check if this conversation has a label
+    #
+    # @return [Boolean] True if label is set
+    def label?
+      !label.nil?
+    end
+
     # Add a message to the conversation
     #
     # @param role [String] Role of the message sender (user, assistant, system)

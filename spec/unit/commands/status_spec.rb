@@ -4,7 +4,13 @@ require "spec_helper"
 
 RSpec.describe Botiasloop::Commands::Status do
   let(:command) { described_class.new }
-  let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "test-uuid-123", history: [{role: "user", content: "Hello"}]) }
+  let(:conversation) do
+    instance_double(Botiasloop::Conversation,
+      uuid: "test-uuid-123",
+      history: [{role: "user", content: "Hello"}],
+      label: nil,
+      label?: false)
+  end
   let(:config) do
     instance_double(Botiasloop::Config,
       max_iterations: 20,
@@ -33,6 +39,23 @@ RSpec.describe Botiasloop::Commands::Status do
       expect(result).to include("moonshotai/kimi-k2.5")
       expect(result).to include("20")
       expect(result).to include("1")  # Message count
+    end
+
+    it "shows label when set" do
+      allow(conversation).to receive(:label?).and_return(true)
+      allow(conversation).to receive(:label).and_return("my-project")
+
+      result = command.execute(context)
+      expect(result).to include("Label: my-project")
+    end
+
+    it "shows prompt when label is not set" do
+      allow(conversation).to receive(:label?).and_return(false)
+      allow(conversation).to receive(:label).and_return(nil)
+
+      result = command.execute(context)
+      expect(result).to include("Label:")
+      expect(result).to include("(none - use /label <name> to set)")
     end
   end
 end

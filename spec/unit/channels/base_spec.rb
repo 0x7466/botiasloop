@@ -157,12 +157,13 @@ RSpec.describe Botiasloop::Channels::Base do
       end
 
       it "saves to persistent storage via ConversationManager" do
-        channel.conversation_for("user123")
+        conversation = channel.conversation_for("user123")
         mapping_file = File.join(temp_dir, "conversations.json")
         expect(File.exist?(mapping_file)).to be true
 
         saved_data = JSON.parse(File.read(mapping_file), symbolize_names: true)
-        expect(saved_data[:conversations]).to have_key(:user123)
+        expect(saved_data).to have_key(conversation.uuid.to_sym)
+        expect(saved_data[conversation.uuid.to_sym]).to include(:user_id, :label)
       end
     end
 

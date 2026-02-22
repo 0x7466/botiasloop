@@ -11,13 +11,20 @@ RSpec.describe Botiasloop::Conversation do
   let(:fixed_uuid) { "550e8400-e29b-41d4-a716-446655440000" }
 
   before do
+    # Mock all filesystem paths to use temp directory - NEVER touch real user directories
+    allow(Dir).to receive(:home).and_return(temp_dir)
     allow(File).to receive(:expand_path).and_call_original
-    allow(File).to receive(:expand_path).with("~/conversations/#{fixed_uuid}.jsonl").and_return(File.join(temp_dir, "#{fixed_uuid}.jsonl"))
+    allow(File).to receive(:expand_path).with("~/conversations/#{fixed_uuid}.jsonl").and_return(File.join(temp_dir, "conversations", "#{fixed_uuid}.jsonl"))
+    allow(File).to receive(:expand_path).with("~/.config/botiasloop/conversations.json").and_return(File.join(temp_dir, "conversations.json"))
+    allow(File).to receive(:expand_path).with("~/.config/botiasloop/current.json").and_return(File.join(temp_dir, "current.json"))
+    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(File.join(temp_dir, "conversations.json"))
+    allow(Botiasloop::ConversationManager).to receive(:current_file).and_return(File.join(temp_dir, "current.json"))
+    Botiasloop::ConversationManager.clear_all if Botiasloop::ConversationManager.respond_to?(:clear_all)
   end
 
   after do
+    # Only cleanup temp directory - NEVER touch real user directories like ~/.config or ~/conversations
     FileUtils.rm_rf(temp_dir)
-    FileUtils.rm_rf(File.expand_path("~/conversations"))
   end
 
   describe "#initialize" do
@@ -40,7 +47,7 @@ RSpec.describe Botiasloop::Conversation do
   describe "#path" do
     it "returns the correct path" do
       conversation = described_class.new(fixed_uuid)
-      expect(conversation.path).to eq(File.join(temp_dir, "#{fixed_uuid}.jsonl"))
+      expect(conversation.path).to eq(File.join(temp_dir, "conversations", "#{fixed_uuid}.jsonl"))
     end
   end
 
@@ -189,6 +196,68 @@ RSpec.describe Botiasloop::Conversation do
       conversation2 = described_class.new(fixed_uuid)
       expect(conversation2.history.length).to eq(2)
       expect(conversation2.history[0][:content]).to eq("Summary")
+    end
+  end
+
+  describe "#label" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    before do
+      # Set up the conversation in the manager
+      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
+    end
+
+    it "returns nil when conversation has no label" do
+      expect(conversation.label).to be_nil
+    end
+
+    it "returns the label when set via manager" do
+      Botiasloop::ConversationManager.label(fixed_uuid, "my-project")
+      expect(conversation.label).to eq("my-project")
+    end
+  end
+
+  describe "#label=" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    before do
+      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
+    end
+
+    it "sets the label via manager" do
+      conversation.label = "my-label"
+      expect(conversation.label).to eq("my-label")
+    end
+
+    it "persists the label" do
+      conversation.label = "persisted-label"
+
+      # Create new instance with same uuid
+      conversation2 = described_class.new(fixed_uuid)
+      expect(conversation2.label).to eq("persisted-label")
+    end
+
+    it "delegates validation to manager" do
+      expect {
+        conversation.label = "invalid label"
+      }.to raise_error(Botiasloop::Error, /Invalid label format/)
+    end
+  end
+
+  describe "#label?" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    before do
+      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
+    end
+
+    it "returns false when no label is set" do
+      expect(conversation.label?).to be false
+    end
+
+    it "returns true when label is set" do
+      conversation.label = "my-label"
+      expect(conversation.label?).to be true
     end
   end
 end
