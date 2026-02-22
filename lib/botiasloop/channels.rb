@@ -2,12 +2,17 @@
 
 module Botiasloop
   module Channels
+    # Registry for channel classes
+    #
+    # The Registry maintains a static mapping of channel identifiers to
+    # channel classes. It does not manage runtime instances - that is handled
+    # by ChannelsManager.
+    #
     class Registry
-      attr_reader :channels, :instances
+      attr_reader :channels
 
       def initialize
         @channels = {}
-        @instances = {}
       end
 
       # Register a channel class
@@ -25,58 +30,6 @@ module Botiasloop
       # @param name [Symbol] Channel identifier
       def deregister(name)
         @channels.delete(name)
-        @instances.delete(name)
-      end
-
-      # Auto-start all registered channels
-      #
-      # @param config [Config] Configuration instance
-      # @raise [Error] If any channel fails to start
-      def auto_start(config)
-        started_channels = []
-        skipped_channels = []
-
-        @channels.each do |identifier, channel_class|
-          instance = channel_class.new(config)
-          instance.start
-          @instances[identifier] = instance
-          started_channels << instance
-        rescue Botiasloop::Error => e
-          if e.message.match?(/Missing required configuration/)
-            # Skip channels that are not configured
-            skipped_channels << identifier
-            next
-          end
-          # Stop any channels that were already started
-          started_channels.each(&:stop)
-          @instances.clear
-          raise Error, "Failed to start #{identifier}: #{e.message}"
-        rescue => e
-          # Stop any channels that were already started
-          started_channels.each(&:stop)
-          @instances.clear
-          raise Error, "Failed to start #{identifier}: #{e.message}"
-        end
-      end
-
-      # Stop all running channels
-      def stop_all
-        @instances.each do |_identifier, instance|
-          instance.stop if instance.running?
-        rescue => e
-          # Log error but continue stopping other channels
-          warn "Error stopping channel: #{e.message}"
-        end
-        @instances.clear
-      end
-
-      # Check if any channels are running
-      #
-      # @return [Boolean] True if any channel is running
-      def running?
-        @instances.any? do |_identifier, instance|
-          instance.running?
-        end
       end
 
       # Get channel class by name
@@ -98,7 +51,6 @@ module Botiasloop
       # Useful for testing to prevent state leakage
       def clear
         @channels.clear
-        @instances.clear
       end
     end
 

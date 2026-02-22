@@ -161,6 +161,35 @@ RSpec.describe Botiasloop::Channels::Telegram do
       expect(logger).to receive(:info).with(/Stopping/)
       channel.stop
     end
+
+    it "interrupts the running thread" do
+      # Mock bot.run to block until interrupted
+      blocking_called = false
+      allow(mock_bot).to receive(:run) do |_block|
+        blocking_called = true
+        sleep 0.5 # Simulate blocking listen loop
+      end
+
+      # Start the channel in a separate thread
+      thread = Thread.new do
+        channel.start
+      end
+
+      # Wait for blocking to start
+      sleep 0.1 until blocking_called || !thread.alive?
+
+      # Verify thread is running (blocked on the mock)
+      expect(thread.alive?).to be true
+
+      # Stop should interrupt the thread
+      channel.stop
+
+      # Wait for thread to finish
+      sleep 0.2
+
+      # Thread should have exited gracefully
+      expect(thread.alive?).to be false
+    end
   end
 
   describe "#running?" do

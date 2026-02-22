@@ -11,7 +11,7 @@ This document outlines the planned features and improvements for botiasloop.
 ### 2. Channel Support
 - [x] Create `Botiasloop::Channels` module
 - [x] Each channel is a separate class with common interface
-- [ ] Support multiple channels simultaneously
+- [x] Support multiple channels simultaneously (via ChannelsManager with threading)
 - [ ] **Webhook** channel - HTTP endpoint for integrations
 - [x] **Telegram** channel - Bot API integration
 - [ ] **Matrix** channel - Matrix protocol support

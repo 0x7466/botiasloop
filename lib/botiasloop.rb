@@ -20,6 +20,7 @@ require_relative "botiasloop/channels"
 require_relative "botiasloop/channels/base"
 require_relative "botiasloop/channels/cli"
 require_relative "botiasloop/channels/telegram"
+require_relative "botiasloop/channels_manager"
 
 module Botiasloop
   class Error < StandardError; end

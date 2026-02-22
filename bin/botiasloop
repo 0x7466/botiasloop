@@ -23,39 +23,21 @@ if ARGV[0] == "-h" || ARGV[0] == "--help"
 elsif ARGV[0] == "-v" || ARGV[0] == "--version"
   puts "botiasloop #{Botiasloop::VERSION}"
 elsif ARGV[0] == "gateway"
-  # Gateway mode - auto-start all registered channels except CLI
+  # Gateway mode - auto-start all registered channels using ChannelsManager
   config = Botiasloop::Config.new
-  registry = Botiasloop::Channels.registry
+  manager = Botiasloop::ChannelsManager.new(config)
 
-  # Get all channels except CLI (CLI is for interactive use only)
-  gateway_channels = registry.channels.reject { |name, _class| name == :cli }
+  # Check if any channels are configured (excluding CLI)
+  available_channels = Botiasloop::Channels.registry.channels.reject { |name, _| name == :cli }
 
-  if gateway_channels.empty?
+  if available_channels.empty?
     puts "No gateway channels configured."
     puts "Configure at least one channel (e.g., Telegram) in ~/.config/botiasloop/config.yml"
     exit 1
   end
 
-  started_channels = []
-  gateway_channels.each do |identifier, channel_class|
-    begin
-      instance = channel_class.new(config)
-      instance.start
-      registry.instances[identifier] = instance
-      started_channels << instance
-    rescue => e
-      # Stop any channels that were already started
-      started_channels.each(&:stop)
-      registry.instances.clear
-      puts "Failed to start #{identifier}: #{e.message}"
-      exit 1
-    end
-  end
-
-  # Keep running until interrupted
-  loop do
-    sleep 1
-  end
+  # Start all channels and wait
+  manager.start_channels.wait
 elsif ARGV[0] == "cli"
   # CLI interactive mode
   config = Botiasloop::Config.new

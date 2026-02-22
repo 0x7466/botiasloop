@@ -21,6 +21,7 @@ module Botiasloop
         @bot_token = cfg["bot_token"]
         @allowed_users = cfg["allowed_users"] || []
         @bot = nil
+        @thread_id = nil
       end
 
       # Start the Telegram bot and listen for messages
@@ -34,6 +35,7 @@ module Botiasloop
 
         @bot = ::Telegram::Bot::Client.new(@bot_token)
         register_bot_commands
+        @thread_id = Thread.current.object_id
 
         @bot.run do |bot|
           bot.listen do |message|
@@ -47,10 +49,18 @@ module Botiasloop
       end
 
       # Stop the Telegram bot
+      #
+      # Interrupts the thread running the bot to gracefully exit
+      # the blocking listen loop.
       def stop
         @logger.info "[Telegram] Stopping bot..."
-        # Telegram::Bot::Client doesn't have an explicit stop method,
-        # but the run block will exit on interrupt
+
+        return unless @thread_id
+
+        thread = Thread.list.find { |t| t.object_id == @thread_id }
+        return unless thread&.alive?
+
+        thread.raise Interrupt
       end
 
       # Check if bot is running
