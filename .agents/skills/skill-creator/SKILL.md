@@ -26,7 +26,6 @@ Before creating any skill, you **MUST**:
 skill-name/
 ├── SKILL.md                    # Required - main instructions
 └── references/                 # Optional - additional docs
-    ├── SPECIFICATION.md        # Include agentskills.io spec
     └── domain-reference.md     # Official docs for the skill's domain
 ```
 
@@ -63,11 +62,11 @@ Keep SKILL.md under 500 lines. Structure for progressive disclosure:
 4. **Examples** - Common patterns and edge cases
 5. **References** - Links to detailed docs
 
-### Step 4: Include References
+### Step 4: Include References (Optional)
 
-Always include:
-- `references/SPECIFICATION.md` - Full agentskills.io spec
+Include as needed:
 - Domain-specific references (official docs)
+- SPECIFICATION.md only in skill-creator skill itself
 
 ## botiasloop-Specific Guidelines
 
@@ -110,8 +109,7 @@ After creating a skill:
 1. Check frontmatter validity
 2. Verify name matches directory
 3. Ensure under 500 lines
-4. Confirm all references exist
-5. Review against SPECIFICATION.md
+4. Review against SPECIFICATION.md (located in skill-creator/references/)
 
 ## Example Skill Layout
 
@@ -155,14 +153,13 @@ How to handle common issues.
 
 ## References
 
-- [Specification](references/SPECIFICATION.md)
-- [Official docs](references/official-docs.md)
+- [Official docs](references/official-docs.md) - Include domain-specific documentation
 ```
 
 ## Critical Rules
 
 1. **ALWAYS read official docs first** - Never create blind
-2. **Include the spec** - SPECIFICATION.md is mandatory
-3. **Keep it compact** - Under 500 lines, focused content
-4. **Match botiasloop style** - Follow AGENTS.md conventions
-5. **No speculation** - Only documented, verified information
+2. **Keep it compact** - Under 500 lines, focused content
+3. **Match botiasloop style** - Follow AGENTS.md conventions
+4. **No speculation** - Only documented, verified information
+5. **References are optional** - Include SPECIFICATION.md only in skill-creator itself
