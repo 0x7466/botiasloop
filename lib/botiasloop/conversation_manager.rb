@@ -14,10 +14,10 @@ module Botiasloop
       # @return [Conversation] Current conversation for the user
       def current_for(user_id)
         user_key = user_id.to_s
-        conversation = Models::Conversation.where(user_id: user_key, is_current: true, archived: false).first
+        conversation = Conversation.where(user_id: user_key, is_current: true, archived: false).first
 
         if conversation
-          Conversation.new(conversation.id)
+          Conversation[conversation.id]
         else
           create_new(user_key)
         end
@@ -37,10 +37,10 @@ module Botiasloop
         raise Error, "Usage: /switch <label-or-uuid>" if identifier.empty?
 
         # First try to find by label (include archived)
-        conversation = Models::Conversation.where(user_id: user_key, label: identifier).first
+        conversation = Conversation.where(user_id: user_key, label: identifier).first
 
         # If not found by label, treat as UUID (include archived)
-        conversation ||= Models::Conversation.find(id: identifier, user_id: user_key)
+        conversation ||= Conversation.find(id: identifier, user_id: user_key)
 
         raise Error, "Conversation '#{identifier}' not found" unless conversation
 
@@ -48,11 +48,11 @@ module Botiasloop
         conversation.update(archived: false) if conversation.archived
 
         # Clear current flag from all user's conversations
-        Models::Conversation.where(user_id: user_key).update(is_current: false)
+        Conversation.where(user_id: user_key).update(is_current: false)
 
         # Set new conversation as current
         conversation.update(is_current: true)
-        Conversation.new(conversation.id)
+        Conversation[conversation.id]
       end
 
       # Create a new conversation and switch the user to it
@@ -63,11 +63,11 @@ module Botiasloop
         user_key = user_id.to_s
 
         # Clear current flag from all user's conversations
-        Models::Conversation.where(user_id: user_key).update(is_current: false)
+        Conversation.where(user_id: user_key).update(is_current: false)
 
         # Create new conversation as current
-        conversation = Models::Conversation.create(user_id: user_key, is_current: true)
-        Conversation.new(conversation.id)
+        conversation = Conversation.create(user_id: user_key, is_current: true)
+        Conversation[conversation.id]
       end
 
       # Get the UUID for a user's current conversation
@@ -75,7 +75,7 @@ module Botiasloop
       # @param user_id [String] User identifier
       # @return [String, nil] Current conversation UUID or nil if none exists
       def current_uuid_for(user_id)
-        conversation = Models::Conversation.where(user_id: user_id.to_s, is_current: true).first
+        conversation = Conversation.where(user_id: user_id.to_s, is_current: true).first
         conversation&.id
       end
 
@@ -84,7 +84,7 @@ module Botiasloop
       # @param include_archived [Boolean] Whether to include archived conversations
       # @return [Hash] Hash mapping UUIDs to {user_id, label} hashes
       def all_mappings(include_archived: false)
-        dataset = include_archived ? Models::Conversation.dataset : Models::Conversation.where(archived: false)
+        dataset = include_archived ? Conversation.dataset : Conversation.where(archived: false)
         dataset.all.map do |conv|
           [conv.id, {"user_id" => conv.user_id, "label" => conv.label}]
         end.to_h
@@ -94,7 +94,7 @@ module Botiasloop
       #
       # @param user_id [String] User identifier
       def remove(user_id)
-        conversation = Models::Conversation.where(user_id: user_id.to_s, is_current: true).first
+        conversation = Conversation.where(user_id: user_id.to_s, is_current: true).first
         return unless conversation
 
         conversation.destroy
@@ -102,7 +102,7 @@ module Botiasloop
 
       # Clear all conversations (use with caution)
       def clear_all
-        Models::Conversation.db[:conversations].delete
+        Conversation.db[:conversations].delete
       end
 
       # Get the label for a conversation
@@ -110,7 +110,7 @@ module Botiasloop
       # @param uuid [String] Conversation UUID
       # @return [String, nil] Label value or nil
       def label(uuid)
-        conversation = Models::Conversation.find(id: uuid)
+        conversation = Conversation.find(id: uuid)
         conversation&.label
       end
 
@@ -121,7 +121,7 @@ module Botiasloop
       # @return [String] The label value
       # @raise [Error] If label format is invalid or already in use
       def set_label(uuid, value)
-        conversation = Models::Conversation.find(id: uuid)
+        conversation = Conversation.find(id: uuid)
         raise Error, "Conversation not found" unless conversation
 
         # Validate label format
@@ -138,7 +138,7 @@ module Botiasloop
         # Allow empty string to be treated as nil (clearing the label)
         value = nil if value.to_s.empty?
 
-        conversation.update(label: value)
+        Conversation.where(id: uuid).update(label: value)
         value
       end
 
@@ -151,7 +151,7 @@ module Botiasloop
       def label_exists?(user_id, label, exclude_uuid: nil)
         return false unless label
 
-        query = Models::Conversation.where(user_id: user_id.to_s, label: label)
+        query = Conversation.where(user_id: user_id.to_s, label: label)
         query = query.exclude(id: exclude_uuid) if exclude_uuid
         query.count > 0
       end
@@ -163,7 +163,7 @@ module Botiasloop
       # @param archived [Boolean, nil] Filter by archived status (nil = all, true = archived only, false = unarchived only)
       # @return [Array<Hash>] Array of {uuid, label, updated_at} hashes
       def list_by_user(user_id, archived: false)
-        dataset = Models::Conversation.where(user_id: user_id.to_s)
+        dataset = Conversation.where(user_id: user_id.to_s)
         dataset = dataset.where(archived: archived) unless archived.nil?
         dataset.order(Sequel.desc(:updated_at)).all.map do |conv|
           {uuid: conv.id, label: conv.label, updated_at: conv.updated_at}
@@ -176,7 +176,7 @@ module Botiasloop
       # @param label [String] Label to search for
       # @return [String, nil] UUID or nil if not found
       def find_by_label(user_id, label)
-        conversation = Models::Conversation.where(user_id: user_id.to_s, label: label).first
+        conversation = Conversation.where(user_id: user_id.to_s, label: label).first
         conversation&.id
       end
 
@@ -193,7 +193,7 @@ module Botiasloop
 
         if identifier.empty?
           # Archive current conversation
-          conversation = Models::Conversation.where(user_id: user_key, is_current: true).first
+          conversation = Conversation.where(user_id: user_key, is_current: true).first
           raise Error, "No current conversation to archive" unless conversation
 
           # Archive the current conversation
@@ -203,13 +203,13 @@ module Botiasloop
           new_conversation = create_new(user_key)
 
           {
-            archived: Conversation.new(conversation.id),
+            archived: Conversation[conversation.id],
             new_conversation: new_conversation
           }
         else
           # Archive by label or UUID
-          conversation = Models::Conversation.where(user_id: user_key, label: identifier).first
-          conversation ||= Models::Conversation.find(id: identifier, user_id: user_key)
+          conversation = Conversation.where(user_id: user_key, label: identifier).first
+          conversation ||= Conversation.find(id: identifier, user_id: user_key)
 
           raise Error, "Conversation '#{identifier}' not found" unless conversation
 
@@ -217,7 +217,7 @@ module Botiasloop
           raise Error, "Cannot archive the current conversation. Use /archive without arguments to archive current and start new." if conversation.is_current
 
           conversation.update(archived: true, is_current: false)
-          {archived: Conversation.new(conversation.id)}
+          {archived: Conversation[conversation.id]}
         end
       end
     end

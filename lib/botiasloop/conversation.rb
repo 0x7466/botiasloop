@@ -1,62 +1,83 @@
 # frozen_string_literal: true
 
-module Botiasloop
-  # Conversation class wraps the Sequel model for backward compatibility
-  # Provides the same interface as the original file-based implementation
-  class Conversation
-    # @return [String] UUID of the conversation
-    attr_reader :uuid
+require "securerandom"
+require "time"
 
-    # Initialize a conversation
-    #
-    # @param uuid [String, nil] UUID for the conversation (generates new if nil)
-    def initialize(uuid = nil)
-      if uuid
-        @model = Models::Conversation.find(id: uuid)
-        raise Error, "Conversation not found: #{uuid}" unless @model
-        @uuid = uuid
-      else
-        @model = Models::Conversation.create(user_id: "default")
-        @uuid = @model.id
+module Botiasloop
+  # Conversation model - represents a chat conversation with messages
+  # Direct Sequel model with all database and business logic combined
+  class Conversation < Sequel::Model(:conversations)
+    # Message model nested within Conversation namespace
+    class Message < Sequel::Model(:messages)
+      plugin :validation_helpers
+      plugin :timestamps, update_on_create: true
+
+      many_to_one :conversation, class: "Botiasloop::Conversation", key: :conversation_id
+
+      # Validations
+      def validate
+        super
+        validates_presence [:conversation_id, :role, :content]
+      end
+
+      # Convert message to hash for API compatibility
+      # @return [Hash] Message as hash with symbol keys
+      def to_hash
+        {
+          role: role,
+          content: content,
+          timestamp: timestamp.iso8601
+        }
       end
     end
 
-    # Get the label for this conversation
-    #
-    # @return [String, nil] Label or nil if not set
-    def label
-      @model.label
+    one_to_many :messages, class: "Botiasloop::Conversation::Message", key: :conversation_id
+
+    # Set up validations and hooks
+    plugin :validation_helpers
+    plugin :timestamps, update_on_create: true
+
+    # Allow setting primary key (id) for UUID
+    unrestrict_primary_key
+
+    # Auto-generate UUID before creation if not provided
+    def before_create
+      self.id ||= SecureRandom.uuid
+      super
     end
 
-    # Set the label for this conversation
-    #
-    # @param value [String] Label value
-    # @return [String] The label value
-    # @raise [Error] If label format is invalid or already in use
-    def label=(value)
-      ConversationManager.set_label(@uuid, value)
-      @model.refresh
+    # Validations
+    def validate
+      super
+      validates_presence [:user_id]
+
+      if label && !label.to_s.empty?
+        validates_format ConversationManager::LABEL_REGEX, :label, message: "Invalid label format. Use only letters, numbers, dashes, and underscores."
+        validates_unique [:user_id, :label], message: "Label '#{label}' already in use by another conversation"
+      end
     end
 
     # Check if this conversation has a label
     #
     # @return [Boolean] True if label is set
     def label?
-      !@model.label.nil? && !@model.label.to_s.empty?
-    end
-
-    # Get the number of messages in the conversation
-    #
-    # @return [Integer] Message count
-    def message_count
-      @model.message_count
+      !label.nil? && !label.to_s.empty?
     end
 
     # Get the timestamp of the last activity in the conversation
     #
     # @return [String, nil] ISO8601 timestamp of last message, or nil if no messages
     def last_activity
-      @model.last_activity
+      return nil if messages.empty?
+
+      messages_dataset.order(:timestamp).last.timestamp.utc.iso8601
+    end
+
+    # Get the number of messages in the conversation
+    #
+    # @return [Integer] Message count
+    def message_count
+      messages.count
     end
 
     # Add a message to the conversation
@@ -64,22 +85,35 @@ module Botiasloop
     # @param role [String] Role of the message sender (user, assistant, system)
     # @param content [String] Message content
     def add(role, content)
-      @model.add_message(role: role, content: content)
+      Message.create(
+        conversation_id: id,
+        role: role,
+        content: content,
+        timestamp: Time.now.utc
+      )
     end
 
-    # @return [Array<Hash>] Array of message hashes
+    # Get conversation history as array of message hashes
+    #
+    # @return [Array<Hash>] Array of message hashes with role, content, timestamp
     def history
-      @model.history
+      messages_dataset.order(:timestamp).map(&:to_hash)
     end
 
-    # @return [String] Path to the conversation file (deprecated, returns model ID)
+    # @return [String] UUID of the conversation
+    def uuid
+      # Return existing id or generate a new one for unsaved records
+      self.id ||= SecureRandom.uuid
+    end
+
+    # @return [String] Path to the conversation file (deprecated, returns uuid)
     def path
-      @uuid
+      uuid
     end
 
     # Reset conversation - clear all messages
     def reset!
-      @model.reset!
+      messages_dataset.delete
     end
 
     # Compact conversation by replacing old messages with a summary
@@ -87,10 +121,11 @@ module Botiasloop
     # @param summary [String] Summary of older messages
     # @param recent_messages [Array<Hash>] Recent messages to keep
     def compact!(summary, recent_messages)
-      @model.compact!(summary, recent_messages)
+      reset!
+      add("system", summary)
+      recent_messages.each do |msg|
+        add(msg[:role], msg[:content])
+      end
     end
-
-    # @return [Models::Conversation] The underlying model
-    attr_reader :model
   end
 end

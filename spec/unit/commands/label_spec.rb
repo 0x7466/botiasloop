@@ -59,18 +59,18 @@ RSpec.describe Botiasloop::Commands::Label do
 
     context "when called with a label value" do
       it "sets the label on the conversation" do
-        expect(conversation).to receive(:label=).with("my-label")
+        expect(conversation).to receive(:update).with(label: "my-label")
         command.execute(context, "my-label")
       end
 
       it "returns success message with the label" do
-        allow(conversation).to receive(:label=).with("my-label")
+        allow(conversation).to receive(:update).with(label: "my-label")
         result = command.execute(context, "my-label")
         expect(result).to eq("Label set to: my-label")
       end
 
       it "trims whitespace from the label" do
-        allow(conversation).to receive(:label=).with("my-label")
+        allow(conversation).to receive(:update).with(label: "my-label")
         result = command.execute(context, "  my-label  ")
         expect(result).to eq("Label set to: my-label")
       end
@@ -100,25 +100,25 @@ RSpec.describe Botiasloop::Commands::Label do
 
     context "with valid label characters" do
       it "accepts alphanumeric characters" do
-        allow(conversation).to receive(:label=)
+        allow(conversation).to receive(:update)
         result = command.execute(context, "myproject123")
         expect(result).to eq("Label set to: myproject123")
       end
 
       it "accepts dashes" do
-        allow(conversation).to receive(:label=)
+        allow(conversation).to receive(:update)
         result = command.execute(context, "my-project")
         expect(result).to eq("Label set to: my-project")
       end
 
       it "accepts underscores" do
-        allow(conversation).to receive(:label=)
+        allow(conversation).to receive(:update)
         result = command.execute(context, "my_project")
         expect(result).to eq("Label set to: my_project")
       end
 
       it "accepts mixed valid characters" do
-        allow(conversation).to receive(:label=)
+        allow(conversation).to receive(:update)
         result = command.execute(context, "my-project_123")
         expect(result).to eq("Label set to: my-project_123")
       end
@@ -145,7 +145,7 @@ RSpec.describe Botiasloop::Commands::Label do
       end
 
       it "allows setting the same label" do
-        allow(conversation).to receive(:label=).with("my-label")
+        allow(conversation).to receive(:update).with(label: "my-label")
         result = command.execute(context, "my-label")
         expect(result).to eq("Label set to: my-label")
       end
@@ -153,7 +153,7 @@ RSpec.describe Botiasloop::Commands::Label do
 
     context "when label raises an error" do
       before do
-        allow(conversation).to receive(:label=).and_raise(Botiasloop::Error, "Some error")
+        allow(conversation).to receive(:update).and_raise(Botiasloop::Error, "Some error")
       end
 
       it "returns error message" do
@@ -166,7 +166,7 @@ RSpec.describe Botiasloop::Commands::Label do
       let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: nil) }
 
       it "sets label without checking uniqueness" do
-        allow(conversation).to receive(:label=).with("my-label")
+        allow(conversation).to receive(:update).with(label: "my-label")
         result = command.execute(context, "my-label")
         expect(result).to eq("Label set to: my-label")
       end

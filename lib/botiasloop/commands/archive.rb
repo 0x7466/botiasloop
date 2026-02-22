@@ -33,7 +33,7 @@ module Botiasloop
       private
 
       def format_archive_response(conversation)
-        lines = ["Conversation archived successfully:"]
+        lines = ["**Conversation archived successfully**"]
         lines << "- UUID: #{conversation.uuid}"
 
         lines << if conversation.label?
@@ -56,7 +56,7 @@ module Botiasloop
       end
 
       def format_archive_current_response(archived, new_conversation)
-        lines = ["Current conversation archived and new conversation started:"]
+        lines = ["**Current conversation archived and new conversation started**"]
         lines << ""
         lines << "Archived:"
         lines << "- UUID: #{archived.uuid}"

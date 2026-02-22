@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Botiasloop::Models::Conversation do
+RSpec.describe Botiasloop::Conversation do
   before do
     Botiasloop::Database.setup!
   end
@@ -19,6 +19,7 @@ RSpec.describe Botiasloop::Models::Conversation do
 
     it "generates a UUID if not provided" do
       conversation = described_class.new(user_id: "user1")
+      conversation.save
       expect(conversation.id).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
     end
 
@@ -40,7 +41,7 @@ RSpec.describe Botiasloop::Models::Conversation do
       conversation = described_class.create(user_id: "user1")
       conversation.add_message(role: "user", content: "hello", timestamp: Time.now)
       conversation.destroy
-      expect(Botiasloop::Models::Message.count).to eq(0)
+      expect(Botiasloop::Conversation::Message.count).to eq(0)
     end
   end
 
@@ -54,7 +55,7 @@ RSpec.describe Botiasloop::Models::Conversation do
     it "prevents duplicate labels for same user" do
       described_class.create(user_id: "user1", label: "project")
       conversation2 = described_class.new(user_id: "user1", label: "project")
-      expect { conversation2.save }.to raise_error(Sequel::UniqueConstraintViolation)
+      expect { conversation2.save }.to raise_error(Sequel::ValidationFailed)
     end
   end
 
@@ -127,7 +128,7 @@ RSpec.describe Botiasloop::Models::Conversation do
   end
 end
 
-RSpec.describe Botiasloop::Models::Message do
+RSpec.describe Botiasloop::Conversation::Message do
   before do
     Botiasloop::Database.setup!
   end
@@ -143,13 +144,13 @@ RSpec.describe Botiasloop::Models::Message do
     end
 
     it "requires role" do
-      conversation = Botiasloop::Models::Conversation.create(user_id: "user1")
+      conversation = Botiasloop::Conversation.create(user_id: "user1")
       message = described_class.new(conversation_id: conversation.id, content: "hello")
       expect(message.valid?).to be false
     end
 
     it "requires content" do
-      conversation = Botiasloop::Models::Conversation.create(user_id: "user1")
+      conversation = Botiasloop::Conversation.create(user_id: "user1")
       message = described_class.new(conversation_id: conversation.id, role: "user")
       expect(message.valid?).to be false
     end
@@ -157,7 +158,7 @@ RSpec.describe Botiasloop::Models::Message do
 
   describe "associations" do
     it "belongs to conversation" do
-      conversation = Botiasloop::Models::Conversation.create(user_id: "user1")
+      conversation = Botiasloop::Conversation.create(user_id: "user1")
       message = described_class.create(conversation_id: conversation.id, role: "user", content: "hello")
       expect(message.conversation.id).to eq(conversation.id)
     end
@@ -165,7 +166,7 @@ RSpec.describe Botiasloop::Models::Message do
 
   describe "to_hash" do
     it "returns message as hash with symbol keys" do
-      conversation = Botiasloop::Models::Conversation.create(user_id: "user1")
+      conversation = Botiasloop::Conversation.create(user_id: "user1")
       message = described_class.create(
         conversation_id: conversation.id,
         role: "user",

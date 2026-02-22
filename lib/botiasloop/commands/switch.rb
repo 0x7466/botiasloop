@@ -30,7 +30,7 @@ module Botiasloop
       private
 
       def format_switch_response(conversation)
-        lines = ["Switched to conversation:"]
+        lines = ["**Conversation switched**"]
         lines << "- UUID: #{conversation.uuid}"
 
         lines << if conversation.label?

@@ -8,7 +8,6 @@ require_relative "botiasloop/database"
 Botiasloop::Database.connect
 Botiasloop::Database.setup!
 
-require_relative "botiasloop/models"
 require_relative "botiasloop/conversation"
 require_relative "botiasloop/conversation_manager"
 require_relative "botiasloop/tool"

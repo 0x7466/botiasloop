@@ -47,7 +47,7 @@ module Botiasloop
           return "Label '#{label_value}' already in use by another conversation."
         end
 
-        conversation.label = label_value
+        conversation.update(label: label_value)
         "Label set to: #{label_value}"
       rescue Botiasloop::Error => e
         "Error setting label: #{e.message}"

@@ -20,24 +20,24 @@ RSpec.describe Botiasloop::Conversation do
 
       it "creates a new conversation in the database" do
         conversation = described_class.new
-        model = Botiasloop::Models::Conversation.find(id: conversation.uuid)
-        expect(model).not_to be_nil
-        expect(model.user_id).to eq("default")
+        conversation.user_id = "default"
+        conversation.save
+        expect(conversation).not_to be_nil
+        expect(conversation.user_id).to eq("default")
       end
     end
 
     context "with uuid provided" do
       it "uses the provided uuid when conversation exists" do
         # Create a conversation first
-        model = Botiasloop::Models::Conversation.create(user_id: "test")
-        conversation = described_class.new(model.id)
+        model = described_class.create(user_id: "test")
+        conversation = described_class[model.id]
         expect(conversation.uuid).to eq(model.id)
       end
 
-      it "raises error when conversation does not exist" do
-        expect {
-          described_class.new("nonexistent-uuid")
-        }.to raise_error(Botiasloop::Error, /Conversation not found/)
+      it "returns nil when conversation does not exist" do
+        conversation = described_class["nonexistent-uuid"]
+        expect(conversation).to be_nil
       end
     end
   end
@@ -50,7 +50,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#add" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "adds a message to the conversation" do
       conversation.add("user", "Hello")
@@ -78,7 +78,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#history" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "returns empty array for new conversation" do
       expect(conversation.history).to eq([])
@@ -103,7 +103,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#reset!" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "clears all messages" do
       conversation.add("user", "Hello")
@@ -117,7 +117,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#compact!" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     before do
       10.times do |i|
@@ -150,14 +150,14 @@ RSpec.describe Botiasloop::Conversation do
       conversation.compact!(summary, recent)
 
       # Reload from database
-      conversation2 = described_class.new(uuid)
+      conversation2 = described_class[uuid]
       expect(conversation2.history.length).to eq(2)
       expect(conversation2.history[0][:content]).to eq("Summary")
     end
   end
 
   describe "#label" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "returns nil when conversation has no label" do
       expect(conversation.label).to be_nil
@@ -170,7 +170,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#label=" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "sets the label" do
       conversation.label = "my-label"
@@ -179,22 +179,23 @@ RSpec.describe Botiasloop::Conversation do
 
     it "persists the label" do
       uuid = conversation.uuid
-      conversation.label = "persisted-label"
+      conversation.update(label: "persisted-label")
 
-      # Create new instance with same uuid
-      conversation2 = described_class.new(uuid)
+      # Load existing conversation
+      conversation2 = described_class[uuid]
       expect(conversation2.label).to eq("persisted-label")
     end
 
     it "raises error for invalid label format" do
+      conversation.label = "invalid label"
       expect {
-        conversation.label = "invalid label"
-      }.to raise_error(Botiasloop::Error, /Invalid label format/)
+        conversation.save
+      }.to raise_error(Sequel::ValidationFailed, /Invalid label format/)
     end
   end
 
   describe "#label?" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "returns false when no label is set" do
       expect(conversation.label?).to be false
@@ -207,7 +208,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#message_count" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
 
     it "returns 0 for empty conversation" do
       expect(conversation.message_count).to eq(0)
@@ -226,14 +227,14 @@ RSpec.describe Botiasloop::Conversation do
       conversation.add("user", "Hello")
       conversation.add("assistant", "Hi!")
 
-      # Create new instance with same uuid
-      conversation2 = described_class.new(uuid)
+      # Load existing conversation
+      conversation2 = described_class[uuid]
       expect(conversation2.message_count).to eq(2)
     end
   end
 
   describe "#last_activity" do
-    let(:conversation) { described_class.new }
+    let(:conversation) { described_class.create(user_id: "test") }
     let(:fixed_time1) { Time.parse("2026-02-20T10:00:00Z") }
     let(:fixed_time2) { Time.parse("2026-02-20T11:30:00Z") }
 
@@ -256,8 +257,8 @@ RSpec.describe Botiasloop::Conversation do
       allow(Time).to receive(:now).and_return(fixed_time1)
       conversation.add("user", "Hello")
 
-      # Create new instance with same uuid
-      conversation2 = described_class.new(uuid)
+      # Load existing conversation
+      conversation2 = described_class[uuid]
       expect(conversation2.last_activity).to eq("2026-02-20T10:00:00Z")
     end
 

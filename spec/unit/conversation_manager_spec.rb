@@ -471,7 +471,7 @@ RSpec.describe Botiasloop::ConversationManager do
         expect(result[:archived].uuid).to eq("target-uuid")
 
         # Verify it's archived in the database
-        db_conv = Botiasloop::Models::Conversation.find(id: "target-uuid")
+        db_conv = Botiasloop::Conversation.find(id: "target-uuid")
         expect(db_conv.archived).to be true
         expect(db_conv.is_current).to be false
       end
@@ -503,7 +503,7 @@ RSpec.describe Botiasloop::ConversationManager do
         expect(result).to have_key(:archived)
         expect(result[:archived].uuid).to eq("target-uuid")
 
-        db_conv = Botiasloop::Models::Conversation.find(id: "target-uuid")
+        db_conv = Botiasloop::Conversation.find(id: "target-uuid")
         expect(db_conv.archived).to be true
       end
     end
@@ -523,12 +523,12 @@ RSpec.describe Botiasloop::ConversationManager do
         expect(result[:new_conversation]).to be_a(Botiasloop::Conversation)
 
         # Verify archived
-        db_conv = Botiasloop::Models::Conversation.find(id: "current-uuid")
+        db_conv = Botiasloop::Conversation.find(id: "current-uuid")
         expect(db_conv.archived).to be true
         expect(db_conv.is_current).to be false
 
         # Verify new conversation is current
-        new_db_conv = Botiasloop::Models::Conversation.find(id: result[:new_conversation].uuid)
+        new_db_conv = Botiasloop::Conversation.find(id: result[:new_conversation].uuid)
         expect(new_db_conv.is_current).to be true
       end
 
@@ -601,7 +601,7 @@ RSpec.describe Botiasloop::ConversationManager do
       described_class.switch("user123", "first-project")
 
       # Verify it's no longer archived and is now current
-      db_conv = Botiasloop::Models::Conversation.find(id: "uuid1")
+      db_conv = Botiasloop::Conversation.find(id: "uuid1")
       expect(db_conv.archived).to be false
       expect(db_conv.is_current).to be true
     end
@@ -609,7 +609,7 @@ RSpec.describe Botiasloop::ConversationManager do
     it "auto-unarchives when switching by UUID" do
       described_class.switch("user123", "uuid1")
 
-      db_conv = Botiasloop::Models::Conversation.find(id: "uuid1")
+      db_conv = Botiasloop::Conversation.find(id: "uuid1")
       expect(db_conv.archived).to be false
     end
 
@@ -626,7 +626,7 @@ RSpec.describe Botiasloop::ConversationManager do
     it "preserves label after archiving and unarchiving" do
       described_class.switch("user123", "first-project")
 
-      db_conv = Botiasloop::Models::Conversation.find(id: "uuid1")
+      db_conv = Botiasloop::Conversation.find(id: "uuid1")
       expect(db_conv.label).to eq("first-project")
       expect(db_conv.archived).to be false
     end
@@ -640,13 +640,13 @@ RSpec.describe Botiasloop::ConversationManager do
       time3 = Time.now # now
 
       described_class.switch("user123", "uuid1")
-      Botiasloop::Models::Conversation.find(id: "uuid1").update(updated_at: time1)
+      Botiasloop::Conversation.find(id: "uuid1").update(updated_at: time1)
 
       described_class.switch("user123", "uuid2")
-      Botiasloop::Models::Conversation.find(id: "uuid2").update(updated_at: time2)
+      Botiasloop::Conversation.find(id: "uuid2").update(updated_at: time2)
 
       described_class.switch("user123", "uuid3")
-      Botiasloop::Models::Conversation.find(id: "uuid3").update(updated_at: time3)
+      Botiasloop::Conversation.find(id: "uuid3").update(updated_at: time3)
 
       conversations = described_class.list_by_user("user123", archived: nil)
       uuids = conversations.map { |c| c[:uuid] }
