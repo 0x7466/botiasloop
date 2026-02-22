@@ -21,9 +21,13 @@ require_relative "botiasloop/channels/base"
 require_relative "botiasloop/channels/cli"
 require_relative "botiasloop/channels/telegram"
 require_relative "botiasloop/channels_manager"
+require_relative "botiasloop/systemd_service"
 
 module Botiasloop
   class Error < StandardError; end
+
+  # Error raised for systemd service operation failures
+  class SystemdError < Error; end
 
   # @return [String] Root directory of the gem
   def self.root

@@ -195,13 +195,13 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] Dynamic reloading without restart
 
 ### Daemon / Background Running
-- [ ] Systemd service support (Linux)
-- [ ] launchd support (macOS)
-- [ ] Background process with PID file
+- [ ] Background process with PID file (Linux/Unix)
+- [ ] `botiasloop gateway -d` / `--daemon` flag
+- [ ] `botiasloop gateway stop` command
 - [ ] Signal handling (SIGTERM, SIGHUP for reload)
 - [ ] Graceful shutdown with conversation persistence
-- [ ] Docker daemon mode support
 - [ ] Log to file when running as daemon
+- [ ] Systemd service example/documentation
 
 ## Implementation Principles
 

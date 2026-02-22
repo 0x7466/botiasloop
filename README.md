@@ -53,6 +53,45 @@ botiasloop
 # [Session ends]
 ```
 
+### Gateway Mode
+
+Run botiasloop as a persistent gateway for Telegram and other channels:
+
+```bash
+# Start the gateway (foreground)
+botiasloop gateway
+```
+
+### Systemd Service (Linux)
+
+Manage botiasloop as a systemd user service for background operation and auto-start on login:
+
+```bash
+# Install and enable service (auto-start on login)
+botiasloop gateway enable
+
+# Start the service
+botiasloop gateway start
+
+# Check service status
+botiasloop gateway status
+
+# Restart the service
+botiasloop gateway restart
+
+# Stop the service
+botiasloop gateway stop
+
+# Disable and uninstall service
+botiasloop gateway disable
+```
+
+The service runs in the background and starts automatically when you log in. View logs with:
+
+```bash
+journalctl --user -u botiasloop.service -f
+```
+
 ### Conversation Persistence
 
 Conversations are automatically saved to:

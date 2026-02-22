@@ -16,19 +16,19 @@ def print_help
   puts "  cli              Start interactive REPL mode"
   puts "  gateway          Start gateway (Telegram bot and other channels)"
   puts "  help             Show this help message"
+  puts
+  puts "Gateway Commands:"
+  puts "  start            Start the systemd service"
+  puts "  stop             Stop the systemd service"
+  puts "  restart          Restart the systemd service"
+  puts "  status           Show systemd service status"
+  puts "  enable           Install and enable systemd service (auto-start on login)"
+  puts "  disable          Disable and uninstall systemd service"
 end
 
-if ARGV[0] == "-h" || ARGV[0] == "--help"
-  print_help
-elsif ARGV[0] == "-v" || ARGV[0] == "--version"
-  puts "botiasloop #{Botiasloop::VERSION}"
-elsif ARGV[0] == "gateway"
-  # Gateway mode - auto-start all registered channels using ChannelsManager
-  config = Botiasloop::Config.new
-  manager = Botiasloop::ChannelsManager.new(config)
-
+def start_gateway(config)
   # Check if any channels are configured (excluding CLI)
-  available_channels = Botiasloop::Channels.registry.channels.reject { |name, _| name == :cli }
+  available_channels = Botiasloop::Channels.registry.channels.except(:cli)
 
   if available_channels.empty?
     puts "No gateway channels configured."
@@ -36,8 +36,108 @@ elsif ARGV[0] == "gateway"
     exit 1
   end
 
+  manager = Botiasloop::ChannelsManager.new(config)
+
   # Start all channels and wait
   manager.start_channels.wait
+end
+
+if ARGV[0] == "-h" || ARGV[0] == "--help"
+  print_help
+elsif ARGV[0] == "-v" || ARGV[0] == "--version"
+  puts "botiasloop #{Botiasloop::VERSION}"
+elsif ARGV[0] == "gateway"
+  config = Botiasloop::Config.new
+
+  if ARGV[1] == "start"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      begin
+        service.start
+        puts "Service started"
+      rescue Botiasloop::SystemdError => e
+        puts "Error: #{e.message}"
+        exit 1
+      end
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  elsif ARGV[1] == "stop"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      begin
+        service.stop
+        puts "Service stopped"
+      rescue Botiasloop::SystemdError => e
+        puts "Error: #{e.message}"
+        exit 1
+      end
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  elsif ARGV[1] == "restart"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      begin
+        service.restart
+        puts "Service restarted"
+      rescue Botiasloop::SystemdError => e
+        puts "Error: #{e.message}"
+        exit 1
+      end
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  elsif ARGV[1] == "status"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      status = service.status
+      puts "Service status: #{status[:message]}"
+      exit(status[:active] ? 0 : 1)
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  elsif ARGV[1] == "enable"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      begin
+        service.install unless service.installed?
+        service.enable
+        puts "Service installed and enabled. Run 'botiasloop gateway start' to start now."
+        puts "The service will start automatically on your next login."
+      rescue Botiasloop::SystemdError => e
+        puts "Error: #{e.message}"
+        exit 1
+      end
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  elsif ARGV[1] == "disable"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      begin
+        if service.installed?
+          service.uninstall
+          puts "Service disabled and uninstalled"
+        else
+          puts "Service is not installed"
+        end
+      rescue Botiasloop::SystemdError => e
+        puts "Error: #{e.message}"
+        exit 1
+      end
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  else
+    start_gateway(config)
+  end
 elsif ARGV[0] == "cli"
   # CLI interactive mode
   config = Botiasloop::Config.new
