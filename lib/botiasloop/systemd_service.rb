@@ -99,17 +99,23 @@ module Botiasloop
 
     # Enable the service to start on boot
     #
+    # Enables linger to allow user services to start at boot time,
+    # then enables the service. Falls back gracefully if linger fails.
+    #
     # @raise [SystemdError] If systemd unavailable or service not installed
     # @return [Boolean] True on success
     def enable
       raise SystemdError, "systemd is not available on this system" unless systemd_available?
       raise SystemdError, "Service is not installed" unless installed?
 
+      enable_linger
       systemctl("enable", SERVICE_NAME)
       true
     end
 
     # Disable the service from starting on boot
+    #
+    # Disables the service then disables linger if it was enabled.
     #
     # @raise [SystemdError] If systemd unavailable
     # @return [Boolean] True on success
@@ -117,7 +123,43 @@ module Botiasloop
       raise SystemdError, "systemd is not available on this system" unless systemd_available?
 
       systemctl("disable", SERVICE_NAME)
+      disable_linger
       true
+    end
+
+    # Check if linger is enabled for the current user
+    #
+    # Linger allows user services to start at boot time
+    # without requiring a user login session.
+    #
+    # @return [Boolean] True if linger is enabled
+    def linger_enabled?
+      output = `loginctl show-user $USER --property=Linger 2>/dev/null`.strip
+      output == "Linger=yes"
+    end
+
+    # Enable linger for the current user
+    #
+    # Allows user services to start at boot time.
+    # Does nothing if already enabled.
+    #
+    # @return [Boolean] True on success or already enabled, false on failure
+    def enable_linger
+      return true if linger_enabled?
+
+      system("loginctl", "enable-linger", ENV["USER"])
+    end
+
+    # Disable linger for the current user
+    #
+    # Prevents user services from starting at boot time.
+    # Does nothing if already disabled.
+    #
+    # @return [Boolean] True on success or already disabled, false on failure
+    def disable_linger
+      return true unless linger_enabled?
+
+      system("loginctl", "disable-linger", ENV["USER"])
     end
 
     # Start the service
@@ -203,7 +245,7 @@ module Botiasloop
         Environment="PATH=#{ruby_bin_path}:/usr/local/bin:/usr/bin:/bin"
 
         [Install]
-        WantedBy=default.target
+        WantedBy=multi-user.target
       SERVICE
     end
 

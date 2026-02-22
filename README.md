@@ -29,7 +29,7 @@ Following the Rails Doctrine:
 - **CLI Mode**: Interactive REPL for local usage
 - **Telegram Bot**: Chat with the agent via Telegram
 - **Multi-Channel**: Run multiple channels simultaneously
-- **Systemd Integration**: Run as a system service
+- **Boot Auto-Start**: systemd service with automatic startup on boot
 
 ### Commands
 Slash commands for conversation management:
@@ -138,12 +138,12 @@ Start the gateway to enable Telegram and other channels:
 # Run in foreground
 botiasloop gateway
 
-# Systemd service management
-botiasloop gateway enable   # Install and enable auto-start
-botiasloop gateway start    # Start the service
+# Systemd service management (boot auto-start)
+botiasloop gateway enable   # Install and enable boot auto-start
+botiasloop gateway start    # Start the service now
 botiasloop gateway status   # Check service status
 botiasloop gateway stop     # Stop the service
-botiasloop gateway disable  # Disable and uninstall
+botiasloop gateway disable  # Disable boot auto-start and uninstall
 ```
 
 ### One-Shot Mode

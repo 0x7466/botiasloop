@@ -452,4 +452,151 @@ RSpec.describe Botiasloop::SystemdService do
       expect(result).to be false
     end
   end
+
+  describe "#linger_enabled?" do
+    context "when linger is enabled" do
+      before do
+        allow(service).to receive(:`).with("loginctl show-user $USER --property=Linger 2>/dev/null").and_return("Linger=yes")
+      end
+
+      it "returns true" do
+        expect(service.linger_enabled?).to be true
+      end
+    end
+
+    context "when linger is disabled" do
+      before do
+        allow(service).to receive(:`).with("loginctl show-user $USER --property=Linger 2>/dev/null").and_return("Linger=no")
+      end
+
+      it "returns false" do
+        expect(service.linger_enabled?).to be false
+      end
+    end
+
+    context "when loginctl is not available" do
+      before do
+        allow(service).to receive(:`).with("loginctl show-user $USER --property=Linger 2>/dev/null").and_return("")
+      end
+
+      it "returns false" do
+        expect(service.linger_enabled?).to be false
+      end
+    end
+  end
+
+  describe "#enable_linger" do
+    before do
+      allow(service).to receive(:system).and_return(true)
+    end
+
+    context "when linger is already enabled" do
+      before do
+        allow(service).to receive(:linger_enabled?).and_return(true)
+      end
+
+      it "returns true without running loginctl" do
+        expect(service).not_to receive(:system)
+        expect(service.enable_linger).to be true
+      end
+    end
+
+    context "when linger is not enabled" do
+      before do
+        allow(service).to receive(:linger_enabled?).and_return(false)
+      end
+
+      it "enables linger using loginctl" do
+        expect(service).to receive(:system).with("loginctl", "enable-linger", ENV["USER"])
+        service.enable_linger
+      end
+
+      it "returns true on success" do
+        allow(service).to receive(:system).and_return(true)
+        expect(service.enable_linger).to be true
+      end
+
+      it "returns false on failure" do
+        allow(service).to receive(:system).and_return(false)
+        expect(service.enable_linger).to be false
+      end
+    end
+  end
+
+  describe "#disable_linger" do
+    before do
+      allow(service).to receive(:system).and_return(true)
+    end
+
+    context "when linger is already disabled" do
+      before do
+        allow(service).to receive(:linger_enabled?).and_return(false)
+      end
+
+      it "returns true without running loginctl" do
+        expect(service).not_to receive(:system)
+        expect(service.disable_linger).to be true
+      end
+    end
+
+    context "when linger is enabled" do
+      before do
+        allow(service).to receive(:linger_enabled?).and_return(true)
+      end
+
+      it "disables linger using loginctl" do
+        expect(service).to receive(:system).with("loginctl", "disable-linger", ENV["USER"])
+        service.disable_linger
+      end
+
+      it "returns true on success" do
+        allow(service).to receive(:system).and_return(true)
+        expect(service.disable_linger).to be true
+      end
+
+      it "returns false on failure" do
+        allow(service).to receive(:system).and_return(false)
+        expect(service.disable_linger).to be false
+      end
+    end
+  end
+
+  describe "#enable with linger" do
+    context "when linger succeeds" do
+      before do
+        allow(File).to receive(:exist?).with(service_file).and_return(true)
+        allow(service).to receive(:enable_linger).and_return(true)
+      end
+
+      it "enables linger before enabling service" do
+        expect(service).to receive(:enable_linger).ordered
+        expect(service).to receive(:systemctl).with("enable", "botiasloop.service").ordered
+        service.enable
+      end
+    end
+
+    context "when linger fails" do
+      before do
+        allow(File).to receive(:exist?).with(service_file).and_return(true)
+        allow(service).to receive(:enable_linger).and_return(false)
+      end
+
+      it "still enables the service" do
+        expect(service).to receive(:systemctl).with("enable", "botiasloop.service")
+        service.enable
+      end
+    end
+  end
+
+  describe "#disable with linger" do
+    before do
+      allow(service).to receive(:linger_enabled?).and_return(true)
+    end
+
+    it "disables linger after disabling service" do
+      expect(service).to receive(:systemctl).with("disable", "botiasloop.service").ordered
+      expect(service).to receive(:disable_linger).ordered
+      service.disable
+    end
+  end
 end
