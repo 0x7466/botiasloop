@@ -41,6 +41,22 @@ module Botiasloop
       !label.nil?
     end
 
+    # Get the number of messages in the conversation
+    #
+    # @return [Integer] Message count
+    def message_count
+      @messages.length
+    end
+
+    # Get the timestamp of the last activity in the conversation
+    #
+    # @return [String, nil] ISO8601 timestamp of last message, or nil if no messages
+    def last_activity
+      return nil if @messages.empty?
+
+      @messages.last[:timestamp]
+    end
+
     # Add a message to the conversation
     #
     # @param role [String] Role of the message sender (user, assistant, system)

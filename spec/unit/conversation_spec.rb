@@ -260,4 +260,78 @@ RSpec.describe Botiasloop::Conversation do
       expect(conversation.label?).to be true
     end
   end
+
+  describe "#message_count" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+
+    before do
+      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
+    end
+
+    it "returns 0 for empty conversation" do
+      expect(conversation.message_count).to eq(0)
+    end
+
+    it "returns the number of messages" do
+      conversation.add("user", "Hello")
+      conversation.add("assistant", "Hi!")
+      conversation.add("user", "How are you?")
+
+      expect(conversation.message_count).to eq(3)
+    end
+
+    it "returns correct count after loading from file" do
+      conversation.add("user", "Hello")
+      conversation.add("assistant", "Hi!")
+
+      # Create new instance with same uuid
+      conversation2 = described_class.new(fixed_uuid)
+      expect(conversation2.message_count).to eq(2)
+    end
+  end
+
+  describe "#last_activity" do
+    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:fixed_time1) { Time.parse("2026-02-20T10:00:00Z") }
+    let(:fixed_time2) { Time.parse("2026-02-20T11:30:00Z") }
+
+    before do
+      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
+    end
+
+    it "returns nil for empty conversation" do
+      expect(conversation.last_activity).to be_nil
+    end
+
+    it "returns the timestamp of the last message" do
+      allow(Time).to receive(:now).and_return(fixed_time1)
+      conversation.add("user", "First message")
+
+      allow(Time).to receive(:now).and_return(fixed_time2)
+      conversation.add("assistant", "Second message")
+
+      expect(conversation.last_activity).to eq("2026-02-20T11:30:00Z")
+    end
+
+    it "persists after loading from file" do
+      allow(Time).to receive(:now).and_return(fixed_time1)
+      conversation.add("user", "Hello")
+
+      # Create new instance with same uuid
+      conversation2 = described_class.new(fixed_uuid)
+      expect(conversation2.last_activity).to eq("2026-02-20T10:00:00Z")
+    end
+
+    it "updates when new message is added" do
+      allow(Time).to receive(:now).and_return(fixed_time1)
+      conversation.add("user", "First")
+
+      expect(conversation.last_activity).to eq("2026-02-20T10:00:00Z")
+
+      allow(Time).to receive(:now).and_return(fixed_time2)
+      conversation.add("assistant", "Second")
+
+      expect(conversation.last_activity).to eq("2026-02-20T11:30:00Z")
+    end
+  end
 end

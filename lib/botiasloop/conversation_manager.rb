@@ -42,14 +42,23 @@ module Botiasloop
         end
       end
 
-      # Switch a user to a different conversation by UUID
+      # Switch a user to a different conversation by label or UUID
       #
       # @param user_id [String] User identifier
-      # @param uuid [String] Conversation UUID to switch to
+      # @param identifier [String] Conversation label or UUID to switch to
       # @return [Conversation] The switched-to conversation
-      # @raise [Error] If conversation with given UUID doesn't exist
-      def switch(user_id, uuid)
+      # @raise [Error] If conversation with given identifier doesn't exist
+      def switch(user_id, identifier)
         user_key = user_id.to_s
+        identifier = identifier.to_s.strip
+
+        raise Error, "Usage: /switch <label-or-uuid>" if identifier.empty?
+
+        # First try to find by label
+        uuid = find_by_label(user_key, identifier)
+
+        # If not found by label, treat as UUID
+        uuid ||= identifier
 
         # Ensure the conversation exists in mapping (create if not)
         unless mapping.key?(uuid)

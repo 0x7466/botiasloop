@@ -105,6 +105,44 @@ RSpec.describe Botiasloop::ConversationManager do
       # second-uuid should have no label initially
       expect(described_class.label("second-uuid")).to be_nil
     end
+
+    it "switches by label when label exists" do
+      described_class.switch("user123", "target-uuid")
+      described_class.label("target-uuid", "my-project")
+
+      # Clear memory to test fresh lookup
+      described_class.instance_variable_set(:@mapping, nil)
+
+      conversation = described_class.switch("user123", "my-project")
+      expect(conversation.uuid).to eq("target-uuid")
+    end
+
+    it "treats identifier as UUID when no label matches" do
+      conversation = described_class.switch("user123", "new-uuid-123")
+      expect(conversation.uuid).to eq("new-uuid-123")
+    end
+
+    it "raises error for empty identifier" do
+      expect {
+        described_class.switch("user123", "")
+      }.to raise_error(Botiasloop::Error, /Usage: \/switch/)
+    end
+
+    it "raises error for nil identifier" do
+      expect {
+        described_class.switch("user123", nil)
+      }.to raise_error(Botiasloop::Error, /Usage: \/switch/)
+    end
+
+    it "strips whitespace from identifier" do
+      described_class.switch("user123", "target-uuid")
+      described_class.label("target-uuid", "my-project")
+
+      described_class.instance_variable_set(:@mapping, nil)
+
+      conversation = described_class.switch("user123", "  my-project  ")
+      expect(conversation.uuid).to eq("target-uuid")
+    end
   end
 
   describe ".create_new" do

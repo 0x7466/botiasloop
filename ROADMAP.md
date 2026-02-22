@@ -24,7 +24,7 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] `/model <name>` - Switch model for this conversation
 - [x] `/label <name>` - Set label for current conversation
 - [x] `/conversations` - List all conversations
-- [ ] `/switch <label|uuid>` - Switch to different conversation
+- [x] `/switch <label|uuid>` - Switch to different conversation
 - [x] `/new` - Start new conversation
 - [ ] `/continue` - Continue a conversation that reached max iterations
 - [x] `/help` - Show available commands
@@ -39,8 +39,7 @@ This document outlines the planned features and improvements for botiasloop.
 ### 5. Conversation Labels
 - [x] Add `label` field to Conversation
 - [x] Labels are unique per user (not globally unique)
-- [ ] Switch conversations: `/switch holiday-planning` instead of `/switch a1b2c3...`
-- [ ] Auto-generate labels if not provided (e.g., "conversation-1", "conversation-2")
+- [x] Switch conversations: `/switch holiday-planning` instead of `/switch a1b2c3...`
 
 ### 6. Skills Support
 - [ ] Load skills from `~/skills/` directory

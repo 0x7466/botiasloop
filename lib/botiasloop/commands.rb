@@ -10,6 +10,7 @@ require_relative "commands/new"
 require_relative "commands/compact"
 require_relative "commands/label"
 require_relative "commands/conversations"
+require_relative "commands/switch"
 
 module Botiasloop
   # Slash commands module
