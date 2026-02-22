@@ -1,58 +1,56 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "securerandom"
-require "json"
-require "time"
-require "tmpdir"
 
 RSpec.describe Botiasloop::Conversation do
-  let(:temp_dir) { Dir.mktmpdir("conversations") }
-  let(:fixed_uuid) { "550e8400-e29b-41d4-a716-446655440000" }
-
   before do
-    # Mock all filesystem paths to use temp directory - NEVER touch real user directories
-    allow(Dir).to receive(:home).and_return(temp_dir)
-    allow(File).to receive(:expand_path).and_call_original
-    allow(File).to receive(:expand_path).with("~/conversations/#{fixed_uuid}.jsonl").and_return(File.join(temp_dir, "conversations", "#{fixed_uuid}.jsonl"))
-    allow(File).to receive(:expand_path).with("~/.config/botiasloop/conversations.json").and_return(File.join(temp_dir, "conversations.json"))
-    allow(File).to receive(:expand_path).with("~/.config/botiasloop/current.json").and_return(File.join(temp_dir, "current.json"))
-    allow(Botiasloop::ConversationManager).to receive(:mapping_file).and_return(File.join(temp_dir, "conversations.json"))
-    allow(Botiasloop::ConversationManager).to receive(:current_file).and_return(File.join(temp_dir, "current.json"))
-    Botiasloop::ConversationManager.clear_all if Botiasloop::ConversationManager.respond_to?(:clear_all)
+    Botiasloop::Database.setup!
   end
 
   after do
-    # Only cleanup temp directory - NEVER touch real user directories like ~/.config or ~/conversations
-    FileUtils.rm_rf(temp_dir)
+    Botiasloop::Database.reset!
   end
 
   describe "#initialize" do
     context "with no uuid provided" do
       it "generates a new uuid" do
-        allow(SecureRandom).to receive(:uuid).and_return(fixed_uuid)
         conversation = described_class.new
-        expect(conversation.uuid).to eq(fixed_uuid)
+        expect(conversation.uuid).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
+      end
+
+      it "creates a new conversation in the database" do
+        conversation = described_class.new
+        model = Botiasloop::Models::Conversation.find(id: conversation.uuid)
+        expect(model).not_to be_nil
+        expect(model.user_id).to eq("default")
       end
     end
 
     context "with uuid provided" do
-      it "uses the provided uuid" do
-        conversation = described_class.new(fixed_uuid)
-        expect(conversation.uuid).to eq(fixed_uuid)
+      it "uses the provided uuid when conversation exists" do
+        # Create a conversation first
+        model = Botiasloop::Models::Conversation.create(user_id: "test")
+        conversation = described_class.new(model.id)
+        expect(conversation.uuid).to eq(model.id)
+      end
+
+      it "raises error when conversation does not exist" do
+        expect {
+          described_class.new("nonexistent-uuid")
+        }.to raise_error(Botiasloop::Error, /Conversation not found/)
       end
     end
   end
 
   describe "#path" do
-    it "returns the correct path" do
-      conversation = described_class.new(fixed_uuid)
-      expect(conversation.path).to eq(File.join(temp_dir, "conversations", "#{fixed_uuid}.jsonl"))
+    it "returns the uuid (for backward compatibility)" do
+      conversation = described_class.new
+      expect(conversation.path).to eq(conversation.uuid)
     end
   end
 
   describe "#add" do
-    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:conversation) { described_class.new }
 
     it "adds a message to the conversation" do
       conversation.add("user", "Hello")
@@ -61,36 +59,26 @@ RSpec.describe Botiasloop::Conversation do
       expect(conversation.history.first[:content]).to eq("Hello")
     end
 
-    it "persists to file" do
-      conversation.add("user", "Hello")
-      expect(File.exist?(conversation.path)).to be true
-
-      lines = File.readlines(conversation.path)
-      expect(lines.length).to eq(1)
-
-      data = JSON.parse(lines.first, symbolize_names: true)
-      expect(data[:role]).to eq("user")
-      expect(data[:content]).to eq("Hello")
-      expect(data[:timestamp]).to be_a(String)
-    end
-
-    it "appends multiple messages" do
+    it "adds multiple messages" do
       conversation.add("user", "Hello")
       conversation.add("assistant", "Hi there!")
 
-      lines = File.readlines(conversation.path)
-      expect(lines.length).to eq(2)
+      expect(conversation.history.length).to eq(2)
+      expect(conversation.history[0][:role]).to eq("user")
+      expect(conversation.history[1][:role]).to eq("assistant")
+    end
 
-      data1 = JSON.parse(lines[0], symbolize_names: true)
-      data2 = JSON.parse(lines[1], symbolize_names: true)
+    it "includes ISO8601 timestamp" do
+      fixed_time = Time.parse("2026-02-20T10:00:00Z")
+      allow(Time).to receive(:now).and_return(fixed_time)
 
-      expect(data1[:role]).to eq("user")
-      expect(data2[:role]).to eq("assistant")
+      conversation.add("user", "Hello")
+      expect(conversation.history.first[:timestamp]).to match(/2026-02-20T10:00:00/)
     end
   end
 
   describe "#history" do
-    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:conversation) { described_class.new }
 
     it "returns empty array for new conversation" do
       expect(conversation.history).to eq([])
@@ -106,15 +94,6 @@ RSpec.describe Botiasloop::Conversation do
       expect(history[1][:content]).to eq("Hi!")
     end
 
-    it "loads from file when conversation exists" do
-      conversation.add("user", "Hello")
-
-      # Create new instance with same uuid
-      conversation2 = described_class.new(fixed_uuid)
-      expect(conversation2.history.length).to eq(1)
-      expect(conversation2.history.first[:content]).to eq("Hello")
-    end
-
     it "returns a copy of messages" do
       conversation.add("user", "Hello")
       history = conversation.history
@@ -123,22 +102,8 @@ RSpec.describe Botiasloop::Conversation do
     end
   end
 
-  describe "timestamp" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-    let(:fixed_time) { Time.parse("2026-02-20T10:00:00Z") }
-
-    it "includes ISO8601 timestamp" do
-      allow(Time).to receive(:now).and_return(fixed_time)
-      conversation.add("user", "Hello")
-
-      lines = File.readlines(conversation.path)
-      data = JSON.parse(lines.first, symbolize_names: true)
-      expect(data[:timestamp]).to eq("2026-02-20T10:00:00Z")
-    end
-  end
-
   describe "#reset!" do
-    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:conversation) { described_class.new }
 
     it "clears all messages" do
       conversation.add("user", "Hello")
@@ -147,23 +112,14 @@ RSpec.describe Botiasloop::Conversation do
       conversation.reset!
 
       expect(conversation.history).to be_empty
-    end
-
-    it "clears the file" do
-      conversation.add("user", "Hello")
-      conversation.reset!
-
-      expect(File.exist?(conversation.path)).to be true
-      lines = File.readlines(conversation.path)
-      expect(lines).to all(be_empty.or(be_nil))
+      expect(conversation.message_count).to eq(0)
     end
   end
 
   describe "#compact!" do
-    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:conversation) { described_class.new }
 
     before do
-      # Add some messages
       10.times do |i|
         conversation.add(i.even? ? "user" : "assistant", "Message #{i}")
       end
@@ -179,65 +135,58 @@ RSpec.describe Botiasloop::Conversation do
       conversation.compact!(summary, recent_messages)
 
       history = conversation.history
-      expect(history.length).to eq(3)  # summary system + 2 recent
+      expect(history.length).to eq(3)
       expect(history[0][:role]).to eq("system")
       expect(history[0][:content]).to eq("Summary of earlier discussion")
       expect(history[1][:content]).to eq("Recent 1")
       expect(history[2][:content]).to eq("Recent 2")
     end
 
-    it "persists compacted history to file" do
+    it "persists after reloading" do
       summary = "Summary"
       recent = [{role: "user", content: "Last message"}]
+      uuid = conversation.uuid
 
       conversation.compact!(summary, recent)
 
-      # Reload from file
-      conversation2 = described_class.new(fixed_uuid)
+      # Reload from database
+      conversation2 = described_class.new(uuid)
       expect(conversation2.history.length).to eq(2)
       expect(conversation2.history[0][:content]).to eq("Summary")
     end
   end
 
   describe "#label" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-
-    before do
-      # Set up the conversation in the manager
-      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
-    end
+    let(:conversation) { described_class.new }
 
     it "returns nil when conversation has no label" do
       expect(conversation.label).to be_nil
     end
 
-    it "returns the label when set via manager" do
-      Botiasloop::ConversationManager.label(fixed_uuid, "my-project")
+    it "returns the label when set" do
+      conversation.label = "my-project"
       expect(conversation.label).to eq("my-project")
     end
   end
 
   describe "#label=" do
-    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:conversation) { described_class.new }
 
-    before do
-      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
-    end
-
-    it "sets the label via manager" do
+    it "sets the label" do
       conversation.label = "my-label"
       expect(conversation.label).to eq("my-label")
     end
 
     it "persists the label" do
+      uuid = conversation.uuid
       conversation.label = "persisted-label"
 
       # Create new instance with same uuid
-      conversation2 = described_class.new(fixed_uuid)
+      conversation2 = described_class.new(uuid)
       expect(conversation2.label).to eq("persisted-label")
     end
 
-    it "delegates validation to manager" do
+    it "raises error for invalid label format" do
       expect {
         conversation.label = "invalid label"
       }.to raise_error(Botiasloop::Error, /Invalid label format/)
@@ -245,11 +194,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#label?" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-
-    before do
-      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
-    end
+    let(:conversation) { described_class.new }
 
     it "returns false when no label is set" do
       expect(conversation.label?).to be false
@@ -262,11 +207,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#message_count" do
-    let(:conversation) { described_class.new(fixed_uuid) }
-
-    before do
-      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
-    end
+    let(:conversation) { described_class.new }
 
     it "returns 0 for empty conversation" do
       expect(conversation.message_count).to eq(0)
@@ -280,24 +221,21 @@ RSpec.describe Botiasloop::Conversation do
       expect(conversation.message_count).to eq(3)
     end
 
-    it "returns correct count after loading from file" do
+    it "returns correct count after reloading" do
+      uuid = conversation.uuid
       conversation.add("user", "Hello")
       conversation.add("assistant", "Hi!")
 
       # Create new instance with same uuid
-      conversation2 = described_class.new(fixed_uuid)
+      conversation2 = described_class.new(uuid)
       expect(conversation2.message_count).to eq(2)
     end
   end
 
   describe "#last_activity" do
-    let(:conversation) { described_class.new(fixed_uuid) }
+    let(:conversation) { described_class.new }
     let(:fixed_time1) { Time.parse("2026-02-20T10:00:00Z") }
     let(:fixed_time2) { Time.parse("2026-02-20T11:30:00Z") }
-
-    before do
-      Botiasloop::ConversationManager.switch("test-user", fixed_uuid)
-    end
 
     it "returns nil for empty conversation" do
       expect(conversation.last_activity).to be_nil
@@ -313,12 +251,13 @@ RSpec.describe Botiasloop::Conversation do
       expect(conversation.last_activity).to eq("2026-02-20T11:30:00Z")
     end
 
-    it "persists after loading from file" do
+    it "persists after reloading" do
+      uuid = conversation.uuid
       allow(Time).to receive(:now).and_return(fixed_time1)
       conversation.add("user", "Hello")
 
       # Create new instance with same uuid
-      conversation2 = described_class.new(fixed_uuid)
+      conversation2 = described_class.new(uuid)
       expect(conversation2.last_activity).to eq("2026-02-20T10:00:00Z")
     end
 

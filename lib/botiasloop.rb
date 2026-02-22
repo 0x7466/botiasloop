@@ -2,6 +2,12 @@
 
 require_relative "botiasloop/version"
 require_relative "botiasloop/config"
+require_relative "botiasloop/database"
+
+# Ensure database is connected before loading models
+Botiasloop::Database.connect
+
+require_relative "botiasloop/models"
 require_relative "botiasloop/conversation"
 require_relative "botiasloop/conversation_manager"
 require_relative "botiasloop/tool"

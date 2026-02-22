@@ -23,6 +23,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "telegram-bot-ruby", "~> 2.5"
   spec.add_dependency "redcarpet", "~> 3.6"
   spec.add_dependency "anyway_config", "~> 2.8"
+  spec.add_dependency "sequel", "~> 5.101"
+  spec.add_dependency "sqlite3", "~> 2.9"
 
   # Development dependencies
   spec.add_development_dependency "rspec", "~> 3.13.2"

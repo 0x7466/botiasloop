@@ -1,11 +1,8 @@
 # frozen_string_literal: true
 
-require "json"
-require "securerandom"
-require "time"
-require "fileutils"
-
 module Botiasloop
+  # Conversation class wraps the Sequel model for backward compatibility
+  # Provides the same interface as the original file-based implementation
   class Conversation
     # @return [String] UUID of the conversation
     attr_reader :uuid
@@ -14,15 +11,21 @@ module Botiasloop
     #
     # @param uuid [String, nil] UUID for the conversation (generates new if nil)
     def initialize(uuid = nil)
-      @uuid = uuid || SecureRandom.uuid
-      @messages = load_messages
+      if uuid
+        @model = Models::Conversation.find(id: uuid)
+        raise Error, "Conversation not found: #{uuid}" unless @model
+        @uuid = uuid
+      else
+        @model = Models::Conversation.create(user_id: "default")
+        @uuid = @model.id
+      end
     end
 
     # Get the label for this conversation
     #
     # @return [String, nil] Label or nil if not set
     def label
-      ConversationManager.label(@uuid)
+      @model.label
     end
 
     # Set the label for this conversation
@@ -31,30 +34,29 @@ module Botiasloop
     # @return [String] The label value
     # @raise [Error] If label format is invalid or already in use
     def label=(value)
-      ConversationManager.label(@uuid, value)
+      ConversationManager.set_label(@uuid, value)
+      @model.refresh
     end
 
     # Check if this conversation has a label
     #
     # @return [Boolean] True if label is set
     def label?
-      !label.nil?
+      !@model.label.nil? && !@model.label.to_s.empty?
     end
 
     # Get the number of messages in the conversation
     #
     # @return [Integer] Message count
     def message_count
-      @messages.length
+      @model.message_count
     end
 
     # Get the timestamp of the last activity in the conversation
     #
     # @return [String, nil] ISO8601 timestamp of last message, or nil if no messages
     def last_activity
-      return nil if @messages.empty?
-
-      @messages.last[:timestamp]
+      @model.last_activity
     end
 
     # Add a message to the conversation
@@ -62,33 +64,22 @@ module Botiasloop
     # @param role [String] Role of the message sender (user, assistant, system)
     # @param content [String] Message content
     def add(role, content)
-      message = {
-        role: role,
-        content: content,
-        timestamp: Time.now.utc.iso8601
-      }
-
-      @messages << message
-      persist_messages
+      @model.add_message(role: role, content: content)
     end
 
     # @return [Array<Hash>] Array of message hashes
     def history
-      @messages.dup
+      @model.history
     end
 
-    # @return [String] Path to the conversation file
+    # @return [String] Path to the conversation file (deprecated, returns model ID)
     def path
-      File.expand_path("~/conversations/#{@uuid}.jsonl")
+      @uuid
     end
 
     # Reset conversation - clear all messages
     def reset!
-      @messages = []
-
-      # Clear the file
-      FileUtils.mkdir_p(File.dirname(path))
-      File.write(path, "")
+      @model.reset!
     end
 
     # Compact conversation by replacing old messages with a summary
@@ -96,47 +87,10 @@ module Botiasloop
     # @param summary [String] Summary of older messages
     # @param recent_messages [Array<Hash>] Recent messages to keep
     def compact!(summary, recent_messages)
-      @messages = []
-
-      # Add summary as system message
-      @messages << {
-        role: "system",
-        content: summary,
-        timestamp: Time.now.utc.iso8601
-      }
-
-      # Add recent messages
-      recent_messages.each do |msg|
-        @messages << {
-          role: msg[:role],
-          content: msg[:content],
-          timestamp: Time.now.utc.iso8601
-        }
-      end
-
-      persist_messages
+      @model.compact!(summary, recent_messages)
     end
 
-    private
-
-    def load_messages
-      return [] unless File.exist?(path)
-
-      File.readlines(path).filter_map do |line|
-        next if line.strip.empty?
-
-        begin
-          data = JSON.parse(line, symbolize_names: true)
-          data
-        rescue JSON::ParserError
-          nil
-        end
-      end
-    end
-
-    def persist_messages
-      FileUtils.mkdir_p(File.dirname(path))
-      File.write(path, @messages.map(&:to_json).join("\n"))
-    end
+    # @return [Models::Conversation] The underlying model
+    attr_reader :model
   end
 end

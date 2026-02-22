@@ -8,9 +8,18 @@ SimpleCov.start do
 end
 
 require "bundler/setup"
+require "sequel"
+require "webmock/rspec"
+
+# Set up in-memory database BEFORE loading botiasloop
+# This prevents Sequel::Model from failing without a database connection
+require_relative "../lib/botiasloop/database"
+Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
+Botiasloop::Database.setup!
+
+# Now load the rest of botiasloop
 require "botiasloop"
 require "vcr"
-require "webmock/rspec"
 
 # Load support files
 Dir[File.join(__dir__, "support", "**", "*.rb")].each { |f| require f }
