@@ -5,29 +5,32 @@ module Botiasloop
     # Conversations command - lists all conversations
     class Conversations < Base
       command :conversations
-      description "List all conversations"
+      description "List all conversations (use '/conversations archived' to list archived)"
 
       # Execute the conversations command
+      # Lists non-archived conversations by default, or archived conversations when specified
+      # Sorted by last updated (most recent first)
       #
       # @param context [Context] Execution context
-      # @param _args [String, nil] Unused arguments
+      # @param args [String, nil] Arguments - 'archived' to list archived conversations
       # @return [String] Formatted list of conversations
-      def execute(context, _args = nil)
-        mappings = ConversationManager.all_mappings
+      def execute(context, args = nil)
+        show_archived = args.to_s.strip.downcase == "archived"
+        conversations = ConversationManager.list_by_user(context.user_id, archived: show_archived)
         current_uuid = ConversationManager.current_uuid_for(context.user_id)
 
-        lines = ["**Conversations**"]
+        lines = show_archived ? ["**Archived Conversations**"] : ["**Conversations**"]
 
-        if mappings.empty?
-          lines << "No conversations found."
+        if conversations.empty?
+          lines << (show_archived ? "No archived conversations found." : "No conversations found.")
           return lines.join("\n")
         end
 
-        mappings.each do |uuid, data|
-          prefix = (uuid == current_uuid) ? "[current] " : ""
-          label = data["label"]
+        conversations.each do |conv|
+          prefix = (conv[:uuid] == current_uuid) ? "[current] " : ""
+          label = conv[:label]
           suffix = label ? " (#{label})" : ""
-          lines << "#{prefix}#{uuid}#{suffix}"
+          lines << "#{prefix}#{conv[:uuid]}#{suffix}"
         end
 
         lines.join("\n")

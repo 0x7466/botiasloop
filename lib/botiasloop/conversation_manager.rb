@@ -14,7 +14,7 @@ module Botiasloop
       # @return [Conversation] Current conversation for the user
       def current_for(user_id)
         user_key = user_id.to_s
-        conversation = Models::Conversation.where(user_id: user_key, is_current: true).first
+        conversation = Models::Conversation.where(user_id: user_key, is_current: true, archived: false).first
 
         if conversation
           Conversation.new(conversation.id)
@@ -24,6 +24,7 @@ module Botiasloop
       end
 
       # Switch a user to a different conversation by label or UUID
+      # Auto-unarchives archived conversations when switching to them
       #
       # @param user_id [String] User identifier
       # @param identifier [String] Conversation label or UUID to switch to
@@ -35,13 +36,16 @@ module Botiasloop
 
         raise Error, "Usage: /switch <label-or-uuid>" if identifier.empty?
 
-        # First try to find by label
+        # First try to find by label (include archived)
         conversation = Models::Conversation.where(user_id: user_key, label: identifier).first
 
-        # If not found by label, treat as UUID
+        # If not found by label, treat as UUID (include archived)
         conversation ||= Models::Conversation.find(id: identifier, user_id: user_key)
 
         raise Error, "Conversation '#{identifier}' not found" unless conversation
+
+        # Auto-unarchive if switching to an archived conversation
+        conversation.update(archived: false) if conversation.archived
 
         # Clear current flag from all user's conversations
         Models::Conversation.where(user_id: user_key).update(is_current: false)
@@ -75,11 +79,13 @@ module Botiasloop
         conversation&.id
       end
 
-      # List all conversation mappings
+      # List all conversation mappings (excluding archived by default)
       #
+      # @param include_archived [Boolean] Whether to include archived conversations
       # @return [Hash] Hash mapping UUIDs to {user_id, label} hashes
-      def all_mappings
-        Models::Conversation.all.map do |conv|
+      def all_mappings(include_archived: false)
+        dataset = include_archived ? Models::Conversation.dataset : Models::Conversation.where(archived: false)
+        dataset.all.map do |conv|
           [conv.id, {"user_id" => conv.user_id, "label" => conv.label}]
         end.to_h
       end
@@ -151,12 +157,16 @@ module Botiasloop
       end
 
       # List all conversations for a user
+      # Sorted by updated_at in descending order (most recently updated first)
       #
       # @param user_id [String] User identifier
-      # @return [Array<Hash>] Array of {uuid, label} hashes
-      def list_by_user(user_id)
-        Models::Conversation.where(user_id: user_id.to_s).all.map do |conv|
-          {uuid: conv.id, label: conv.label}
+      # @param archived [Boolean, nil] Filter by archived status (nil = all, true = archived only, false = unarchived only)
+      # @return [Array<Hash>] Array of {uuid, label, updated_at} hashes
+      def list_by_user(user_id, archived: false)
+        dataset = Models::Conversation.where(user_id: user_id.to_s)
+        dataset = dataset.where(archived: archived) unless archived.nil?
+        dataset.order(Sequel.desc(:updated_at)).all.map do |conv|
+          {uuid: conv.id, label: conv.label, updated_at: conv.updated_at}
         end
       end
 
@@ -168,6 +178,47 @@ module Botiasloop
       def find_by_label(user_id, label)
         conversation = Models::Conversation.where(user_id: user_id.to_s, label: label).first
         conversation&.id
+      end
+
+      # Archive a conversation by label or UUID, or archive current if no identifier given
+      # When archiving current conversation, automatically creates a new one
+      #
+      # @param user_id [String] User identifier
+      # @param identifier [String, nil] Conversation label or UUID to archive (nil = archive current)
+      # @return [Hash] Hash with :archived and :new_conversation keys
+      # @raise [Error] If conversation not found
+      def archive(user_id, identifier = nil)
+        user_key = user_id.to_s
+        identifier = identifier.to_s.strip
+
+        if identifier.empty?
+          # Archive current conversation
+          conversation = Models::Conversation.where(user_id: user_key, is_current: true).first
+          raise Error, "No current conversation to archive" unless conversation
+
+          # Archive the current conversation
+          conversation.update(archived: true, is_current: false)
+
+          # Create a new conversation (becomes current)
+          new_conversation = create_new(user_key)
+
+          {
+            archived: Conversation.new(conversation.id),
+            new_conversation: new_conversation
+          }
+        else
+          # Archive by label or UUID
+          conversation = Models::Conversation.where(user_id: user_key, label: identifier).first
+          conversation ||= Models::Conversation.find(id: identifier, user_id: user_key)
+
+          raise Error, "Conversation '#{identifier}' not found" unless conversation
+
+          # Cannot archive current conversation (must use archive without args)
+          raise Error, "Cannot archive the current conversation. Use /archive without arguments to archive current and start new." if conversation.is_current
+
+          conversation.update(archived: true, is_current: false)
+          {archived: Conversation.new(conversation.id)}
+        end
       end
     end
   end

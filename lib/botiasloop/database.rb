@@ -31,10 +31,12 @@ module Botiasloop
           String :user_id, null: false
           String :label
           TrueClass :is_current, default: false
+          TrueClass :archived, default: false
           DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
           DateTime :updated_at, default: Sequel::CURRENT_TIMESTAMP
 
           index [:user_id, :label], unique: true
+          index [:user_id, :archived]
         end
 
         # Create messages table

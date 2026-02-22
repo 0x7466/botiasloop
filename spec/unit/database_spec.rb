@@ -43,6 +43,7 @@ RSpec.describe Botiasloop::Database do
       expect(columns).to include(:user_id)
       expect(columns).to include(:label)
       expect(columns).to include(:is_current)
+      expect(columns).to include(:archived)
       expect(columns).to include(:created_at)
       expect(columns).to include(:updated_at)
     end

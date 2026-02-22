@@ -72,4 +72,11 @@ RSpec.configure do |config|
 
   # Include custom matchers
   config.include(CommandRegistryMatchers)
+
+  # Transaction rollback for database tests - keeps test DB clean
+  config.around(:each) do |example|
+    Botiasloop::Database.connect.transaction(rollback: :always, savepoint: true) do
+      example.run
+    end
+  end
 end

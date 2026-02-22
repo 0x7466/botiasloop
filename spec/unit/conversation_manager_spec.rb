@@ -455,4 +455,204 @@ RSpec.describe Botiasloop::ConversationManager do
       expect(conversation).to be_a(Botiasloop::Conversation)
     end
   end
+
+  describe ".archive" do
+    context "when archiving by label" do
+      before do
+        described_class.switch("user123", "target-uuid")
+        described_class.label("target-uuid", "my-project")
+        described_class.switch("user123", "other-uuid") # Create another conversation to avoid "current" error
+      end
+
+      it "archives a conversation by label" do
+        result = described_class.archive("user123", "my-project")
+        expect(result).to have_key(:archived)
+        expect(result[:archived]).to be_a(Botiasloop::Conversation)
+        expect(result[:archived].uuid).to eq("target-uuid")
+
+        # Verify it's archived in the database
+        db_conv = Botiasloop::Models::Conversation.find(id: "target-uuid")
+        expect(db_conv.archived).to be true
+        expect(db_conv.is_current).to be false
+      end
+
+      it "raises error when conversation not found" do
+        expect {
+          described_class.archive("user123", "nonexistent")
+        }.to raise_error(Botiasloop::Error, /Conversation 'nonexistent' not found/)
+      end
+
+      it "raises error when archiving current conversation with identifier" do
+        # Switch back to target-uuid to make it current
+        described_class.switch("user123", "target-uuid")
+
+        expect {
+          described_class.archive("user123", "my-project")
+        }.to raise_error(Botiasloop::Error, /Cannot archive the current conversation/)
+      end
+    end
+
+    context "when archiving by UUID" do
+      before do
+        described_class.switch("user123", "target-uuid")
+        described_class.switch("user123", "other-uuid") # Create another conversation
+      end
+
+      it "archives a conversation by UUID" do
+        result = described_class.archive("user123", "target-uuid")
+        expect(result).to have_key(:archived)
+        expect(result[:archived].uuid).to eq("target-uuid")
+
+        db_conv = Botiasloop::Models::Conversation.find(id: "target-uuid")
+        expect(db_conv.archived).to be true
+      end
+    end
+
+    context "when archiving current conversation (no identifier)" do
+      before do
+        described_class.switch("user123", "current-uuid")
+        described_class.label("current-uuid", "current-project")
+      end
+
+      it "archives current conversation and creates a new one" do
+        result = described_class.archive("user123")
+
+        expect(result).to have_key(:archived)
+        expect(result).to have_key(:new_conversation)
+        expect(result[:archived].uuid).to eq("current-uuid")
+        expect(result[:new_conversation]).to be_a(Botiasloop::Conversation)
+
+        # Verify archived
+        db_conv = Botiasloop::Models::Conversation.find(id: "current-uuid")
+        expect(db_conv.archived).to be true
+        expect(db_conv.is_current).to be false
+
+        # Verify new conversation is current
+        new_db_conv = Botiasloop::Models::Conversation.find(id: result[:new_conversation].uuid)
+        expect(new_db_conv.is_current).to be true
+      end
+
+      it "creates a new conversation as current" do
+        result = described_class.archive("user123")
+        new_uuid = result[:new_conversation].uuid
+
+        expect(described_class.current_uuid_for("user123")).to eq(new_uuid)
+      end
+    end
+
+    context "with nil identifier" do
+      before do
+        described_class.switch("user123", "existing-uuid")
+      end
+
+      it "archives current conversation when nil" do
+        result = described_class.archive("user123", nil)
+        expect(result).to have_key(:archived)
+        expect(result).to have_key(:new_conversation)
+      end
+    end
+  end
+
+  describe "archive integration with other methods" do
+    before do
+      described_class.switch("user123", "uuid1")
+      described_class.label("uuid1", "first-project")
+      described_class.switch("user123", "uuid2")
+      described_class.label("uuid2", "second-project")
+      # Archive the first conversation
+      described_class.archive("user123", "first-project")
+    end
+
+    it "excludes archived conversations from list_by_user by default" do
+      conversations = described_class.list_by_user("user123")
+      uuids = conversations.map { |c| c[:uuid] }
+      expect(uuids).not_to include("uuid1")
+      expect(uuids).to include("uuid2")
+    end
+
+    it "includes archived conversations when archived: nil" do
+      conversations = described_class.list_by_user("user123", archived: nil)
+      uuids = conversations.map { |c| c[:uuid] }
+      expect(uuids).to include("uuid1")
+      expect(uuids).to include("uuid2")
+    end
+
+    it "includes only archived conversations when archived: true" do
+      conversations = described_class.list_by_user("user123", archived: true)
+      uuids = conversations.map { |c| c[:uuid] }
+      expect(uuids).to include("uuid1")
+      expect(uuids).not_to include("uuid2")
+    end
+
+    it "excludes archived from all_mappings by default" do
+      mappings = described_class.all_mappings
+      expect(mappings).not_to have_key("uuid1")
+      expect(mappings).to have_key("uuid2")
+    end
+
+    it "includes archived in all_mappings when include_archived: true" do
+      mappings = described_class.all_mappings(include_archived: true)
+      expect(mappings).to have_key("uuid1")
+      expect(mappings).to have_key("uuid2")
+    end
+
+    it "auto-unarchives when switching to archived conversation" do
+      # Switch to the archived conversation
+      described_class.switch("user123", "first-project")
+
+      # Verify it's no longer archived and is now current
+      db_conv = Botiasloop::Models::Conversation.find(id: "uuid1")
+      expect(db_conv.archived).to be false
+      expect(db_conv.is_current).to be true
+    end
+
+    it "auto-unarchives when switching by UUID" do
+      described_class.switch("user123", "uuid1")
+
+      db_conv = Botiasloop::Models::Conversation.find(id: "uuid1")
+      expect(db_conv.archived).to be false
+    end
+
+    it "creates new conversation when current_for encounters only archived conversations" do
+      # Archive uuid2 as well
+      described_class.archive("user123", "second-project")
+
+      # Now current_for should create a new conversation
+      conversation = described_class.current_for("user123")
+      expect(conversation.uuid).not_to eq("uuid1")
+      expect(conversation.uuid).not_to eq("uuid2")
+    end
+
+    it "preserves label after archiving and unarchiving" do
+      described_class.switch("user123", "first-project")
+
+      db_conv = Botiasloop::Models::Conversation.find(id: "uuid1")
+      expect(db_conv.label).to eq("first-project")
+      expect(db_conv.archived).to be false
+    end
+  end
+
+  describe "list_by_user sorting" do
+    it "sorts conversations by updated_at descending" do
+      # Create conversations with explicit timestamps
+      time1 = Time.now - 3600 # 1 hour ago
+      time2 = Time.now - 1800 # 30 minutes ago
+      time3 = Time.now # now
+
+      described_class.switch("user123", "uuid1")
+      Botiasloop::Models::Conversation.find(id: "uuid1").update(updated_at: time1)
+
+      described_class.switch("user123", "uuid2")
+      Botiasloop::Models::Conversation.find(id: "uuid2").update(updated_at: time2)
+
+      described_class.switch("user123", "uuid3")
+      Botiasloop::Models::Conversation.find(id: "uuid3").update(updated_at: time3)
+
+      conversations = described_class.list_by_user("user123", archived: nil)
+      uuids = conversations.map { |c| c[:uuid] }
+
+      # Most recently updated should be first
+      expect(uuids).to eq(["uuid3", "uuid2", "uuid1"])
+    end
+  end
 end
