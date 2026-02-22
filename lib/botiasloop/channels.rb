@@ -93,6 +93,13 @@ module Botiasloop
       def names
         @channels.keys
       end
+
+      # Clear all registered channels
+      # Useful for testing to prevent state leakage
+      def clear
+        @channels.clear
+        @instances.clear
+      end
     end
 
     # Singleton registry instance

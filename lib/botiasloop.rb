@@ -4,10 +4,6 @@ require_relative "botiasloop/version"
 require_relative "botiasloop/config"
 require_relative "botiasloop/database"
 
-# Ensure database is connected and schema is set up before loading models
-Botiasloop::Database.connect
-Botiasloop::Database.setup!
-
 require_relative "botiasloop/conversation"
 require_relative "botiasloop/conversation_manager"
 require_relative "botiasloop/tool"

@@ -42,13 +42,6 @@ RSpec.describe Botiasloop::Conversation do
     end
   end
 
-  describe "#path" do
-    it "returns the uuid (for backward compatibility)" do
-      conversation = described_class.new
-      expect(conversation.path).to eq(conversation.uuid)
-    end
-  end
-
   describe "#add" do
     let(:conversation) { described_class.create(user_id: "test") }
 

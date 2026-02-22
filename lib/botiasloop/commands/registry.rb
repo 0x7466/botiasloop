@@ -46,6 +46,12 @@ module Botiasloop
         @commands.keys.sort
       end
 
+      # Clear all registered commands
+      # Useful for testing to prevent state leakage
+      def clear
+        @commands.clear
+      end
+
       # Check if a message is a valid command
       # Must start with / and be a registered command
       #

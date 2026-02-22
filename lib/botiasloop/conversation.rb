@@ -106,11 +106,6 @@ module Botiasloop
       self.id ||= SecureRandom.uuid
     end
 
-    # @return [String] Path to the conversation file (deprecated, returns uuid)
-    def path
-      uuid
-    end
-
     # Reset conversation - clear all messages
     def reset!
       messages_dataset.delete

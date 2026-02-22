@@ -11,17 +11,44 @@ module Botiasloop
 
     class << self
       # Get or create database connection
+      # Automatically sets up schema on first connection
       #
       # @return [Sequel::SQLite::Database]
       def connect
-        @db ||= Sequel.sqlite(DEFAULT_PATH)
+        @db ||= begin
+          db = Sequel.sqlite(DEFAULT_PATH)
+          setup_schema!(db)
+          db
+        end
       end
 
       # Set up database schema
       # Creates tables if they don't exist
       def setup!
-        db = connect
+        db = @db || connect
+        setup_schema!(db)
+      end
 
+      # Reset database - delete all data
+      def reset!
+        db = connect
+        db[:messages].delete if db.table_exists?(:messages)
+        db[:conversations].delete if db.table_exists?(:conversations)
+      end
+
+      # Close database connection
+      def disconnect
+        @db&.disconnect
+        @db = nil
+      end
+
+      private
+
+      # Set up database schema on a connection
+      # Creates tables if they don't exist
+      #
+      # @param db [Sequel::SQLite::Database] Database connection
+      def setup_schema!(db)
         # Ensure directory exists
         FileUtils.mkdir_p(File.dirname(DEFAULT_PATH))
 
@@ -52,19 +79,10 @@ module Botiasloop
           index [:conversation_id]
         end
       end
-
-      # Reset database - delete all data
-      def reset!
-        db = connect
-        db[:messages].delete if db.table_exists?(:messages)
-        db[:conversations].delete if db.table_exists?(:conversations)
-      end
-
-      # Close database connection
-      def disconnect
-        @db&.disconnect
-        @db = nil
-      end
     end
   end
 end
+
+# Establish database connection when models are loaded
+# This ensures Sequel models have a valid database connection
+Botiasloop::Database.connect
