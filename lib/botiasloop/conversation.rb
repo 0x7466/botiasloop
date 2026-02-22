@@ -127,5 +127,24 @@ module Botiasloop
         add(msg[:role], msg[:content])
       end
     end
+
+    # Generate the system prompt for this conversation
+    # Includes current date/time and environment info
+    #
+    # @return [String] System prompt
+    def system_prompt
+      <<~PROMPT
+        You are Botias, an autonomous AI agent.
+
+        Environment:
+        - OS: #{RUBY_PLATFORM}
+        - Shell: #{ENV.fetch("SHELL", "unknown")}
+        - Working Directory: #{Dir.pwd}
+        - Date: #{Time.now.strftime("%Y-%m-%d")}
+        - Time: #{Time.now.strftime("%H:%M:%S %Z")}
+
+        You operate in a ReAct loop: Reason about the task, Act using tools, Observe results.
+      PROMPT
+    end
   end
 end

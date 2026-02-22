@@ -29,7 +29,7 @@ module Botiasloop
     # @raise [Error] If max iterations exceeded
     def run(conversation, user_input)
       conversation.add("user", user_input)
-      messages = build_messages(conversation.history)
+      messages = build_messages(conversation)
 
       @max_iterations.times do
         response = iterate(messages)
@@ -53,8 +53,13 @@ module Botiasloop
 
     private
 
-    def build_messages(history)
-      history.map do |msg|
+    def build_messages(conversation)
+      system_prompt = [RubyLLM::Message.new(
+        role: :system,
+        content: conversation.system_prompt
+      )]
+
+      system_prompt + conversation.history.map do |msg|
         role = msg[:role] || msg["role"]
         content = msg[:content] || msg["content"]
         RubyLLM::Message.new(

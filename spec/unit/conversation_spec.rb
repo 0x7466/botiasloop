@@ -274,4 +274,38 @@ RSpec.describe Botiasloop::Conversation do
       expect(conversation.last_activity).to eq("2026-02-20T11:30:00Z")
     end
   end
+
+  describe "#system_prompt" do
+    let(:conversation) { described_class.create(user_id: "test") }
+
+    it "includes agent identity" do
+      prompt = conversation.system_prompt
+      expect(prompt).to include("You are Botias, an autonomous AI agent")
+    end
+
+    it "includes ReAct guidance" do
+      prompt = conversation.system_prompt
+      expect(prompt).to include("You operate in a ReAct loop")
+      expect(prompt).to include("Reason about the task, Act using tools, Observe results")
+    end
+
+    it "includes environment information" do
+      prompt = conversation.system_prompt
+      expect(prompt).to include("Environment:")
+      expect(prompt).to include("OS:")
+      expect(prompt).to include("Shell:")
+      expect(prompt).to include("Working Directory:")
+      expect(prompt).to include("Date:")
+      expect(prompt).to include("Time:")
+    end
+
+    it "generates fresh prompt with current date/time" do
+      fixed_time = Time.parse("2026-02-20T10:30:45Z")
+      allow(Time).to receive(:now).and_return(fixed_time)
+
+      prompt = conversation.system_prompt
+      expect(prompt).to include("Date: 2026-02-20")
+      expect(prompt).to include("Time: 10:30:45")
+    end
+  end
 end

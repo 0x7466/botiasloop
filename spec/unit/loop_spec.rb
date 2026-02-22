@@ -13,6 +13,7 @@ RSpec.describe Botiasloop::Loop do
   before do
     allow(conversation).to receive(:add)
     allow(conversation).to receive(:history).and_return([])
+    allow(conversation).to receive(:system_prompt).and_return("System prompt")
     allow(Logger).to receive(:new).and_return(logger)
     allow(logger).to receive(:info)
     allow(mock_registry).to receive(:schemas).and_return({})
@@ -46,6 +47,16 @@ RSpec.describe Botiasloop::Loop do
       it "returns the response content" do
         result = loop.run(conversation, "What is 2+2?")
         expect(result).to eq("This is the answer")
+      end
+
+      it "includes system message in provider call" do
+        expect(mock_provider).to receive(:complete) do |messages, **kwargs|
+          expect(messages.first).to be_a(RubyLLM::Message)
+          expect(messages.first.role).to eq(:system)
+          expect(messages.first.content).to eq("System prompt")
+          response
+        end
+        loop.run(conversation, "What is 2+2?")
       end
 
       it "adds user message to conversation" do

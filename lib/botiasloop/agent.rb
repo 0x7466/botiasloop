@@ -62,25 +62,5 @@ module Botiasloop
     def web_search_url
       @config.tools["web_search"]["searxng_url"]
     end
-
-    def system_prompt(registry)
-      <<~PROMPT
-        You are Botias, an autonomous AI agent.
-
-        Environment:
-        - OS: #{RUBY_PLATFORM}
-        - Shell: #{ENV.fetch("SHELL", "unknown")}
-        - Working Directory: #{Dir.pwd}
-        - Date: #{Time.now.strftime("%Y-%m-%d")}
-        - Time: #{Time.now.strftime("%H:%M:%S %Z")}
-
-        Available tools:
-        #{registry.tool_classes.map { |t| "- #{t.tool_name}: #{t.description}" }.join("\n")}
-
-        You operate in a ReAct loop: Reason about the task, Act using tools, Observe results.
-        You have full CLI access via the shell tool. Use standard Unix commands for file operations.
-        You can think up to #{@config.max_iterations} times before providing your final answer.
-      PROMPT
-    end
   end
 end

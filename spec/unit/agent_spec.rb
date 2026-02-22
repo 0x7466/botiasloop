@@ -123,39 +123,4 @@ RSpec.describe Botiasloop::Agent do
       end
     end
   end
-
-  describe "#system_prompt" do
-    let(:agent) { described_class.new(config) }
-    let(:registry) { Botiasloop::Tools::Registry.new }
-
-    before do
-      registry.register(Botiasloop::Tools::Shell)
-      registry.register(Botiasloop::Tools::WebSearch, searxng_url: "http://searxng:8080")
-    end
-
-    it "includes ReAct guidance" do
-      prompt = agent.send(:system_prompt, registry)
-      expect(prompt).to include("You operate in a ReAct loop")
-      expect(prompt).to include("Reason about the task, Act using tools, Observe results")
-    end
-
-    it "includes max iterations from config" do
-      prompt = agent.send(:system_prompt, registry)
-      expect(prompt).to include("You can think up to 10 times")
-    end
-
-    it "lists available tools" do
-      prompt = agent.send(:system_prompt, registry)
-      expect(prompt).to include("- shell: Execute a shell command and return the output")
-      expect(prompt).to include("- web_search: Search the web using SearXNG")
-    end
-
-    it "includes environment information" do
-      prompt = agent.send(:system_prompt, registry)
-      expect(prompt).to include("Environment:")
-      expect(prompt).to include("OS:")
-      expect(prompt).to include("Working Directory:")
-      expect(prompt).to include("Date:")
-    end
-  end
 end
