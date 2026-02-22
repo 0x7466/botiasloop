@@ -17,6 +17,7 @@ module Botiasloop
         lines << "Model: #{config.providers["openrouter"]["model"]}"
         lines << "Max iterations: #{config.max_iterations}"
         lines << "Messages: #{conversation.history.length}"
+        lines << "Tokens: #{conversation.total_tokens} (#{conversation.input_tokens || 0} in / #{conversation.output_tokens || 0} out)"
 
         lines.join("\n")
       end

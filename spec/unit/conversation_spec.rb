@@ -68,6 +68,41 @@ RSpec.describe Botiasloop::Conversation do
       conversation.add("user", "Hello")
       expect(conversation.history.first[:timestamp]).to match(/2026-02-20T10:00:00/)
     end
+
+    it "tracks input and output tokens" do
+      conversation.add("assistant", "Hello", input_tokens: 100, output_tokens: 50)
+
+      message = conversation.history.first
+      expect(message[:input_tokens]).to eq(100)
+      expect(message[:output_tokens]).to eq(50)
+    end
+
+    it "updates conversation token totals when adding messages" do
+      conversation.add("user", "Hello", input_tokens: 10, output_tokens: 0)
+      conversation.add("assistant", "Hi!", input_tokens: 100, output_tokens: 50)
+
+      expect(conversation.input_tokens).to eq(110)
+      expect(conversation.output_tokens).to eq(50)
+      expect(conversation.total_tokens).to eq(160)
+    end
+
+    it "defaults to zero tokens when not specified" do
+      conversation.add("user", "Hello")
+      conversation.add("assistant", "Hi!")
+
+      expect(conversation.input_tokens).to eq(0)
+      expect(conversation.output_tokens).to eq(0)
+    end
+
+    it "handles nil token values" do
+      conversation.add("assistant", "Hi!", input_tokens: nil, output_tokens: nil)
+
+      message = conversation.history.first
+      expect(message[:input_tokens]).to eq(0)
+      expect(message[:output_tokens]).to eq(0)
+      expect(conversation.input_tokens).to eq(0)
+      expect(conversation.output_tokens).to eq(0)
+    end
   end
 
   describe "#history" do
@@ -93,6 +128,15 @@ RSpec.describe Botiasloop::Conversation do
       history.clear
       expect(conversation.history.length).to eq(1)
     end
+
+    it "includes token counts in message hashes" do
+      conversation.add("assistant", "Response", input_tokens: 150, output_tokens: 75)
+
+      message = conversation.history.first
+      expect(message).to include(:input_tokens, :output_tokens)
+      expect(message[:input_tokens]).to eq(150)
+      expect(message[:output_tokens]).to eq(75)
+    end
   end
 
   describe "#reset!" do
@@ -106,6 +150,17 @@ RSpec.describe Botiasloop::Conversation do
 
       expect(conversation.history).to be_empty
       expect(conversation.message_count).to eq(0)
+    end
+
+    it "resets token counts" do
+      conversation.add("user", "Hello", input_tokens: 10, output_tokens: 0)
+      conversation.add("assistant", "Hi!", input_tokens: 100, output_tokens: 50)
+
+      conversation.reset!
+
+      expect(conversation.input_tokens).to eq(0)
+      expect(conversation.output_tokens).to eq(0)
+      expect(conversation.total_tokens).to eq(0)
     end
   end
 
@@ -223,6 +278,33 @@ RSpec.describe Botiasloop::Conversation do
       # Load existing conversation
       conversation2 = described_class[uuid]
       expect(conversation2.message_count).to eq(2)
+    end
+  end
+
+  describe "#total_tokens" do
+    let(:conversation) { described_class.create(user_id: "test") }
+
+    it "returns 0 for new conversation" do
+      expect(conversation.total_tokens).to eq(0)
+    end
+
+    it "returns sum of input and output tokens" do
+      conversation.add("assistant", "Response", input_tokens: 100, output_tokens: 50)
+      expect(conversation.total_tokens).to eq(150)
+    end
+
+    it "accumulates tokens across multiple messages" do
+      conversation.add("user", "Hello", input_tokens: 10, output_tokens: 0)
+      conversation.add("assistant", "Hi!", input_tokens: 100, output_tokens: 50)
+      conversation.add("user", "Bye", input_tokens: 5, output_tokens: 0)
+
+      expect(conversation.total_tokens).to eq(165)
+    end
+
+    it "handles nil token values" do
+      conversation.input_tokens = nil
+      conversation.output_tokens = 50
+      expect(conversation.total_tokens).to eq(50)
     end
   end
 

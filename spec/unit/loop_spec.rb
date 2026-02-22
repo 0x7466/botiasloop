@@ -37,7 +37,9 @@ RSpec.describe Botiasloop::Loop do
         double("response",
           tool_call?: false,
           content: "This is the answer",
-          role: :assistant)
+          role: :assistant,
+          input_tokens: 100,
+          output_tokens: 50)
       end
 
       before do
@@ -64,8 +66,12 @@ RSpec.describe Botiasloop::Loop do
         loop.run(conversation, "What is 2+2?")
       end
 
-      it "adds assistant response to conversation" do
-        expect(conversation).to receive(:add).with("assistant", "This is the answer")
+      it "adds assistant response to conversation with token counts" do
+        expect(conversation).to receive(:add).with("assistant", "This is the answer", input_tokens: 100, output_tokens: 50)
+        loop.run(conversation, "What is 2+2?")
+      end
+
+      it "tracks tokens from LLM response" do
         loop.run(conversation, "What is 2+2?")
       end
     end
@@ -83,14 +89,18 @@ RSpec.describe Botiasloop::Loop do
           tool_call?: true,
           tool_calls: {"call_123" => tool_call},
           content: "",
-          role: :assistant)
+          role: :assistant,
+          input_tokens: 50,
+          output_tokens: 25)
       end
 
       let(:final_response) do
         double("response",
           tool_call?: false,
           content: "The output is hello",
-          role: :assistant)
+          role: :assistant,
+          input_tokens: 100,
+          output_tokens: 50)
       end
 
       before do
@@ -116,6 +126,11 @@ RSpec.describe Botiasloop::Loop do
         expect(logger).to receive(:info).with(/\[Tool\] Executing shell/)
         loop.run(conversation, "Run echo hello")
       end
+
+      it "accumulates tokens across iterations" do
+        expect(conversation).to receive(:add).with("assistant", "The output is hello", input_tokens: 150, output_tokens: 75)
+        loop.run(conversation, "Run echo hello")
+      end
     end
 
     context "with max iterations exceeded" do
@@ -131,7 +146,9 @@ RSpec.describe Botiasloop::Loop do
           tool_call?: true,
           tool_calls: {"call_456" => tool_call},
           content: "",
-          role: :assistant)
+          role: :assistant,
+          input_tokens: 50,
+          output_tokens: 25)
       end
 
       before do
@@ -157,14 +174,18 @@ RSpec.describe Botiasloop::Loop do
           tool_call?: true,
           tool_calls: {"call_789" => tool_call},
           content: "",
-          role: :assistant)
+          role: :assistant,
+          input_tokens: 50,
+          output_tokens: 25)
       end
 
       let(:final_response) do
         double("response",
           tool_call?: false,
           content: "There was an error",
-          role: :assistant)
+          role: :assistant,
+          input_tokens: 100,
+          output_tokens: 50)
       end
 
       before do

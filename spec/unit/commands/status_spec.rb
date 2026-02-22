@@ -9,7 +9,10 @@ RSpec.describe Botiasloop::Commands::Status do
       uuid: "test-uuid-123",
       history: [{role: "user", content: "Hello"}],
       label: nil,
-      label?: false)
+      label?: false,
+      input_tokens: 150,
+      output_tokens: 75,
+      total_tokens: 225)
   end
   let(:config) do
     instance_double(Botiasloop::Config,
@@ -39,6 +42,7 @@ RSpec.describe Botiasloop::Commands::Status do
       expect(result).to include("moonshotai/kimi-k2.5")
       expect(result).to include("20")
       expect(result).to include("1")  # Message count
+      expect(result).to include("Tokens: 225 (150 in / 75 out)")
     end
 
     it "shows label when set" do
@@ -56,6 +60,15 @@ RSpec.describe Botiasloop::Commands::Status do
       result = command.execute(context)
       expect(result).to include("Label:")
       expect(result).to include("(none - use /label <name> to set)")
+    end
+
+    it "handles nil token values gracefully" do
+      allow(conversation).to receive(:input_tokens).and_return(nil)
+      allow(conversation).to receive(:output_tokens).and_return(nil)
+      allow(conversation).to receive(:total_tokens).and_return(0)
+
+      result = command.execute(context)
+      expect(result).to include("Tokens: 0 (0 in / 0 out)")
     end
   end
 end

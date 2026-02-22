@@ -31,8 +31,16 @@ module Botiasloop
       conversation.add("user", user_input)
       messages = build_messages(conversation)
 
+      # Track accumulated tokens across all iterations
+      total_input_tokens = 0
+      total_output_tokens = 0
+
       @max_iterations.times do
         response = iterate(messages)
+
+        # Accumulate tokens from this response
+        total_input_tokens += response.input_tokens || 0
+        total_output_tokens += response.output_tokens || 0
 
         if response.tool_call?
           # Add the assistant's message with tool_calls first
@@ -43,7 +51,7 @@ module Botiasloop
             messages << build_tool_result_message(tool_call.id, observation)
           end
         else
-          conversation.add("assistant", response.content)
+          conversation.add("assistant", response.content, input_tokens: total_input_tokens, output_tokens: total_output_tokens)
           return response.content
         end
       end

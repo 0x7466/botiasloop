@@ -59,6 +59,8 @@ module Botiasloop
           String :label
           TrueClass :is_current, default: false
           TrueClass :archived, default: false
+          Integer :input_tokens, default: 0
+          Integer :output_tokens, default: 0
           DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
           DateTime :updated_at, default: Sequel::CURRENT_TIMESTAMP
 
@@ -72,6 +74,8 @@ module Botiasloop
           String :conversation_id, null: false
           String :role, null: false
           String :content, null: false, text: true
+          Integer :input_tokens, default: 0
+          Integer :output_tokens, default: 0
           DateTime :timestamp, default: Sequel::CURRENT_TIMESTAMP
           DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
 

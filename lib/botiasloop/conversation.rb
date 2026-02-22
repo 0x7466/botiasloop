@@ -26,6 +26,8 @@ module Botiasloop
         {
           role: role,
           content: content,
+          input_tokens: input_tokens || 0,
+          output_tokens: output_tokens || 0,
           timestamp: timestamp.iso8601
         }
       end
@@ -80,17 +82,41 @@ module Botiasloop
       messages.count
     end
 
+    # Get total tokens (input + output) for the conversation
+    #
+    # @return [Integer] Total token count
+    def total_tokens
+      (input_tokens || 0) + (output_tokens || 0)
+    end
+
     # Add a message to the conversation
     #
     # @param role [String] Role of the message sender (user, assistant, system)
     # @param content [String] Message content
-    def add(role, content)
+    # @param input_tokens [Integer] Input tokens for this message (prompt tokens sent to LLM)
+    # @param output_tokens [Integer] Output tokens for this message (completion tokens from LLM)
+    def add(role, content, input_tokens: 0, output_tokens: 0)
       Message.create(
         conversation_id: id,
         role: role,
         content: content,
+        input_tokens: input_tokens || 0,
+        output_tokens: output_tokens || 0,
         timestamp: Time.now.utc
       )
+
+      # Update conversation token totals
+      update_token_totals(input_tokens, output_tokens)
+    end
+
+    # Update conversation-level token totals
+    #
+    # @param input_tokens [Integer] Input tokens to add
+    # @param output_tokens [Integer] Output tokens to add
+    def update_token_totals(input_tokens, output_tokens)
+      self.input_tokens = (self.input_tokens || 0) + (input_tokens || 0)
+      self.output_tokens = (self.output_tokens || 0) + (output_tokens || 0)
+      save if modified?
     end
 
     # Get conversation history as array of message hashes
@@ -106,9 +132,12 @@ module Botiasloop
       self.id ||= SecureRandom.uuid
     end
 
-    # Reset conversation - clear all messages
+    # Reset conversation - clear all messages and reset token counts
     def reset!
       messages_dataset.delete
+      self.input_tokens = 0
+      self.output_tokens = 0
+      save
     end
 
     # Compact conversation by replacing old messages with a summary
