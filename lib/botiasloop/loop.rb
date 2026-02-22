@@ -35,6 +35,9 @@ module Botiasloop
         response = iterate(messages)
 
         if response.tool_call?
+          # Add the assistant's message with tool_calls first
+          messages << response
+
           response.tool_calls.each_value do |tool_call|
             observation = execute_tool(tool_call)
             messages << build_tool_result_message(tool_call.id, observation)

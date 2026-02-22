@@ -1,17 +1,13 @@
 # frozen_string_literal: true
 
-require "ruby_llm"
 require "open3"
+require_relative "../tool"
 
 module Botiasloop
   module Tools
-    class Shell < RubyLLM::Tool
+    class Shell < Tool
       description "Execute a shell command and return the output"
       param :command, type: :string, desc: "The shell command to execute", required: true
-
-      def self.tool_name
-        "shell"
-      end
 
       # Execute a shell command
       #

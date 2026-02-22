@@ -1,19 +1,15 @@
 # frozen_string_literal: true
 
-require "ruby_llm"
 require "net/http"
 require "json"
 require "uri"
+require_relative "../tool"
 
 module Botiasloop
   module Tools
-    class WebSearch < RubyLLM::Tool
+    class WebSearch < Tool
       description "Search the web using SearXNG"
       param :query, type: :string, desc: "The search query", required: true
-
-      def self.tool_name
-        "web_search"
-      end
 
       # Initialize with SearXNG URL
       #

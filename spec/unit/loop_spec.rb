@@ -35,7 +35,8 @@ RSpec.describe Botiasloop::Loop do
       let(:response) do
         double("response",
           tool_call?: false,
-          content: "This is the answer")
+          content: "This is the answer",
+          role: :assistant)
       end
 
       before do
@@ -70,13 +71,15 @@ RSpec.describe Botiasloop::Loop do
         double("response",
           tool_call?: true,
           tool_calls: {"call_123" => tool_call},
-          content: "")
+          content: "",
+          role: :assistant)
       end
 
       let(:final_response) do
         double("response",
           tool_call?: false,
-          content: "The output is hello")
+          content: "The output is hello",
+          role: :assistant)
       end
 
       before do
@@ -116,7 +119,8 @@ RSpec.describe Botiasloop::Loop do
         double("response",
           tool_call?: true,
           tool_calls: {"call_456" => tool_call},
-          content: "")
+          content: "",
+          role: :assistant)
       end
 
       before do
@@ -141,13 +145,15 @@ RSpec.describe Botiasloop::Loop do
         double("response",
           tool_call?: true,
           tool_calls: {"call_789" => tool_call},
-          content: "")
+          content: "",
+          role: :assistant)
       end
 
       let(:final_response) do
         double("response",
           tool_call?: false,
-          content: "There was an error")
+          content: "There was an error",
+          role: :assistant)
       end
 
       before do

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "ruby_llm"
-
 module Botiasloop
   module Tools
     class Registry
