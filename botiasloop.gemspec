@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.4.0"
 
-  spec.files = Dir["lib/**/*", "bin/*", "README.md", "LICENSE"]
+  spec.files = Dir["lib/**/*", "bin/*", "data/**/*", "README.md", "LICENSE"]
   spec.bindir = "bin"
   spec.executables = ["botiasloop"]
   spec.require_paths = ["lib"]

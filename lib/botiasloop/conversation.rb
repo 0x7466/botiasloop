@@ -133,7 +133,9 @@ module Botiasloop
     #
     # @return [String] System prompt
     def system_prompt
-      <<~PROMPT
+      skills_registry = Skills::Registry.new
+
+      prompt = <<~PROMPT
         You are Botias, an autonomous AI agent.
 
         Environment:
@@ -145,6 +147,19 @@ module Botiasloop
 
         You operate in a ReAct loop: Reason about the task, Act using tools, Observe results.
       PROMPT
+
+      if skills_registry.skills.any?
+        prompt += <<~SKILLS
+
+          Available Skills:
+          #{skills_registry.skills_table}
+
+          To use a skill, read its SKILL.md file at the provided path using the shell tool (e.g., `cat ~/skills/skill-name/SKILL.md`).
+          Skills follow progressive disclosure: only metadata is shown above. Full instructions are loaded on demand.
+        SKILLS
+      end
+
+      prompt
     end
   end
 end

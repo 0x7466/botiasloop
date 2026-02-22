@@ -42,15 +42,14 @@ This document outlines the planned features and improvements for botiasloop.
 - [x] Switch conversations: `/switch holiday-planning` instead of `/switch a1b2c3...`
 
 ### 6. Skills Support
-- [ ] Load skills from `~/skills/` directory
-- [ ] Skills are Ruby classes/modules
-- [ ] Examples: CodeReview, DataAnalysis, WebScraping, GitOperations
-- [ ] Skills can register their own tools and system prompt extensions
+- [x] Load default skills from `data/skills/` directory
+- [x] Load custom skills from `~/skills/` directory
+- [x] Skills follow agentskills.io specification (SKILL.md with YAML frontmatter)
+- [x] Progressive disclosure: name/description in system prompt, full content on demand
+- [x] Default skill-creator skill shipped with gem
+- [ ] Skills can register their own tools
 - [ ] Allow skills to be enabled/disabled per conversation
 - [ ] Skill configuration in YAML
-- [ ] Skill dependencies (skills can require other skills)
-- [ ] Skill versioning
-- [ ] Skill composition (combine multiple skills)
 
 ### 7. Persistent Memory
 - [ ] Vector database for semantic search (SQLite with sqlite-vss)

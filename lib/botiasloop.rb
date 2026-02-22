@@ -14,6 +14,9 @@ require_relative "botiasloop/tool"
 require_relative "botiasloop/tools/registry"
 require_relative "botiasloop/tools/shell"
 require_relative "botiasloop/tools/web_search"
+require_relative "botiasloop/skills/skill"
+require_relative "botiasloop/skills/loader"
+require_relative "botiasloop/skills/registry"
 require_relative "botiasloop/commands"
 require_relative "botiasloop/loop"
 require_relative "botiasloop/agent"
@@ -24,6 +27,11 @@ require_relative "botiasloop/channels/telegram"
 
 module Botiasloop
   class Error < StandardError; end
+
+  # @return [String] Root directory of the gem
+  def self.root
+    File.dirname(__dir__)
+  end
 
   class MaxIterationsExceeded < Error
     attr_reader :max_iterations
