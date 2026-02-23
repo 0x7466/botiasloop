@@ -13,11 +13,13 @@ module Botiasloop
     # @param model [RubyLLM::Model] Model instance
     # @param registry [Tools::Registry] Tool registry
     # @param max_iterations [Integer] Maximum ReAct iterations
-    def initialize(provider, model, registry, max_iterations: 20)
+    # @param config [Config, nil] Configuration instance
+    def initialize(provider, model, registry, max_iterations: 20, config: nil)
       @provider = provider
       @model = model
       @registry = registry
       @max_iterations = max_iterations
+      @config = config
       @logger = Logger.new($stderr)
     end
 
@@ -62,6 +64,7 @@ module Botiasloop
         else
           conversation.add("assistant", response.content, input_tokens: total_input_tokens,
             output_tokens: total_output_tokens)
+          maybe_auto_label(conversation)
           return response.content
         end
       end
@@ -127,8 +130,22 @@ module Botiasloop
       rescue Error => e
         retries += 1
         retry if retries < MAX_TOOL_RETRIES
-        "Error: #{e.message}"
+        error_content = "Error: #{e.message}"
+        @verbose_callback.call(format_error_message(error_content)) if @conversation.verbose && @verbose_callback
+        error_content
       end
+    end
+
+    def format_error_message(error_content)
+      error_msg = "⚠️ **Error**"
+
+      if error_content && !error_content.empty?
+        error_display = error_content.to_s
+        error_display = error_display[0..500] + "..." if error_display.length > 500
+        error_msg += "\n```\n#{error_display}\n```"
+      end
+
+      error_msg
     end
 
     def format_reasoning_message(content)
@@ -149,7 +166,7 @@ module Botiasloop
       if tool_call.arguments && !tool_call.arguments.empty?
         args_display = JSON.pretty_generate(tool_call.arguments)
         args_display = args_display[0..500] + "..." if args_display.length > 500
-        tool_msg += "```\n#{args_display}\n```"
+        tool_msg += "\n```\n#{args_display}\n```"
       end
 
       tool_msg
@@ -171,6 +188,15 @@ module Botiasloop
 
     def build_observation(result)
       result.to_s
+    end
+
+    def maybe_auto_label(conversation)
+      return unless @config
+
+      label = AutoLabel.generate(conversation, @config)
+      return unless label
+
+      conversation.update(label: label)
     end
   end
 end

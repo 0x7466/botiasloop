@@ -23,6 +23,11 @@ module Botiasloop
       },
       commands: {
         summarize: {}
+      },
+      features: {
+        auto_labelling: {
+          enabled: true
+        }
       }
 
     # Validation

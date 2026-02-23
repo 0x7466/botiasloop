@@ -259,6 +259,19 @@ RSpec.describe Botiasloop::Loop do
         expect(callback_messages).to include(/🔧 \*\*Tool\*\* `shell`/)
         expect(callback_messages).to include(/📥 \*\*Result\*\*/)
       end
+
+      it "calls verbose callback with error message when tool fails" do
+        allow(mock_registry).to receive(:execute).and_raise(Botiasloop::Error, "Command not found")
+
+        callback_messages = []
+        verbose_callback = proc { |msg| callback_messages << msg }
+
+        loop.run(conversation, "Run test", verbose_callback)
+
+        expect(callback_messages).to include(/🔧 \*\*Tool\*\* `shell`/)
+        expect(callback_messages).to include(/⚠️ \*\*Error\*\*/)
+        expect(callback_messages).to include(/Command not found/)
+      end
     end
 
     context "with verbose mode disabled" do
@@ -305,6 +318,93 @@ RSpec.describe Botiasloop::Loop do
         loop.run(conversation, "Run test", verbose_callback)
 
         expect(callback_messages).to be_empty
+      end
+    end
+
+    context "with auto-labelling" do
+      let(:response) do
+        double("response",
+          tool_call?: false,
+          content: "This is the answer",
+          role: :assistant,
+          input_tokens: 100,
+          output_tokens: 50)
+      end
+
+      let(:config) do
+        instance_double(Botiasloop::Config,
+          features: {"auto_labelling" => {"enabled" => true}},
+          providers: {
+            "openrouter" => {"model" => "moonshotai/kimi-k2.5"}
+          })
+      end
+
+      let(:loop_with_config) do
+        described_class.new(mock_provider, mock_model, mock_registry, max_iterations: 5, config: config)
+      end
+
+      let(:mock_chat) { instance_double(RubyLLM::Chat) }
+
+      before do
+        allow(mock_provider).to receive(:complete).and_return(response)
+      end
+
+      it "does not auto-label when config is nil" do
+        expect(conversation).not_to receive(:update)
+        loop.run(conversation, "What is 2+2?")
+      end
+
+      it "does not auto-label when conversation has fewer than 6 messages" do
+        allow(conversation).to receive(:message_count).and_return(4)
+        allow(conversation).to receive(:label?).and_return(false)
+
+        expect(conversation).not_to receive(:update)
+        loop_with_config.run(conversation, "What is 2+2?")
+      end
+
+      it "does not auto-label when conversation already has a label" do
+        allow(conversation).to receive(:message_count).and_return(6)
+        allow(conversation).to receive(:label?).and_return(true)
+
+        expect(conversation).not_to receive(:update)
+        loop_with_config.run(conversation, "What is 2+2?")
+      end
+
+      it "auto-labels when conditions are met" do
+        allow(conversation).to receive(:uuid).and_return("test-uuid-123")
+        allow(conversation).to receive(:message_count).and_return(6)
+        allow(conversation).to receive(:label?).and_return(false)
+        allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+        allow(mock_chat).to receive(:add_message)
+        allow(mock_chat).to receive(:complete).and_return(
+          instance_double(RubyLLM::Message, content: "test-label")
+        )
+
+        expect(conversation).to receive(:update).with(label: "test-label")
+        loop_with_config.run(conversation, "What is 2+2?")
+      end
+
+      it "uses configured model for auto-labelling" do
+        allow(conversation).to receive(:uuid).and_return("custom-uuid-456")
+        custom_config = instance_double(Botiasloop::Config,
+          features: {"auto_labelling" => {"enabled" => true,
+                                          "model" => "custom-model"}},
+          providers: {
+            "openrouter" => {"model" => "moonshotai/kimi-k2.5"}
+          })
+        custom_loop = described_class.new(mock_provider, mock_model, mock_registry,
+          max_iterations: 5, config: custom_config)
+
+        allow(conversation).to receive(:message_count).and_return(6)
+        allow(conversation).to receive(:label?).and_return(false)
+        allow(RubyLLM).to receive(:chat).with(model: "custom-model").and_return(mock_chat)
+        allow(mock_chat).to receive(:add_message)
+        allow(mock_chat).to receive(:complete).and_return(
+          instance_double(RubyLLM::Message, content: "custom-label")
+        )
+
+        expect(conversation).to receive(:update).with(label: "custom-label")
+        custom_loop.run(conversation, "What is 2+2?")
       end
     end
   end

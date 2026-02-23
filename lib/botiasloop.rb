@@ -6,6 +6,7 @@ require_relative "botiasloop/database"
 
 require_relative "botiasloop/conversation"
 require_relative "botiasloop/conversation_manager"
+require_relative "botiasloop/auto_label"
 require_relative "botiasloop/tool"
 require_relative "botiasloop/tools/registry"
 require_relative "botiasloop/tools/shell"

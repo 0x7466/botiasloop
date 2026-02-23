@@ -25,7 +25,7 @@ module Botiasloop
 
       registry = create_registry
       provider, model = create_provider_and_model
-      loop = Loop.new(provider, model, registry, max_iterations: @config.max_iterations)
+      loop = Loop.new(provider, model, registry, max_iterations: @config.max_iterations, config: @config)
 
       loop.run(conversation, message, verbose_callback)
     rescue MaxIterationsExceeded => e
