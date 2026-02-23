@@ -4,8 +4,9 @@ require "spec_helper"
 
 RSpec.describe Botiasloop::Conversation do
   before(:all) do
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
     Botiasloop::Database.setup!
-    Botiasloop::Database.reset!
   end
 
   before do
@@ -133,8 +134,9 @@ end
 
 RSpec.describe Botiasloop::Conversation::Message do
   before(:all) do
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
     Botiasloop::Database.setup!
-    Botiasloop::Database.reset!
   end
 
   before do

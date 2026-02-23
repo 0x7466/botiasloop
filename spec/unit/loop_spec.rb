@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require "spec_helper"
+require 'spec_helper'
 
 RSpec.describe Botiasloop::Loop do
-  let(:mock_provider) { double("provider") }
-  let(:mock_model) { double("model") }
-  let(:mock_registry) { double("registry") }
+  let(:mock_provider) { double('provider') }
+  let(:mock_model) { double('model') }
+  let(:mock_registry) { double('registry') }
   let(:loop) { described_class.new(mock_provider, mock_model, mock_registry, max_iterations: 5) }
   let(:conversation) { instance_double(Botiasloop::Conversation) }
   let(:logger) { instance_double(Logger) }
@@ -13,198 +13,296 @@ RSpec.describe Botiasloop::Loop do
   before do
     allow(conversation).to receive(:add)
     allow(conversation).to receive(:history).and_return([])
-    allow(conversation).to receive(:system_prompt).and_return("System prompt")
+    allow(conversation).to receive(:system_prompt).and_return('System prompt')
+    allow(conversation).to receive(:verbose).and_return(false)
     allow(Logger).to receive(:new).and_return(logger)
     allow(logger).to receive(:info)
     allow(mock_registry).to receive(:schemas).and_return({})
   end
 
-  describe "#initialize" do
-    it "stores provider, model and registry" do
+  describe '#initialize' do
+    it 'stores provider, model and registry' do
       expect(loop.instance_variable_get(:@provider)).to eq(mock_provider)
       expect(loop.instance_variable_get(:@model)).to eq(mock_model)
       expect(loop.instance_variable_get(:@registry)).to eq(mock_registry)
     end
 
-    it "stores max_iterations" do
+    it 'stores max_iterations' do
       expect(loop.instance_variable_get(:@max_iterations)).to eq(5)
     end
   end
 
-  describe "#run" do
-    context "with direct answer" do
+  describe '#run' do
+    context 'with direct answer' do
       let(:response) do
-        double("response",
-          tool_call?: false,
-          content: "This is the answer",
-          role: :assistant,
-          input_tokens: 100,
-          output_tokens: 50)
+        double('response',
+               tool_call?: false,
+               content: 'This is the answer',
+               role: :assistant,
+               input_tokens: 100,
+               output_tokens: 50)
       end
 
       before do
         allow(mock_provider).to receive(:complete).and_return(response)
       end
 
-      it "returns the response content" do
-        result = loop.run(conversation, "What is 2+2?")
-        expect(result).to eq("This is the answer")
+      it 'returns the response content' do
+        result = loop.run(conversation, 'What is 2+2?')
+        expect(result).to eq('This is the answer')
       end
 
-      it "includes system message in provider call" do
-        expect(mock_provider).to receive(:complete) do |messages, **kwargs|
+      it 'includes system message in provider call' do
+        expect(mock_provider).to receive(:complete) do |messages, **_kwargs|
           expect(messages.first).to be_a(RubyLLM::Message)
           expect(messages.first.role).to eq(:system)
-          expect(messages.first.content).to eq("System prompt")
+          expect(messages.first.content).to eq('System prompt')
           response
         end
-        loop.run(conversation, "What is 2+2?")
+        loop.run(conversation, 'What is 2+2?')
       end
 
-      it "adds user message to conversation" do
-        expect(conversation).to receive(:add).with("user", "What is 2+2?")
-        loop.run(conversation, "What is 2+2?")
+      it 'adds user message to conversation' do
+        expect(conversation).to receive(:add).with('user', 'What is 2+2?')
+        loop.run(conversation, 'What is 2+2?')
       end
 
-      it "adds assistant response to conversation with token counts" do
-        expect(conversation).to receive(:add).with("assistant", "This is the answer", input_tokens: 100, output_tokens: 50)
-        loop.run(conversation, "What is 2+2?")
+      it 'adds assistant response to conversation with token counts' do
+        expect(conversation).to receive(:add).with('assistant', 'This is the answer', input_tokens: 100,
+                                                                                      output_tokens: 50)
+        loop.run(conversation, 'What is 2+2?')
       end
 
-      it "tracks tokens from LLM response" do
-        loop.run(conversation, "What is 2+2?")
+      it 'tracks tokens from LLM response' do
+        loop.run(conversation, 'What is 2+2?')
       end
     end
 
-    context "with tool call" do
+    context 'with tool call' do
       let(:tool_call) do
-        double("tool_call",
-          id: "call_123",
-          name: "shell",
-          arguments: {"command" => "echo hello"})
+        double('tool_call',
+               id: 'call_123',
+               name: 'shell',
+               arguments: { 'command' => 'echo hello' })
       end
 
       let(:first_response) do
-        double("response",
-          tool_call?: true,
-          tool_calls: {"call_123" => tool_call},
-          content: "",
-          role: :assistant,
-          input_tokens: 50,
-          output_tokens: 25)
+        double('response',
+               tool_call?: true,
+               tool_calls: { 'call_123' => tool_call },
+               content: '',
+               role: :assistant,
+               input_tokens: 50,
+               output_tokens: 25)
       end
 
       let(:final_response) do
-        double("response",
-          tool_call?: false,
-          content: "The output is hello",
-          role: :assistant,
-          input_tokens: 100,
-          output_tokens: 50)
+        double('response',
+               tool_call?: false,
+               content: 'The output is hello',
+               role: :assistant,
+               input_tokens: 100,
+               output_tokens: 50)
       end
 
       before do
         call_count = 0
         allow(mock_provider).to receive(:complete) do
           call_count += 1
-          (call_count == 1) ? first_response : final_response
+          call_count == 1 ? first_response : final_response
         end
-        allow(mock_registry).to receive(:execute).and_return({stdout: "hello\n"})
+        allow(mock_registry).to receive(:execute).and_return({ stdout: "hello\n" })
       end
 
-      it "executes the tool" do
-        expect(mock_registry).to receive(:execute).with("shell", {"command" => "echo hello"})
-        loop.run(conversation, "Run echo hello")
+      it 'executes the tool' do
+        expect(mock_registry).to receive(:execute).with('shell', { 'command' => 'echo hello' })
+        loop.run(conversation, 'Run echo hello')
       end
 
-      it "returns final answer after tool execution" do
-        result = loop.run(conversation, "Run echo hello")
-        expect(result).to eq("The output is hello")
+      it 'returns final answer after tool execution' do
+        result = loop.run(conversation, 'Run echo hello')
+        expect(result).to eq('The output is hello')
       end
 
-      it "logs the tool call" do
+      it 'logs the tool call' do
         expect(logger).to receive(:info).with(/\[Tool\] Executing shell/)
-        loop.run(conversation, "Run echo hello")
+        loop.run(conversation, 'Run echo hello')
       end
 
-      it "accumulates tokens across iterations" do
-        expect(conversation).to receive(:add).with("assistant", "The output is hello", input_tokens: 150, output_tokens: 75)
-        loop.run(conversation, "Run echo hello")
+      it 'accumulates tokens across iterations' do
+        expect(conversation).to receive(:add).with('assistant', 'The output is hello', input_tokens: 150,
+                                                                                       output_tokens: 75)
+        loop.run(conversation, 'Run echo hello')
       end
     end
 
-    context "with max iterations exceeded" do
+    context 'with max iterations exceeded' do
       let(:tool_call) do
-        double("tool_call",
-          id: "call_456",
-          name: "shell",
-          arguments: {"command" => "echo test"})
+        double('tool_call',
+               id: 'call_456',
+               name: 'shell',
+               arguments: { 'command' => 'echo test' })
       end
 
       let(:response) do
-        double("response",
-          tool_call?: true,
-          tool_calls: {"call_456" => tool_call},
-          content: "",
-          role: :assistant,
-          input_tokens: 50,
-          output_tokens: 25)
+        double('response',
+               tool_call?: true,
+               tool_calls: { 'call_456' => tool_call },
+               content: '',
+               role: :assistant,
+               input_tokens: 50,
+               output_tokens: 25)
       end
 
       before do
         allow(mock_provider).to receive(:complete).and_return(response)
-        allow(mock_registry).to receive(:execute).and_return({stdout: "test"})
+        allow(mock_registry).to receive(:execute).and_return({ stdout: 'test' })
       end
 
-      it "raises MaxIterationsExceeded when max iterations reached" do
-        expect { loop.run(conversation, "Test") }.to raise_error(Botiasloop::MaxIterationsExceeded)
+      it 'raises MaxIterationsExceeded when max iterations reached' do
+        expect { loop.run(conversation, 'Test') }.to raise_error(Botiasloop::MaxIterationsExceeded)
       end
     end
 
-    context "with tool execution error" do
+    context 'with tool execution error' do
       let(:tool_call) do
-        double("tool_call",
-          id: "call_789",
-          name: "shell",
-          arguments: {"command" => "invalid"})
+        double('tool_call',
+               id: 'call_789',
+               name: 'shell',
+               arguments: { 'command' => 'invalid' })
       end
 
       let(:first_response) do
-        double("response",
-          tool_call?: true,
-          tool_calls: {"call_789" => tool_call},
-          content: "",
-          role: :assistant,
-          input_tokens: 50,
-          output_tokens: 25)
+        double('response',
+               tool_call?: true,
+               tool_calls: { 'call_789' => tool_call },
+               content: '',
+               role: :assistant,
+               input_tokens: 50,
+               output_tokens: 25)
       end
 
       let(:final_response) do
-        double("response",
-          tool_call?: false,
-          content: "There was an error",
-          role: :assistant,
-          input_tokens: 100,
-          output_tokens: 50)
+        double('response',
+               tool_call?: false,
+               content: 'There was an error',
+               role: :assistant,
+               input_tokens: 100,
+               output_tokens: 50)
       end
 
       before do
         call_count = 0
         allow(mock_provider).to receive(:complete) do
           call_count += 1
-          (call_count == 1) ? first_response : final_response
+          call_count == 1 ? first_response : final_response
         end
-        allow(mock_registry).to receive(:execute).and_raise(Botiasloop::Error, "Tool failed")
+        allow(mock_registry).to receive(:execute).and_raise(Botiasloop::Error, 'Tool failed')
       end
 
-      it "retries up to 3 times" do
+      it 'retries up to 3 times' do
         expect(mock_registry).to receive(:execute).exactly(3).times
-        loop.run(conversation, "Test")
+        loop.run(conversation, 'Test')
       end
 
-      it "continues after retries exhausted" do
-        result = loop.run(conversation, "Test")
-        expect(result).to eq("There was an error")
+      it 'continues after retries exhausted' do
+        result = loop.run(conversation, 'Test')
+        expect(result).to eq('There was an error')
+      end
+    end
+
+    context 'with verbose mode enabled' do
+      let(:tool_call) do
+        double('tool_call',
+               id: 'call_verbose',
+               name: 'shell',
+               arguments: { 'command' => 'echo test' })
+      end
+
+      let(:first_response) do
+        double('response',
+               tool_call?: true,
+               tool_calls: { 'call_verbose' => tool_call },
+               content: '',
+               role: :assistant,
+               input_tokens: 50,
+               output_tokens: 25)
+      end
+
+      let(:final_response) do
+        double('response',
+               tool_call?: false,
+               content: 'The output is test',
+               role: :assistant,
+               input_tokens: 100,
+               output_tokens: 50)
+      end
+
+      before do
+        call_count = 0
+        allow(mock_provider).to receive(:complete) do
+          call_count += 1
+          call_count == 1 ? first_response : final_response
+        end
+        allow(mock_registry).to receive(:execute).and_return({ stdout: "test\n" })
+        allow(conversation).to receive(:verbose).and_return(true)
+      end
+
+      it 'calls verbose callback when tool is called' do
+        callback_messages = []
+        verbose_callback = proc { |msg| callback_messages << msg }
+
+        loop.run(conversation, 'Run test', verbose_callback)
+
+        expect(callback_messages).to include(/🔧 \*\*Tool\*\* `shell`/)
+        expect(callback_messages).to include(/📥 \*\*Result\*\*/)
+      end
+    end
+
+    context 'with verbose mode disabled' do
+      let(:tool_call) do
+        double('tool_call',
+               id: 'call_quiet',
+               name: 'shell',
+               arguments: { 'command' => 'echo test' })
+      end
+
+      let(:first_response) do
+        double('response',
+               tool_call?: true,
+               tool_calls: { 'call_quiet' => tool_call },
+               content: '',
+               role: :assistant,
+               input_tokens: 50,
+               output_tokens: 25)
+      end
+
+      let(:final_response) do
+        double('response',
+               tool_call?: false,
+               content: 'The output is test',
+               role: :assistant,
+               input_tokens: 100,
+               output_tokens: 50)
+      end
+
+      before do
+        call_count = 0
+        allow(mock_provider).to receive(:complete) do
+          call_count += 1
+          call_count == 1 ? first_response : final_response
+        end
+        allow(mock_registry).to receive(:execute).and_return({ stdout: "test\n" })
+        allow(conversation).to receive(:verbose).and_return(false)
+      end
+
+      it 'does not call verbose callback when verbose is disabled' do
+        callback_messages = []
+        verbose_callback = proc { |msg| callback_messages << msg }
+
+        loop.run(conversation, 'Run test', verbose_callback)
+
+        expect(callback_messages).to be_empty
       end
     end
   end

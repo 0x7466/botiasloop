@@ -383,6 +383,58 @@ end
 - **NEVER** use `FileUtils.rm_rf(File.expand_path("~/.config"))` or similar
 - **NEVER** use `FileUtils.rm_rf(File.expand_path("~/conversations"))` or similar
 
+### 12. Database Isolation (CRITICAL)
+
+**NEVER** allow tests to touch real user databases. Tests must use in-memory databases only.
+
+**The Problem:**
+The `database.rb` file auto-connects at the bottom using a file-based path. If tests call `Database.setup!` or `Database.connect` before ensuring an in-memory database is set, they will create/modify the real database file at `~/.config/botiasloop/db.sqlite`.
+
+**Solution - Pre-create In-Memory Database:**
+
+```ruby
+# In spec_helper.rb - BEFORE requiring database.rb
+require "sequel"
+
+# Pre-create the Database class with in-memory database
+# This prevents the auto-connect at bottom of database.rb from using file-based DB
+module Botiasloop
+  class Database
+    @db = Sequel.sqlite  # In-memory only!
+  end
+end
+
+# Now safe to require database.rb
+require_relative "../lib/botiasloop/database"
+Botiasloop::Database.setup!
+```
+
+**For Individual Test Files:**
+
+```ruby
+RSpec.describe Botiasloop::Database do
+  before do
+    # Disconnect any existing connection and force in-memory database
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
+    Botiasloop::Database.setup!
+  end
+  
+  # Tests now safely use in-memory database
+  it "creates tables" do
+    db = Botiasloop::Database.connect
+    expect(db.table_exists?(:conversations)).to be true
+  end
+end
+```
+
+**CRITICAL RULES:**
+- **ALWAYS** use `Sequel.sqlite` (in-memory) for tests, never `Sequel.sqlite(path)` (file-based)
+- **NEVER** call `Database.reset!` without ensuring in-memory DB is set first
+- **NEVER** let tests call methods that might auto-connect to file-based database
+- Tests should work even if `~/.config/botiasloop/` directory doesn't exist
+- The real database file at `~/.config/botiasloop/db.sqlite` should never be created or modified by tests
+
 ## Running Tests
 
 ```bash

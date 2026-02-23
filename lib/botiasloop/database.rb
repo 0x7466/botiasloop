@@ -59,13 +59,14 @@ module Botiasloop
           String :label
           TrueClass :is_current, default: false
           TrueClass :archived, default: false
+          TrueClass :verbose, default: false
           Integer :input_tokens, default: 0
           Integer :output_tokens, default: 0
           DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
           DateTime :updated_at, default: Sequel::CURRENT_TIMESTAMP
 
-          index [:user_id, :label], unique: true
-          index [:user_id, :archived]
+          index %i[user_id label], unique: true
+          index %i[user_id archived]
         end
 
         # Create messages table

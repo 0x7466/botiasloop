@@ -18,15 +18,16 @@ module Botiasloop
     #
     # @param message [String] User message
     # @param conversation [Conversation, nil] Existing conversation
+    # @param verbose_callback [Proc, nil] Callback for verbose messages
     # @return [String] Assistant response
-    def chat(message, conversation: nil)
+    def chat(message, conversation: nil, verbose_callback: nil)
       conversation ||= Conversation.new
 
       registry = create_registry
       provider, model = create_provider_and_model
       loop = Loop.new(provider, model, registry, max_iterations: @config.max_iterations)
 
-      loop.run(conversation, message)
+      loop.run(conversation, message, verbose_callback)
     rescue MaxIterationsExceeded => e
       e.message
     end

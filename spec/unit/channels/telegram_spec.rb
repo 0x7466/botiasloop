@@ -198,7 +198,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   describe "#process_message" do
     let(:mock_agent) { instance_double(Botiasloop::Agent) }
     let(:mock_conversation) { instance_double(Botiasloop::Conversation) }
-    let(:chat_id) { 123456 }
+    let(:chat_id) { 123_456 }
     let(:message_text) { "Hello bot" }
     let(:username) { "testuser" }
 
@@ -247,7 +247,8 @@ RSpec.describe Botiasloop::Channels::Telegram do
       it "processes the message and sends response" do
         expect(mock_agent).to receive(:chat).with(
           message_text,
-          conversation: anything
+          conversation: anything,
+          verbose_callback: anything
         ).and_return("Test response")
         expect(mock_api).to receive(:send_message).with(
           chat_id: chat_id,
@@ -359,7 +360,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
         Telegram::Bot::Types::Message,
         text: message_text,
         from: instance_double(Telegram::Bot::Types::User, username: "testuser"),
-        chat: instance_double(Telegram::Bot::Types::Chat, id: 123456)
+        chat: instance_double(Telegram::Bot::Types::Chat, id: 123_456)
       )
     end
 
@@ -375,7 +376,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
         Telegram::Bot::Types::Message,
         text: "Hello",
         from: instance_double(Telegram::Bot::Types::User, username: "testuser"),
-        chat: instance_double(Telegram::Bot::Types::Chat, id: 123456)
+        chat: instance_double(Telegram::Bot::Types::Chat, id: 123_456)
       )
     end
 
@@ -388,7 +389,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
         Telegram::Bot::Types::Message,
         text: "Hello",
         from: nil,
-        chat: instance_double(Telegram::Bot::Types::Chat, id: 123456)
+        chat: instance_double(Telegram::Bot::Types::Chat, id: 123_456)
       )
       expect(channel.extract_user_id("123456", message_no_user)).to be_nil
     end
@@ -479,7 +480,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     it "sends message via bot API" do
       expect(mock_api).to receive(:send_message).with(
-        chat_id: 123456,
+        chat_id: 123_456,
         text: formatted_content,
         parse_mode: "HTML"
       )
@@ -488,7 +489,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     it "converts string chat_id to integer" do
       expect(mock_api).to receive(:send_message).with(
-        hash_including(chat_id: 123456)
+        hash_including(chat_id: 123_456)
       )
       channel.deliver_response("123456", formatted_content)
     end

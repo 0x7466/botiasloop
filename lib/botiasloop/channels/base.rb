@@ -14,9 +14,7 @@ module Botiasloop
         # @param name [Symbol] Channel identifier (e.g., :telegram)
         # @return [Symbol] The channel identifier
         def channel_name(name = nil)
-          if name
-            @channel_identifier = name
-          end
+          @channel_identifier = name if name
           @channel_identifier
         end
 
@@ -80,7 +78,7 @@ module Botiasloop
       # @param source_id [String] Unique identifier for the message source (e.g., chat_id, user_id)
       # @param raw_message [Object] Raw message object (varies by channel)
       # @param metadata [Hash] Additional metadata about the message
-      def process_message(source_id, raw_message, metadata = {})
+      def process_message(source_id, raw_message, _metadata = {})
         # Hook: Extract content from raw message
         content = extract_content(raw_message)
         return if content.nil? || content.to_s.empty?
@@ -110,7 +108,10 @@ module Botiasloop
           Commands.execute(content, context)
         else
           agent = Agent.new(@config)
-          agent.chat(content, conversation: conversation)
+          verbose_callback = proc do |verbose_message|
+            send_response(source_id, verbose_message)
+          end
+          agent.chat(content, conversation: conversation, verbose_callback: verbose_callback)
         end
 
         send_response(source_id, response)
@@ -136,7 +137,7 @@ module Botiasloop
       # @param source_id [String] Source identifier
       # @param raw_message [Object] Raw message object
       # @return [String] User ID for authorization
-      def extract_user_id(source_id, raw_message)
+      def extract_user_id(source_id, _raw_message)
         source_id
       end
 
@@ -168,7 +169,7 @@ module Botiasloop
       # @param source_id [String] Source identifier
       # @param user_id [String] User ID that was denied
       # @param raw_message [Object] Raw message object
-      def handle_unauthorized(source_id, user_id, raw_message)
+      def handle_unauthorized(source_id, user_id, _raw_message)
         @logger.warn "[#{self.class.channel_identifier}] Unauthorized access from #{user_id} (source: #{source_id})"
       end
 
@@ -179,7 +180,7 @@ module Botiasloop
       # @param user_id [String] User ID
       # @param error [Exception] The error that occurred
       # @param raw_message [Object] Raw message object
-      def handle_error(source_id, user_id, error, raw_message)
+      def handle_error(_source_id, _user_id, error, _raw_message)
         @logger.error "[#{self.class.channel_identifier}] Error processing message: #{error.message}"
         raise error
       end
@@ -188,7 +189,7 @@ module Botiasloop
       #
       # @param source_id [String] Source identifier to check
       # @return [Boolean] False by default (secure default)
-      def authorized?(source_id)
+      def authorized?(_source_id)
         false
       end
 

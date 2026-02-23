@@ -160,10 +160,53 @@ chat.with_tool(Tools::WebSearch.new(searxng_url))
 
 ## Testing Guidelines
 
+### CRITICAL: Test Isolation - Never Touch Real Data
+
+**NEVER** allow tests to touch real user data, databases, config files, or anything outside the development directory:
+
+- **Database**: Always use in-memory SQLite (`Sequel.sqlite`) for tests
+- **Config files**: Never read/write to `~/.config/botiasloop/`
+- **User data**: Never touch `~/conversations/` or user home directory
+- **System paths**: Stay within project directory and temp directories only
+
+**Pattern for Database Tests:**
+```ruby
+# spec_helper.rb - Set up in-memory database BEFORE loading botiasloop
+require "sequel"
+
+# Pre-create the Database class with in-memory database 
+# to prevent file-based auto-connect at bottom of database.rb
+module Botiasloop
+  class Database
+    @db = Sequel.sqlite  # In-memory only!
+  end
+end
+require_relative "../lib/botiasloop/database"
+Botiasloop::Database.setup!
+
+# Now load the rest of botiasloop
+require "botiasloop"
+```
+
+**Pattern for Individual Test Files:**
+```ruby
+RSpec.describe Botiasloop::Database do
+  before do
+    # Ensure in-memory database for each test
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
+    Botiasloop::Database.setup!
+  end
+  
+  # ... tests that safely use in-memory database
+end
+```
+
 ### Mock External Dependencies
 - Mock `RubyLLM.chat` and chat instances
 - Mock `Botiasloop::Conversation` for unit tests
 - Use WebMock for HTTP requests (WebSearch tool)
+- Mock ALL filesystem paths to use temp directories
 
 ### Test Structure
 ```ruby

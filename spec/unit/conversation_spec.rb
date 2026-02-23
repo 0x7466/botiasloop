@@ -4,11 +4,9 @@ require "spec_helper"
 
 RSpec.describe Botiasloop::Conversation do
   before do
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
     Botiasloop::Database.setup!
-  end
-
-  after do
-    Botiasloop::Database.reset!
   end
 
   describe "#initialize" do

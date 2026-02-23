@@ -25,9 +25,12 @@ module Botiasloop
     #
     # @param conversation [Conversation] Conversation instance
     # @param user_input [String] User input
+    # @param verbose_callback [Proc, nil] Callback for verbose messages
     # @return [String] Final response
     # @raise [Error] If max iterations exceeded
-    def run(conversation, user_input)
+    def run(conversation, user_input, verbose_callback = nil)
+      @conversation = conversation
+      @verbose_callback = verbose_callback
       conversation.add("user", user_input)
       messages = build_messages(conversation)
 
@@ -51,7 +54,8 @@ module Botiasloop
             messages << build_tool_result_message(tool_call.id, observation)
           end
         else
-          conversation.add("assistant", response.content, input_tokens: total_input_tokens, output_tokens: total_output_tokens)
+          conversation.add("assistant", response.content, input_tokens: total_input_tokens,
+            output_tokens: total_output_tokens)
           return response.content
         end
       end
@@ -97,15 +101,54 @@ module Botiasloop
 
     def execute_tool(tool_call)
       @logger.info "[Tool] Executing #{tool_call.name} with arguments: #{tool_call.arguments}"
+
+      if @conversation.verbose && @verbose_callback
+        verbose_content = format_tool_message(tool_call)
+        @verbose_callback.call(verbose_content)
+      end
+
       retries = 0
       begin
         result = @registry.execute(tool_call.name, tool_call.arguments)
-        build_observation(result)
+        observation = build_observation(result)
+
+        if @conversation.verbose && @verbose_callback
+          result_content = format_result_message(observation)
+          @verbose_callback.call(result_content)
+        end
+
+        observation
       rescue Error => e
         retries += 1
         retry if retries < MAX_TOOL_RETRIES
         "Error: #{e.message}"
       end
+    end
+
+    def format_tool_message(tool_call)
+      tool_msg = "🔧 **Tool** `#{tool_call.name}`"
+
+      if tool_call.arguments && !tool_call.arguments.empty?
+        args_display = JSON.pretty_generate(tool_call.arguments)
+        args_display = args_display[0..500] + "..." if args_display.length > 500
+        tool_msg += "```\n#{args_display}\n```"
+      end
+
+      tool_msg
+    end
+
+    def format_result_message(observation)
+      result_msg = "📥 **Result**"
+
+      if observation && !observation.empty?
+        result_display = observation.to_s
+        result_display = result_display[0..500] + "..." if result_display.length > 500
+        result_msg += "```\n#{result_display}\n```"
+      else
+        result_msg += " (empty)"
+      end
+
+      result_msg
     end
 
     def build_observation(result)

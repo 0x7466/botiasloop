@@ -3,8 +3,9 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::Database do
-  after do
-    Botiasloop::Database.reset!
+  before do
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
   end
 
   describe ".connect" do
@@ -44,6 +45,7 @@ RSpec.describe Botiasloop::Database do
       expect(columns).to include(:label)
       expect(columns).to include(:is_current)
       expect(columns).to include(:archived)
+      expect(columns).to include(:verbose)
       expect(columns).to include(:created_at)
       expect(columns).to include(:updated_at)
     end

@@ -12,9 +12,13 @@ require "sequel"
 require "webmock/rspec"
 
 # Set up in-memory database BEFORE loading botiasloop
-# This prevents Sequel::Model from failing without a database connection
+# Pre-create the Database class with in-memory database to prevent file-based auto-connect
+module Botiasloop
+  class Database
+    @db = Sequel.sqlite
+  end
+end
 require_relative "../lib/botiasloop/database"
-Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
 Botiasloop::Database.setup!
 
 # Now load the rest of botiasloop
