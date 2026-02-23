@@ -12,12 +12,11 @@ module Botiasloop
     # Generate a label for the conversation if conditions are met
     #
     # @param conversation [Conversation] The conversation to label
-    # @param config [Config] Configuration instance
     # @return [String, nil] The generated label or nil if not applicable
-    def self.generate(conversation, config)
-      return nil unless should_generate?(conversation, config)
+    def self.generate(conversation)
+      return nil unless should_generate?(conversation)
 
-      label = new(config).generate_label(conversation)
+      label = new.generate_label(conversation)
 
       Logger.info "[AutoLabel] Generated label '#{label}' for conversation #{conversation.uuid}" if label
 
@@ -27,18 +26,17 @@ module Botiasloop
     # Check if auto-labelling should run
     #
     # @param conversation [Conversation] The conversation to check
-    # @param config [Config] Configuration instance
     # @return [Boolean] True if conditions are met
-    def self.should_generate?(conversation, config)
-      return false unless config.features&.dig("auto_labelling", "enabled") != false
+    def self.should_generate?(conversation)
+      return false unless Config.instance.features&.dig("auto_labelling", "enabled") != false
       return false if conversation.label?
       return false if conversation.message_count < MIN_MESSAGES_FOR_AUTO_LABEL
 
       true
     end
 
-    def initialize(config = nil)
-      @config = config || Config.instance
+    def initialize
+      @config = Config.instance
     end
 
     # Generate a label based on conversation content

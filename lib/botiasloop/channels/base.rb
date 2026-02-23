@@ -36,11 +36,8 @@ module Botiasloop
 
       # Initialize the channel
       #
-      # @param config [Config] Configuration instance
       # @raise [Error] If required configuration is missing
-      def initialize(config)
-        @config = config
-
+      def initialize
         validate_required_config!
       end
 
@@ -49,7 +46,7 @@ module Botiasloop
       #
       # @return [Hash] Channel configuration hash
       def channel_config
-        @config.channels[self.class.channel_identifier.to_s] || {}
+        Config.instance.channels[self.class.channel_identifier.to_s] || {}
       end
 
       # Start the channel and begin listening for messages
@@ -99,13 +96,12 @@ module Botiasloop
         response = if Commands.command?(content)
           context = Commands::Context.new(
             conversation: conversation,
-            config: @config,
             channel: self,
             user_id: source_id
           )
           Commands.execute(content, context)
         else
-          agent = Agent.new(@config)
+          agent = Agent.new
           verbose_callback = proc do |verbose_message|
             send_response(source_id, verbose_message)
           end

@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::Agent do
-  let(:config) do
+  let(:test_config) do
     Botiasloop::Config.new({
       "max_iterations" => 10,
       "tools" => {
@@ -20,21 +20,23 @@ RSpec.describe Botiasloop::Agent do
     })
   end
 
-  describe "#initialize" do
-    it "accepts a config" do
-      agent = described_class.new(config)
-      expect(agent.instance_variable_get(:@config)).to eq(config)
-    end
+  before do
+    Botiasloop::Config.instance = test_config
+  end
 
-    it "loads default config if none provided" do
-      allow(Botiasloop::Config).to receive(:new).and_return(config)
+  after do
+    Botiasloop::Config.instance = nil
+  end
+
+  describe "#initialize" do
+    it "initializes successfully" do
       agent = described_class.new
-      expect(agent.instance_variable_get(:@config)).to eq(config)
+      expect(agent).to be_a(described_class)
     end
   end
 
   describe "#chat" do
-    let(:agent) { described_class.new(config) }
+    let(:agent) { described_class.new }
     let(:conversation) { instance_double(Botiasloop::Conversation) }
     let(:mock_loop) { instance_double(Botiasloop::Loop) }
     let(:mock_provider) { double("provider") }
@@ -102,7 +104,14 @@ RSpec.describe Botiasloop::Agent do
         })
       end
 
-      let(:agent_without_web_search) { described_class.new(config_without_web_search) }
+      let(:agent_without_web_search) do
+        Botiasloop::Config.instance = config_without_web_search
+        described_class.new
+      end
+
+      after do
+        Botiasloop::Config.instance = nil
+      end
 
       it "creates registry without web_search tool" do
         allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
@@ -113,7 +122,7 @@ RSpec.describe Botiasloop::Agent do
         allow(mock_provider_class).to receive(:new).and_return(mock_provider)
         allow(mock_loop).to receive(:run).and_return("response")
 
-        expect(Botiasloop::Loop).to receive(:new) do |provider, model, registry, **kwargs|
+        expect(Botiasloop::Loop).to receive(:new) do |_provider, _model, registry, **_kwargs|
           expect(registry.tool_classes).not_to include(Botiasloop::Tools::WebSearch)
           expect(registry.tool_classes).to include(Botiasloop::Tools::Shell)
           mock_loop
@@ -124,7 +133,7 @@ RSpec.describe Botiasloop::Agent do
     end
 
     context "with different providers" do
-      # Note: We test that providers are configured correctly in config_spec.rb
+      # NOTE: We test that providers are configured correctly in config_spec.rb
       # Here we just verify the Agent properly uses whatever provider is active
 
       it "uses the active provider's model" do

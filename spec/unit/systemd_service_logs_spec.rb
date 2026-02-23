@@ -3,8 +3,7 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::SystemdService do
-  let(:config) { instance_double(Botiasloop::Config) }
-  let(:service) { described_class.new(config) }
+  let(:service) { described_class.new }
 
   before do
     allow(service).to receive(:`).with("which systemctl 2>/dev/null").and_return("/bin/systemctl")

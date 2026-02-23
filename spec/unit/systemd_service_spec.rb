@@ -4,8 +4,7 @@ require "spec_helper"
 require_relative "../../lib/botiasloop/systemd_service"
 
 RSpec.describe Botiasloop::SystemdService do
-  let(:config) { instance_double(Botiasloop::Config) }
-  let(:service) { described_class.new(config) }
+  let(:service) { described_class.new }
   let(:user_home) { "/home/testuser" }
   let(:config_dir) { "#{user_home}/.config" }
   let(:systemd_dir) { "#{config_dir}/systemd/user" }
@@ -22,8 +21,8 @@ RSpec.describe Botiasloop::SystemdService do
   end
 
   describe "#initialize" do
-    it "stores the config" do
-      expect(service.config).to eq(config)
+    it "creates a service instance" do
+      expect(service).to be_a(described_class)
     end
   end
 

@@ -11,8 +11,7 @@ module Botiasloop
   # independent operation and error isolation.
   #
   # @example Basic usage
-  #   config = Botiasloop::Config.load
-  #   manager = Botiasloop::ChannelsManager.new(config)
+  #   manager = Botiasloop::ChannelsManager.new
   #   manager.start_channels.wait
   #
   class ChannelsManager
@@ -22,13 +21,8 @@ module Botiasloop
     # Channels that should not be auto-started (interactive channels)
     EXCLUDED_CHANNELS = %i[cli].freeze
 
-    attr_reader :config
-
     # Initialize a new ChannelsManager
-    #
-    # @param config [Config] Configuration instance
-    def initialize(config)
-      @config = config
+    def initialize
       @threads = {}
       @instances = {}
       @mutex = Mutex.new
@@ -60,7 +54,7 @@ module Botiasloop
         next if EXCLUDED_CHANNELS.include?(identifier)
 
         begin
-          instance = channel_class.new(@config)
+          instance = channel_class.new
         rescue Error => e
           if e.message.match?(/Missing required configuration/)
             Logger.warn "[ChannelsManager] Skipping #{identifier}: #{e.message}"

@@ -10,7 +10,7 @@ RSpec.describe Botiasloop::Commands::Verbose do
       verbose: false)
   end
   let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation) }
 
   describe ".command_name" do
     it "returns :verbose" do

@@ -6,7 +6,7 @@ RSpec.describe Botiasloop::Commands::Archive do
   let(:command) { described_class.new }
   let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "current-uuid-123", label: "current-label", label?: true) }
   let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: "test-user") }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: "test-user") }
 
   describe ".command_name" do
     it "returns :archive" do

@@ -19,7 +19,7 @@ RSpec.describe Botiasloop::Commands::Status do
       max_iterations: 20,
       providers: {"openrouter" => {"model" => "moonshotai/kimi-k2.5"}})
   end
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation) }
 
   describe ".command_name" do
     it "returns :status" do
@@ -41,7 +41,7 @@ RSpec.describe Botiasloop::Commands::Status do
       expect(result).to include("test-uuid-123")
       expect(result).to include("moonshotai/kimi-k2.5")
       expect(result).to include("20")
-      expect(result).to include("1")  # Message count
+      expect(result).to include("1") # Message count
       expect(result).to include("Tokens: 225 (150 in / 75 out)")
     end
 

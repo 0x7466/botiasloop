@@ -6,7 +6,7 @@ RSpec.describe Botiasloop::Commands::Conversations do
   let(:command) { described_class.new }
   let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "current-uuid-123") }
   let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: "test-user") }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: "test-user") }
 
   before do
     allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return([])
@@ -29,7 +29,8 @@ RSpec.describe Botiasloop::Commands::Conversations do
   describe "#execute" do
     context "when there are no conversations" do
       before do
-        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return([])
+        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user",
+          archived: false).and_return([])
       end
 
       it "shows no conversations message" do
@@ -45,7 +46,8 @@ RSpec.describe Botiasloop::Commands::Conversations do
           {uuid: "other-uuid-456", label: nil, updated_at: Time.now - 60},
           {uuid: "another-uuid-789", label: "another-label", updated_at: Time.now - 120}
         ]
-        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return(conversations)
+        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user",
+          archived: false).and_return(conversations)
       end
 
       it "lists all conversations" do
@@ -74,13 +76,14 @@ RSpec.describe Botiasloop::Commands::Conversations do
     end
 
     context "when user_id is nil" do
-      let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: nil) }
+      let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: nil) }
 
       before do
         conversations = [
           {uuid: "conv-uuid-1", label: "label1", updated_at: Time.now}
         ]
-        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with(nil, archived: false).and_return(conversations)
+        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with(nil,
+          archived: false).and_return(conversations)
         allow(Botiasloop::ConversationManager).to receive(:current_uuid_for).with(nil).and_return(nil)
       end
 

@@ -13,8 +13,11 @@ RSpec.describe Botiasloop::Loop do
     allow(conversation).to receive(:history).and_return([])
     allow(conversation).to receive(:system_prompt).and_return("System prompt")
     allow(conversation).to receive(:verbose).and_return(false)
+    allow(conversation).to receive(:label?).and_return(false)
+    allow(conversation).to receive(:message_count).and_return(2)
     allow(Botiasloop::Logger).to receive(:info)
     allow(mock_registry).to receive(:schemas).and_return({})
+    Botiasloop::Config.instance = nil
   end
 
   describe "#initialize" do
@@ -328,16 +331,13 @@ RSpec.describe Botiasloop::Loop do
           output_tokens: 50)
       end
 
-      let(:config) do
-        instance_double(Botiasloop::Config,
-          features: {"auto_labelling" => {"enabled" => true}},
-          providers: {
+      let(:test_config) do
+        Botiasloop::Config.new({
+          "features" => {"auto_labelling" => {"enabled" => true}},
+          "providers" => {
             "openrouter" => {"model" => "moonshotai/kimi-k2.5"}
-          })
-      end
-
-      let(:loop_with_config) do
-        described_class.new(mock_provider, mock_model, mock_registry, max_iterations: 5, config: config)
+          }
+        })
       end
 
       let(:mock_chat) { instance_double(RubyLLM::Chat) }
@@ -347,27 +347,31 @@ RSpec.describe Botiasloop::Loop do
       end
 
       it "does not auto-label when config is nil" do
+        Botiasloop::Config.instance = nil
         expect(conversation).not_to receive(:update)
         loop.run(conversation, "What is 2+2?")
       end
 
       it "does not auto-label when conversation has fewer than 6 messages" do
+        Botiasloop::Config.instance = test_config
         allow(conversation).to receive(:message_count).and_return(4)
         allow(conversation).to receive(:label?).and_return(false)
 
         expect(conversation).not_to receive(:update)
-        loop_with_config.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?")
       end
 
       it "does not auto-label when conversation already has a label" do
+        Botiasloop::Config.instance = test_config
         allow(conversation).to receive(:message_count).and_return(6)
         allow(conversation).to receive(:label?).and_return(true)
 
         expect(conversation).not_to receive(:update)
-        loop_with_config.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?")
       end
 
       it "auto-labels when conditions are met" do
+        Botiasloop::Config.instance = test_config
         allow(conversation).to receive(:uuid).and_return("test-uuid-123")
         allow(conversation).to receive(:message_count).and_return(6)
         allow(conversation).to receive(:label?).and_return(false)
@@ -378,19 +382,19 @@ RSpec.describe Botiasloop::Loop do
         )
 
         expect(conversation).to receive(:update).with(label: "test-label")
-        loop_with_config.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?")
       end
 
       it "uses configured model for auto-labelling" do
         allow(conversation).to receive(:uuid).and_return("custom-uuid-456")
-        custom_config = instance_double(Botiasloop::Config,
-          features: {"auto_labelling" => {"enabled" => true,
-                                          "model" => "custom-model"}},
-          providers: {
+        custom_config = Botiasloop::Config.new({
+          "features" => {"auto_labelling" => {"enabled" => true,
+                                              "model" => "custom-model"}},
+          "providers" => {
             "openrouter" => {"model" => "moonshotai/kimi-k2.5"}
-          })
-        custom_loop = described_class.new(mock_provider, mock_model, mock_registry,
-          max_iterations: 5, config: custom_config)
+          }
+        })
+        Botiasloop::Config.instance = custom_config
 
         allow(conversation).to receive(:message_count).and_return(6)
         allow(conversation).to receive(:label?).and_return(false)
@@ -401,7 +405,7 @@ RSpec.describe Botiasloop::Loop do
         )
 
         expect(conversation).to receive(:update).with(label: "custom-label")
-        custom_loop.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?")
       end
     end
   end

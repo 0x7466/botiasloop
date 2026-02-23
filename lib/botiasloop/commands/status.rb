@@ -9,7 +9,7 @@ module Botiasloop
 
       def execute(context, _args = nil)
         conversation = context.conversation
-        config = context.config
+        config = Config.instance
 
         lines = ["**Conversation Status**"]
         lines << "UUID: #{conversation.uuid}"

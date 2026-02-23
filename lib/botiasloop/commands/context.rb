@@ -8,9 +8,6 @@ module Botiasloop
       # @return [Conversation] The current conversation
       attr_accessor :conversation
 
-      # @return [Config] The bot configuration
-      attr_reader :config
-
       # @return [Channels::Base, nil] The channel instance (nil in CLI)
       attr_reader :channel
 
@@ -20,12 +17,10 @@ module Botiasloop
       # Initialize context
       #
       # @param conversation [Conversation] The current conversation
-      # @param config [Config] The bot configuration
       # @param channel [Channels::Base, nil] The channel instance (nil in CLI)
       # @param user_id [String, nil] The user/source identifier
-      def initialize(conversation:, config:, channel: nil, user_id: nil)
+      def initialize(conversation:, channel: nil, user_id: nil)
         @conversation = conversation
-        @config = config
         @channel = channel
         @user_id = user_id
       end

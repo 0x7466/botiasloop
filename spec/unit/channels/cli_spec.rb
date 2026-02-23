@@ -3,14 +3,19 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::Channels::CLI do
-  let(:config) do
+  let(:test_config) do
     Botiasloop::Config.new({
       "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
     })
   end
 
   before do
+    Botiasloop::Config.instance = test_config
     Botiasloop::ConversationManager.clear_all
+  end
+
+  after do
+    Botiasloop::Config.instance = nil
   end
 
   describe "inheritance" do
@@ -46,18 +51,18 @@ RSpec.describe Botiasloop::Channels::CLI do
 
   describe "#initialize" do
     it "initializes successfully without required config" do
-      channel = described_class.new(config)
+      channel = described_class.new
       expect(channel).to be_a(described_class)
     end
 
     it "sets running to false initially" do
-      channel = described_class.new(config)
+      channel = described_class.new
       expect(channel.running?).to be false
     end
   end
 
   describe "#authorized?" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "returns true for any source_id" do
       expect(channel.authorized?("cli")).to be true
@@ -71,7 +76,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#start" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "cli-test-uuid") }
 
     before do
@@ -126,7 +131,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#stop" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "sets running to false" do
       # First start it
@@ -142,7 +147,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#running?" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "returns false when not started" do
       expect(channel.running?).to be false
@@ -150,7 +155,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#extract_content" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "returns the raw message as-is for CLI" do
       expect(channel.extract_content("Hello World")).to eq("Hello World")
@@ -162,7 +167,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#process_message" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "cli-test-uuid") }
     let(:agent) { instance_double(Botiasloop::Agent) }
 
@@ -202,7 +207,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#handle_error" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "logs the error and sends response to user" do
       error = StandardError.new("Test error")
@@ -214,7 +219,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "#deliver_response" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "outputs response to stdout" do
       expect { channel.deliver_response("cli", "Test response") }.to output(/Agent: Test response/).to_stdout
@@ -229,7 +234,7 @@ RSpec.describe Botiasloop::Channels::CLI do
   end
 
   describe "conversation persistence" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "uses 'cli' as fixed source_id for conversation_for" do
       conversation = channel.conversation_for("cli")
@@ -249,7 +254,7 @@ RSpec.describe Botiasloop::Channels::CLI do
       conversation1 = channel.conversation_for("cli")
 
       # Create new channel instance - should get same conversation via ConversationManager
-      channel2 = described_class.new(config)
+      channel2 = described_class.new
       conversation2 = channel2.conversation_for("cli")
 
       expect(conversation2.uuid).to eq(conversation1.uuid)

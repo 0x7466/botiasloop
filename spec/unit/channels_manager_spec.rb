@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::ChannelsManager do
-  let(:config) do
+  let(:test_config) do
     Botiasloop::Config.new({
       "channels" => {
         "channel_one" => {"token" => "token1"},
@@ -16,7 +16,7 @@ RSpec.describe Botiasloop::ChannelsManager do
     })
   end
 
-  let(:manager) { described_class.new(config) }
+  let(:manager) { described_class.new }
 
   # Helper to create test channel classes with blocking behavior
   let(:blocking_channel_class) do
@@ -26,7 +26,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
       attr_reader :started, :stopped, :thread_id
 
-      def initialize(config)
+      def initialize
         super
         @started = false
         @stopped = false
@@ -64,7 +64,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
       attr_reader :started, :stopped, :thread_id
 
-      def initialize(config)
+      def initialize
         super
         @started = false
         @stopped = false
@@ -101,7 +101,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
       attr_reader :started, :stopped
 
-      def initialize(config)
+      def initialize
         super
         @started = false
         @stopped = false
@@ -134,7 +134,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       channel_name :failing_channel
       requires_config :token
 
-      def initialize(config)
+      def initialize
         super
       end
 
@@ -161,7 +161,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       channel_name :missing_config_channel
       requires_config :unconfigured_key
 
-      def initialize(config)
+      def initialize
         super
       end
 
@@ -190,7 +190,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
       attr_reader :stopped, :crashed
 
-      def initialize(config)
+      def initialize
         super
         @stopped = false
         @crashed = false
@@ -218,6 +218,7 @@ RSpec.describe Botiasloop::ChannelsManager do
   end
 
   before do
+    Botiasloop::Config.instance = test_config
     # Clear singleton registry before each test
     Botiasloop::Channels.instance_variable_set(:@registry, nil)
     # Clear manager state
@@ -225,15 +226,12 @@ RSpec.describe Botiasloop::ChannelsManager do
   end
 
   after do
+    Botiasloop::Config.instance = nil
     # Ensure all threads are cleaned up
     manager.stop_all if manager.running?
   end
 
   describe "#initialize" do
-    it "accepts a config object" do
-      expect(manager.config).to eq(config)
-    end
-
     it "initializes with empty thread tracking" do
       expect(manager.instance_variable_get(:@threads)).to be_empty
     end
@@ -307,7 +305,7 @@ RSpec.describe Botiasloop::ChannelsManager do
         allow(Botiasloop::Logger).to receive(:warn)
         allow(Botiasloop::Logger).to receive(:error)
 
-        manager_with_logger = described_class.new(config)
+        manager_with_logger = described_class.new
         manager_with_logger.start_channels
 
         expect(Botiasloop::Logger).to have_received(:warn).with(/Skipping.*missing_config_channel/)
@@ -324,7 +322,7 @@ RSpec.describe Botiasloop::ChannelsManager do
         allow(Botiasloop::Logger).to receive(:warn)
         allow(Botiasloop::Logger).to receive(:error)
 
-        manager_with_logger = described_class.new(config)
+        manager_with_logger = described_class.new
         manager_with_logger.start_channels
         sleep 0.2
 
@@ -398,7 +396,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
         attr_reader :started, :stopped
 
-        def initialize(config)
+        def initialize
           super
           @started = false
           @stopped = false
@@ -431,7 +429,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
         attr_reader :started, :stopped
 
-        def initialize(config)
+        def initialize
           super
           @started = false
           @stopped = false
@@ -468,8 +466,8 @@ RSpec.describe Botiasloop::ChannelsManager do
         },
         "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
       })
-
-      manager_with_bad = described_class.new(partial_config)
+      Botiasloop::Config.instance = partial_config
+      manager_with_bad = described_class.new
       manager_with_bad.start_channels
       sleep 0.2
 
@@ -656,7 +654,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
         attr_reader :stopped, :crashed
 
-        def initialize(config)
+        def initialize
           super
           @stopped = false
           @crashed = false
@@ -690,7 +688,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
         attr_reader :started, :stopped
 
-        def initialize(config)
+        def initialize
           super
           @started = false
           @stopped = false
@@ -731,8 +729,8 @@ RSpec.describe Botiasloop::ChannelsManager do
         },
         "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
       })
-
-      isolation_manager = described_class.new(isolation_config)
+      Botiasloop::Config.instance = isolation_config
+      isolation_manager = described_class.new
       isolation_manager.start_channels
       sleep 0.3
 
@@ -754,7 +752,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
         attr_reader :started
 
-        def initialize(config)
+        def initialize
           super
           @started = false
           @running = false

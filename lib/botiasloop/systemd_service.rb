@@ -10,27 +10,22 @@ module Botiasloop
   # automatically on user login and run in the background.
   #
   # @example Install and enable the service
-  #   service = Botiasloop::SystemdService.new(config)
+  #   service = Botiasloop::SystemdService.new
   #   service.install
   #   service.enable
   #   service.start
   #
   # @example Check status
-  #   service = Botiasloop::SystemdService.new(config)
+  #   service = Botiasloop::SystemdService.new
   #   status = service.status
   #   puts "Running: #{status[:active]}"
   #
   class SystemdService
-    attr_reader :config
-
     # Service name used by systemd
     SERVICE_NAME = "botiasloop.service"
 
     # Initialize a new SystemdService instance
-    #
-    # @param config [Config] Configuration instance
-    def initialize(config)
-      @config = config
+    def initialize
     end
 
     # Check if systemd is available on the system

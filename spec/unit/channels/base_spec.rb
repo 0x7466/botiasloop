@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe Botiasloop::Channels::Base do
-  let(:config) do
+  let(:test_config) do
     Botiasloop::Config.new({
       "channels" => {
         "test_channel" => {
@@ -15,6 +15,14 @@ RSpec.describe Botiasloop::Channels::Base do
     })
   end
 
+  before do
+    Botiasloop::Config.instance = test_config
+  end
+
+  after do
+    Botiasloop::Config.instance = nil
+  end
+
   # Create a concrete test channel class that implements required methods
   let(:test_channel_class) do
     Class.new(described_class) do
@@ -23,7 +31,7 @@ RSpec.describe Botiasloop::Channels::Base do
 
       attr_reader :started, :stopped, :processed_messages
 
-      def initialize(config)
+      def initialize
         super
         @started = false
         @stopped = false
@@ -62,7 +70,7 @@ RSpec.describe Botiasloop::Channels::Base do
     end
 
     it "can be retrieved via class method" do
-      channel = test_channel_class.new(config)
+      channel = test_channel_class.new
       expect(channel.class.channel_identifier).to eq(:test_channel)
     end
   end
@@ -77,20 +85,17 @@ RSpec.describe Botiasloop::Channels::Base do
         "channels" => {"test_channel" => {}},
         "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
       })
-      expect { test_channel_class.new(incomplete_config) }.to raise_error(Botiasloop::Error, /token/)
+      Botiasloop::Config.instance = incomplete_config
+      expect { test_channel_class.new }.to raise_error(Botiasloop::Error, /token/)
     end
 
     it "accepts config with all required keys" do
-      expect { test_channel_class.new(config) }.not_to raise_error
+      expect { test_channel_class.new }.not_to raise_error
     end
   end
 
   describe "#initialize" do
-    let(:channel) { test_channel_class.new(config) }
-
-    it "sets the config" do
-      expect(channel.instance_variable_get(:@config)).to eq(config)
-    end
+    let(:channel) { test_channel_class.new }
 
     it "provides channel-specific config via method" do
       expect(channel.channel_config).to eq({"token" => "test-token", "allowed_users" => ["testuser"]})
@@ -105,28 +110,28 @@ RSpec.describe Botiasloop::Channels::Base do
     end
 
     it "raises NotImplementedError for start if not implemented" do
-      channel = incomplete_class.new(config)
+      channel = incomplete_class.new
       expect { channel.start }.to raise_error(NotImplementedError, /start/)
     end
 
     it "raises NotImplementedError for stop if not implemented" do
-      channel = incomplete_class.new(config)
+      channel = incomplete_class.new
       expect { channel.stop }.to raise_error(NotImplementedError, /stop/)
     end
 
     it "raises NotImplementedError for running? if not implemented" do
-      channel = incomplete_class.new(config)
+      channel = incomplete_class.new
       expect { channel.running? }.to raise_error(NotImplementedError, /running/)
     end
 
     it "raises NotImplementedError for extract_content if not implemented" do
-      channel = incomplete_class.new(config)
+      channel = incomplete_class.new
       expect { channel.process_message("id", "content") }.to raise_error(NotImplementedError, /extract_content/)
     end
   end
 
   describe "#conversation_for" do
-    let(:channel) { test_channel_class.new(config) }
+    let(:channel) { test_channel_class.new }
 
     context "when source does not exist" do
       it "creates a new conversation" do
@@ -174,7 +179,7 @@ RSpec.describe Botiasloop::Channels::Base do
 
         attr_reader :delivered_responses
 
-        def initialize(config)
+        def initialize
           super
           @delivered_responses = []
         end
@@ -202,7 +207,7 @@ RSpec.describe Botiasloop::Channels::Base do
         end
       end
     end
-    let(:channel) { process_test_channel_class.new(config) }
+    let(:channel) { process_test_channel_class.new }
     let(:mock_agent) { instance_double(Botiasloop::Agent) }
 
     before do
@@ -226,7 +231,7 @@ RSpec.describe Botiasloop::Channels::Base do
   end
 
   describe "#authorized?" do
-    let(:channel) { test_channel_class.new(config) }
+    let(:channel) { test_channel_class.new }
 
     it "returns false by default (secure default)" do
       # Test the base implementation - it always returns false
@@ -248,7 +253,7 @@ RSpec.describe Botiasloop::Channels::Base do
         end
       end
 
-      let(:auth_channel) { auth_channel_class.new(config) }
+      let(:auth_channel) { auth_channel_class.new }
 
       it "returns true for authorized users" do
         expect(auth_channel.authorized?("testuser")).to be true
@@ -263,8 +268,8 @@ RSpec.describe Botiasloop::Channels::Base do
       end
 
       context "when allowed_users is empty" do
-        let(:empty_config) do
-          Botiasloop::Config.new({
+        let(:empty_channel) do
+          empty_config = Botiasloop::Config.new({
             "channels" => {
               "test_channel" => {
                 "token" => "test-token",
@@ -273,9 +278,13 @@ RSpec.describe Botiasloop::Channels::Base do
             },
             "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
           })
+          Botiasloop::Config.instance = empty_config
+          auth_channel_class.new
         end
 
-        let(:empty_channel) { auth_channel_class.new(empty_config) }
+        before do
+          Botiasloop::Config.instance = test_config
+        end
 
         it "returns false for all users" do
           expect(empty_channel.authorized?("anyuser")).to be false
@@ -285,7 +294,7 @@ RSpec.describe Botiasloop::Channels::Base do
   end
 
   describe "#format_response" do
-    let(:channel) { test_channel_class.new(config) }
+    let(:channel) { test_channel_class.new }
 
     it "returns content as-is by default" do
       expect(channel.format_response("Hello **world**")).to eq("Hello **world**")
@@ -300,7 +309,7 @@ RSpec.describe Botiasloop::Channels::Base do
         end
       end
 
-      let(:formatted_channel) { formatted_channel_class.new(config) }
+      let(:formatted_channel) { formatted_channel_class.new }
 
       it "uses custom formatting" do
         expect(formatted_channel.format_response("hello")).to eq("HELLO")
@@ -309,7 +318,7 @@ RSpec.describe Botiasloop::Channels::Base do
   end
 
   describe "#send_response" do
-    let(:channel) { test_channel_class.new(config) }
+    let(:channel) { test_channel_class.new }
 
     it "formats response before sending" do
       allow(channel).to receive(:format_response).with("Hello").and_return("HELLO")
@@ -330,7 +339,7 @@ RSpec.describe Botiasloop::Channels::Base do
 
   describe "#deliver_response" do
     it "raises NotImplementedError (subclasses must implement)" do
-      channel = test_channel_class.new(config)
+      channel = test_channel_class.new
       expect { channel.deliver_response("id", "content") }.to raise_error(NotImplementedError, /deliver_response/)
     end
   end

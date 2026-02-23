@@ -17,9 +17,8 @@ module Botiasloop
 
       # Initialize Telegram channel
       #
-      # @param config [Config] Configuration instance
       # @raise [Error] If bot_token is not configured
-      def initialize(config)
+      def initialize
         super
         cfg = channel_config
         @bot_token = cfg["bot_token"]

@@ -89,6 +89,8 @@ open coverage/index.html
 - No parentheses for method calls without arguments
 - Use parentheses for method calls with arguments
 - Prefer `attr_reader` over trivial reader methods
+- **Preserve string quote style**: Keep existing quotes as-is (single quotes stay single, double quotes stay double)
+- **New strings**: Always use double quotes for any new string literals
 
 ### Naming Conventions
 - Classes: PascalCase (e.g., `ToolRegistry`, `WebSearch`)

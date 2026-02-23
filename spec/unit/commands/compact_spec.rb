@@ -20,7 +20,7 @@ RSpec.describe Botiasloop::Commands::Compact do
         "summarize" => {}
       })
   end
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation) }
 
   before do
     allow(RubyLLM).to receive(:chat).and_return(mock_chat)
@@ -99,24 +99,30 @@ RSpec.describe Botiasloop::Commands::Compact do
     end
 
     context "with custom summarize config" do
-      let(:config) do
-        instance_double(Botiasloop::Config,
-          providers: {
+      let(:custom_config) do
+        Botiasloop::Config.new({
+          "providers" => {
             "openrouter" => {"model" => "moonshotai/kimi-k2.5"},
             "custom" => {"model" => "custom-model"}
           },
-          commands: {
+          "commands" => {
             "summarize" => {
               "provider" => "custom",
               "model" => "custom-model"
             }
-          })
+          }
+        })
       end
 
       before do
+        Botiasloop::Config.instance = custom_config
         allow(conversation).to receive(:history).and_return(
           (1..12).map { |i| {role: "user", content: "Message #{i}"} }
         )
+      end
+
+      after do
+        Botiasloop::Config.instance = nil
       end
 
       it "uses configured provider and model" do

@@ -18,10 +18,11 @@ RSpec.describe Botiasloop::AutoLabel do
   let(:current_label) { nil }
   let(:generated_label) { "coding-help" }
   let(:default_model) { "moonshotai/kimi-k2.5" }
-  let(:config) do
-    instance_double(Botiasloop::Config,
-      features: {"auto_labelling" => feature_config},
-      providers: {"openrouter" => {"model" => default_model}})
+  let(:test_config) do
+    Botiasloop::Config.new({
+      "features" => {"auto_labelling" => feature_config},
+      "providers" => {"openrouter" => {"model" => default_model}}
+    })
   end
   let(:feature_config) { {} }
 
@@ -29,6 +30,11 @@ RSpec.describe Botiasloop::AutoLabel do
     allow(RubyLLM).to receive(:chat).and_return(mock_chat)
     allow(mock_chat).to receive(:add_message)
     allow(mock_chat).to receive(:complete).and_return(mock_message)
+    Botiasloop::Config.instance = test_config
+  end
+
+  after do
+    Botiasloop::Config.instance = nil
   end
 
   describe ".should_generate?" do
@@ -37,7 +43,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:has_label) { false }
 
       it "returns true" do
-        expect(described_class.should_generate?(conversation, config)).to be true
+        expect(described_class.should_generate?(conversation)).to be true
       end
     end
 
@@ -45,7 +51,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:feature_config) { {"enabled" => false} }
 
       it "returns false" do
-        expect(described_class.should_generate?(conversation, config)).to be false
+        expect(described_class.should_generate?(conversation)).to be false
       end
     end
 
@@ -54,7 +60,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:current_label) { "existing-label" }
 
       it "returns false" do
-        expect(described_class.should_generate?(conversation, config)).to be false
+        expect(described_class.should_generate?(conversation)).to be false
       end
     end
 
@@ -62,7 +68,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:messages) { generate_messages(5) }
 
       it "returns false" do
-        expect(described_class.should_generate?(conversation, config)).to be false
+        expect(described_class.should_generate?(conversation)).to be false
       end
     end
 
@@ -70,7 +76,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:messages) { generate_messages(6) }
 
       it "returns true" do
-        expect(described_class.should_generate?(conversation, config)).to be true
+        expect(described_class.should_generate?(conversation)).to be true
       end
     end
 
@@ -78,19 +84,23 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:messages) { generate_messages(10) }
 
       it "returns true" do
-        expect(described_class.should_generate?(conversation, config)).to be true
+        expect(described_class.should_generate?(conversation)).to be true
       end
     end
 
     context "with nil feature config" do
-      let(:config) do
-        instance_double(Botiasloop::Config,
-          features: nil,
-          providers: {"openrouter" => {"model" => default_model}})
+      let(:nil_features_config) do
+        Botiasloop::Config.new({
+          "providers" => {"openrouter" => {"model" => default_model}}
+        })
+      end
+
+      before do
+        Botiasloop::Config.instance = nil_features_config
       end
 
       it "returns true (defaults to enabled)" do
-        expect(described_class.should_generate?(conversation, config)).to be true
+        expect(described_class.should_generate?(conversation)).to be true
       end
     end
   end
@@ -101,12 +111,12 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:current_label) { "already-labeled" }
 
       it "returns nil" do
-        expect(described_class.generate(conversation, config)).to be_nil
+        expect(described_class.generate(conversation)).to be_nil
       end
 
       it "does not interact with LLM" do
         expect(RubyLLM).not_to receive(:chat)
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
     end
 
@@ -115,32 +125,32 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:has_label) { false }
 
       it "generates a label" do
-        result = described_class.generate(conversation, config)
+        result = described_class.generate(conversation)
         expect(result).to eq("coding-help")
       end
 
       it "logs the generated label" do
         expect(Botiasloop::Logger).to receive(:info).with("[AutoLabel] Generated label 'coding-help' for conversation test-conversation-uuid")
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
 
       it "uses RubyLLM chat with default model" do
         expect(RubyLLM).to receive(:chat).with(model: default_model).and_return(mock_chat)
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
 
       it "sends a prompt to the LLM" do
         expect(mock_chat).to receive(:add_message).with(
           hash_including(role: :user, content: /Based on the following conversation/)
         )
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
 
       it "includes conversation text in the prompt" do
         expect(mock_chat).to receive(:add_message).with(
           hash_including(content: /Message 1 content/)
         )
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
 
       it "only uses first 6 messages in prompt" do
@@ -150,7 +160,7 @@ RSpec.describe Botiasloop::AutoLabel do
           expect(content).to include("Message 6")
           expect(content).not_to include("Message 7") if messages.count > 6
         end
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
     end
 
@@ -161,7 +171,7 @@ RSpec.describe Botiasloop::AutoLabel do
 
       it "uses the configured model" do
         expect(RubyLLM).to receive(:chat).with(model: "custom-model").and_return(mock_chat)
-        described_class.generate(conversation, config)
+        described_class.generate(conversation)
       end
     end
 
@@ -171,13 +181,13 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:has_label) { false }
 
       it "generates a label" do
-        expect(described_class.generate(conversation, config)).to eq("coding-help")
+        expect(described_class.generate(conversation)).to eq("coding-help")
       end
     end
   end
 
   describe "#generate_label" do
-    let(:auto_label) { described_class.new(config) }
+    let(:auto_label) { described_class.new }
     let(:messages) { generate_messages(6) }
     let(:has_label) { false }
 
@@ -270,7 +280,7 @@ RSpec.describe Botiasloop::AutoLabel do
       end
 
       it "returns nil instead of raising" do
-        result = described_class.generate(conversation, config)
+        result = described_class.generate(conversation)
         expect(result).to be_nil
       end
     end
@@ -281,7 +291,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:mock_message) { instance_double(RubyLLM::Message, content: "") }
 
       it "returns nil" do
-        result = described_class.generate(conversation, config)
+        result = described_class.generate(conversation)
         expect(result).to be_nil
       end
     end
@@ -292,7 +302,7 @@ RSpec.describe Botiasloop::AutoLabel do
       let(:mock_message) { instance_double(RubyLLM::Message, content: "@\#$%") }
 
       it "returns nil after formatting removes all valid characters" do
-        result = described_class.generate(conversation, config)
+        result = described_class.generate(conversation)
         expect(result).to be_nil
       end
     end

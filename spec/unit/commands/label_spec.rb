@@ -6,7 +6,7 @@ RSpec.describe Botiasloop::Commands::Label do
   let(:command) { described_class.new }
   let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "test-uuid-123", label: nil, label?: false) }
   let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: "test-user") }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: "test-user") }
 
   describe ".command_name" do
     it "returns :label" do
@@ -163,7 +163,7 @@ RSpec.describe Botiasloop::Commands::Label do
     end
 
     context "without user_id" do
-      let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config, user_id: nil) }
+      let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: nil) }
 
       it "sets label without checking uniqueness" do
         allow(conversation).to receive(:update).with(label: "my-label")

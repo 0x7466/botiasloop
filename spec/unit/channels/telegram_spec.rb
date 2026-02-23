@@ -6,7 +6,7 @@ require "tempfile"
 require "fileutils"
 
 RSpec.describe Botiasloop::Channels::Telegram do
-  let(:config) do
+  let(:test_config) do
     Botiasloop::Config.new({
       "channels" => {
         "telegram" => {
@@ -22,6 +22,8 @@ RSpec.describe Botiasloop::Channels::Telegram do
   let(:mock_api) { double("api") }
 
   before do
+    Botiasloop::Config.instance = test_config
+
     # Ensure Telegram is registered in the global registry
     Botiasloop::Channels.registry.register(described_class)
 
@@ -38,6 +40,10 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     # Mock set_my_commands API call
     allow(mock_api).to receive(:set_my_commands)
+  end
+
+  after do
+    Botiasloop::Config.instance = nil
   end
 
   describe "inheritance" do
@@ -64,18 +70,18 @@ RSpec.describe Botiasloop::Channels::Telegram do
   describe "#initialize" do
     context "when bot_token is configured" do
       it "initializes successfully" do
-        channel = described_class.new(config)
+        channel = described_class.new
         expect(channel).to be_a(described_class)
       end
 
       it "loads allowed_users from config" do
-        channel = described_class.new(config)
+        channel = described_class.new
         expect(channel.instance_variable_get(:@allowed_users)).to eq(["testuser"])
       end
     end
 
     context "when bot_token is not configured" do
-      let(:config) do
+      let(:incomplete_config) do
         Botiasloop::Config.new({
           "channels" => {
             "telegram" => {
@@ -87,14 +93,18 @@ RSpec.describe Botiasloop::Channels::Telegram do
         })
       end
 
+      before do
+        Botiasloop::Config.instance = incomplete_config
+      end
+
       it "raises an error" do
-        expect { described_class.new(config) }.to raise_error(Botiasloop::Error, /bot_token/)
+        expect { described_class.new }.to raise_error(Botiasloop::Error, /bot_token/)
       end
     end
   end
 
   describe "#start" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     before do
       allow(Botiasloop::Logger).to receive(:info)
@@ -103,7 +113,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
 
     context "when allowed_users is empty" do
-      let(:config) do
+      let(:empty_config) do
         Botiasloop::Config.new({
           "channels" => {
             "telegram" => {
@@ -113,6 +123,10 @@ RSpec.describe Botiasloop::Channels::Telegram do
           },
           "providers" => {"openrouter" => {"api_key" => "test-api-key"}}
         })
+      end
+
+      before do
+        Botiasloop::Config.instance = empty_config
       end
 
       it "logs a warning about no allowed users" do
@@ -137,7 +151,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#stop" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     before do
       allow(Botiasloop::Logger).to receive(:info)
@@ -179,7 +193,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#running?" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "returns false when bot is not started" do
       expect(channel.running?).to be false
@@ -210,7 +224,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
     let(:channel) do
       # Stub Logger before creating channel
 
-      described_class.new(config)
+      described_class.new
     end
 
     before do
@@ -283,7 +297,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#conversation_for" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     context "when chat does not exist" do
       it "creates new conversation and saves mapping via ConversationManager" do
@@ -311,7 +325,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#authorized?" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     context "when allowed_users is empty" do
       let(:config) do
@@ -348,7 +362,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#extract_content" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:message_text) { "Hello bot" }
     let(:message) do
       instance_double(
@@ -365,7 +379,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#extract_user_id" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:message) do
       instance_double(
         Telegram::Bot::Types::Message,
@@ -391,7 +405,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#before_process" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:logger) { Botiasloop::Logger }
 
     before do
@@ -405,7 +419,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#after_process" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:logger) { Botiasloop::Logger }
 
     before do
@@ -419,7 +433,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#handle_unauthorized" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:logger) { Botiasloop::Logger }
 
     before do
@@ -433,7 +447,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#handle_error" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:logger) { Botiasloop::Logger }
 
     before do
@@ -448,7 +462,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#format_response" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "converts markdown to telegram HTML" do
       result = channel.format_response("**bold** text")
@@ -465,7 +479,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#deliver_response" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
     let(:chat_id) { "123456" }
     let(:formatted_content) { "<b>Hello</b> world" }
 
@@ -501,7 +515,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "private #to_telegram_html" do
-    let(:channel) { described_class.new(config) }
+    let(:channel) { described_class.new }
 
     it "converts bold markdown to HTML" do
       result = channel.send(:to_telegram_html, "This is **bold** text")

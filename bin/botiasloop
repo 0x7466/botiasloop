@@ -3,6 +3,9 @@
 
 require_relative "../lib/botiasloop"
 
+# Initialize global config instance
+Botiasloop::Config.instance = Botiasloop::Config.new
+
 def print_help
   puts "botiasloop - Minimal agentic AI with ReAct loop"
   puts
@@ -31,7 +34,7 @@ def print_help
   puts "  -n, --lines N    Show last N lines (default: 50)"
 end
 
-def start_gateway(config)
+def start_gateway
   # Check if any channels are configured (excluding CLI)
   available_channels = Botiasloop::Channels.registry.channels.except(:cli)
 
@@ -41,7 +44,7 @@ def start_gateway(config)
     exit 1
   end
 
-  manager = Botiasloop::ChannelsManager.new(config)
+  manager = Botiasloop::ChannelsManager.new
 
   # Start all channels and wait
   manager.start_channels.wait
@@ -52,10 +55,8 @@ if ARGV[0] == "-h" || ARGV[0] == "--help"
 elsif ARGV[0] == "-v" || ARGV[0] == "--version"
   puts "botiasloop #{Botiasloop::VERSION}"
 elsif ARGV[0] == "gateway"
-  config = Botiasloop::Config.new
-
   if ARGV[1] == "start"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       begin
         service.start
@@ -69,7 +70,7 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   elsif ARGV[1] == "stop"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       begin
         service.stop
@@ -83,7 +84,7 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   elsif ARGV[1] == "restart"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       begin
         service.restart
@@ -97,7 +98,7 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   elsif ARGV[1] == "status"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       status = service.status
       puts "Service status: #{status[:message]}"
@@ -107,7 +108,7 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   elsif ARGV[1] == "logs"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       # Parse logs options
       follow = false
@@ -152,7 +153,7 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   elsif ARGV[1] == "enable"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       begin
         service.install unless service.installed?
@@ -168,7 +169,7 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   elsif ARGV[1] == "disable"
-    service = Botiasloop::SystemdService.new(config)
+    service = Botiasloop::SystemdService.new
     if service.systemd_available?
       begin
         if service.installed?
@@ -186,12 +187,11 @@ elsif ARGV[0] == "gateway"
       exit 1
     end
   else
-    start_gateway(config)
+    start_gateway
   end
 elsif ARGV[0] == "cli"
   # CLI interactive mode
-  config = Botiasloop::Config.new
-  cli_channel = Botiasloop::Channels::CLI.new(config)
+  cli_channel = Botiasloop::Channels::CLI.new
   cli_channel.start
 elsif ARGV.empty? || ARGV[0] == "help"
   # Default to help when no args or explicit help command

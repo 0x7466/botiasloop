@@ -5,10 +5,7 @@ require "ruby_llm"
 module Botiasloop
   class Agent
     # Initialize the agent
-    #
-    # @param config [Config, nil] Configuration instance (loads default if nil)
-    def initialize(config = nil)
-      @config = config || Config.new
+    def initialize
       setup_ruby_llm
     end
 
@@ -23,7 +20,7 @@ module Botiasloop
 
       registry = create_registry
       provider, model = create_provider_and_model
-      loop = Loop.new(provider, model, registry, max_iterations: @config.max_iterations, config: @config)
+      loop = Loop.new(provider, model, registry, max_iterations: Config.instance.max_iterations)
 
       loop.run(conversation, message, verbose_callback)
     rescue MaxIterationsExceeded => e
@@ -33,7 +30,7 @@ module Botiasloop
     private
 
     def setup_ruby_llm
-      provider_name, provider_config = @config.active_provider
+      provider_name, provider_config = Config.instance.active_provider
 
       RubyLLM.configure do |config|
         configure_provider(config, provider_name, provider_config)
@@ -84,7 +81,7 @@ module Botiasloop
     end
 
     def create_provider_and_model
-      _provider_name, provider_config = @config.active_provider
+      _provider_name, provider_config = Config.instance.active_provider
       model_id = provider_config["model"]
       model = RubyLLM::Models.find(model_id)
       provider_class = RubyLLM::Provider.for(model_id)
@@ -105,7 +102,7 @@ module Botiasloop
     end
 
     def web_search_url
-      @config.tools["web_search"]["searxng_url"]
+      Config.instance.tools["web_search"]["searxng_url"]
     end
   end
 end

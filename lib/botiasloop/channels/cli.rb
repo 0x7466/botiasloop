@@ -9,9 +9,7 @@ module Botiasloop
       SOURCE_ID = "cli"
 
       # Initialize CLI channel
-      #
-      # @param config [Config] Configuration instance
-      def initialize(config)
+      def initialize
         super
         @running = false
       end

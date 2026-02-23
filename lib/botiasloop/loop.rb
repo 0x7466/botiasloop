@@ -12,13 +12,11 @@ module Botiasloop
     # @param model [RubyLLM::Model] Model instance
     # @param registry [Tools::Registry] Tool registry
     # @param max_iterations [Integer] Maximum ReAct iterations
-    # @param config [Config, nil] Configuration instance
-    def initialize(provider, model, registry, max_iterations: 20, config: nil)
+    def initialize(provider, model, registry, max_iterations: 20)
       @provider = provider
       @model = model
       @registry = registry
       @max_iterations = max_iterations
-      @config = config
     end
 
     # Run the ReAct loop
@@ -189,9 +187,7 @@ module Botiasloop
     end
 
     def maybe_auto_label(conversation)
-      return unless @config
-
-      label = AutoLabel.generate(conversation, @config)
+      label = AutoLabel.generate(conversation)
       return unless label
 
       conversation.update(label: label)

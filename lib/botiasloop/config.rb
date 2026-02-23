@@ -6,6 +6,16 @@ Anyway::Settings.default_config_path = ->(_) { File.expand_path("~/.config/botia
 
 module Botiasloop
   class Config < Anyway::Config
+    @instance = nil
+
+    class << self
+      def instance
+        @instance ||= new
+      end
+
+      attr_writer :instance
+    end
+
     attr_config \
       max_iterations: 20,
       log_level: "info",

@@ -9,7 +9,7 @@ RSpec.describe Botiasloop::Commands::SystemPrompt do
       system_prompt: "Test system prompt content")
   end
   let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, config: config) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation) }
 
   describe ".command_name" do
     it "returns :systemprompt" do
