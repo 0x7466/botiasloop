@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require "telegram/bot"
-require "json"
-require "fileutils"
-require "redcarpet"
+require 'telegram/bot'
+require 'json'
+require 'fileutils'
+require 'redcarpet'
 
 module Botiasloop
   module Channels
@@ -18,8 +18,8 @@ module Botiasloop
       def initialize(config)
         super
         cfg = channel_config
-        @bot_token = cfg["bot_token"]
-        @allowed_users = cfg["allowed_users"] || []
+        @bot_token = cfg['bot_token']
+        @allowed_users = cfg['allowed_users'] || []
         @bot = nil
         @thread_id = nil
       end
@@ -27,11 +27,11 @@ module Botiasloop
       # Start the Telegram bot and listen for messages
       def start
         if @allowed_users.empty?
-          @logger.warn "[Telegram] No allowed_users configured. No messages will be processed."
-          @logger.warn "[Telegram] Add usernames to telegram.allowed_users in config."
+          @logger.warn '[Telegram] No allowed_users configured. No messages will be processed.'
+          @logger.warn '[Telegram] Add usernames to telegram.allowed_users in config.'
         end
 
-        @logger.info "[Telegram] Starting bot..."
+        @logger.info '[Telegram] Starting bot...'
 
         @bot = ::Telegram::Bot::Client.new(@bot_token)
         register_bot_commands
@@ -45,7 +45,7 @@ module Botiasloop
           end
         end
       rescue Interrupt
-        @logger.info "[Telegram] Shutting down..."
+        @logger.info '[Telegram] Shutting down...'
       end
 
       # Stop the Telegram bot
@@ -53,7 +53,7 @@ module Botiasloop
       # Interrupts the thread running the bot to gracefully exit
       # the blocking listen loop.
       def stop
-        @logger.info "[Telegram] Stopping bot..."
+        @logger.info '[Telegram] Stopping bot...'
 
         return unless @thread_id
 
@@ -83,7 +83,7 @@ module Botiasloop
       # @param source_id [String] Source identifier (chat_id)
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
       # @return [String, nil] Username from message
-      def extract_user_id(source_id, raw_message)
+      def extract_user_id(_source_id, raw_message)
         raw_message.from&.username
       end
 
@@ -93,7 +93,7 @@ module Botiasloop
       # @param user_id [String] Username
       # @param content [String] Message text
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
-      def before_process(source_id, user_id, content, raw_message)
+      def before_process(_source_id, user_id, content, _raw_message)
         @logger.info "[Telegram] Message from @#{user_id}: #{content}"
       end
 
@@ -103,7 +103,7 @@ module Botiasloop
       # @param user_id [String] Username
       # @param response [String] Response content
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
-      def after_process(source_id, user_id, response, raw_message)
+      def after_process(_source_id, user_id, _response, _raw_message)
         @logger.info "[Telegram] Response sent to @#{user_id}"
       end
 
@@ -112,7 +112,7 @@ module Botiasloop
       # @param source_id [String] Source identifier
       # @param user_id [String] Username that was denied
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
-      def handle_unauthorized(source_id, user_id, raw_message)
+      def handle_unauthorized(source_id, user_id, _raw_message)
         @logger.warn "[Telegram] Ignored message from unauthorized user @#{user_id} (chat_id: #{source_id})"
       end
 
@@ -122,7 +122,7 @@ module Botiasloop
       # @param user_id [String] Username
       # @param error [Exception] The error that occurred
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
-      def handle_error(source_id, user_id, error, raw_message)
+      def handle_error(_source_id, _user_id, error, _raw_message)
         @logger.error "[Telegram] Error processing message: #{error.message}"
       end
 
@@ -141,10 +141,12 @@ module Botiasloop
       # @param chat_id [String] Telegram chat ID (as string)
       # @param formatted_content [String] Formatted message content
       def deliver_response(chat_id, formatted_content)
+        return if formatted_content.nil? || formatted_content.empty?
+
         @bot.api.send_message(
           chat_id: chat_id.to_i,
           text: formatted_content,
-          parse_mode: "HTML"
+          parse_mode: 'HTML'
         )
       end
 
@@ -153,7 +155,7 @@ module Botiasloop
       # @param content [String] Raw response content
       # @return [String] Telegram-compatible HTML
       def format_response(content)
-        return "" if content.nil? || content.empty?
+        return '' if content.nil? || content.empty?
 
         to_telegram_html(content)
       end
@@ -165,13 +167,13 @@ module Botiasloop
         commands = Botiasloop::Commands.registry.all.map do |cmd_class|
           {
             command: cmd_class.command_name.to_s,
-            description: cmd_class.description || "No description"
+            description: cmd_class.description || 'No description'
           }
         end
 
         @bot.api.set_my_commands(commands: commands)
         @logger.info "[Telegram] Registered #{commands.length} bot commands"
-      rescue => e
+      rescue StandardError => e
         @logger.warn "[Telegram] Failed to register bot commands: #{e.message}"
       end
 
@@ -207,7 +209,7 @@ module Botiasloop
         result = html
 
         # Convert headers to bold
-        result = result.gsub(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/, '<b>\1</b>')
+        result = result.gsub(%r{<h[1-6][^>]*>(.*?)</h[1-6]>}, '<b>\1</b>')
 
         # Convert lists to formatted text
         result = convert_lists(result)
@@ -216,7 +218,7 @@ module Botiasloop
         result = convert_tables(result)
 
         # Convert <br> tags to newlines (Telegram doesn't support <br>)
-        result = result.gsub(/<br\s*\/?>/, "\n")
+        result = result.gsub(%r{<br\s*/?>}, "\n")
 
         # Strip unsupported HTML tags
         strip_unsupported_tags(result)
@@ -225,36 +227,36 @@ module Botiasloop
       # Convert HTML lists to formatted text with bullets/numbers
       def convert_lists(html)
         # Process unordered lists
-        result = html.gsub(/<ul[^>]*>.*?<\/ul>/m) do |ul_block|
-          ul_block.gsub(/<li[^>]*>(.*?)<\/li>/) do |_|
+        result = html.gsub(%r{<ul[^>]*>.*?</ul>}m) do |ul_block|
+          ul_block.gsub(%r{<li[^>]*>(.*?)</li>}) do |_|
             "• #{::Regexp.last_match(1)}<br>"
-          end.gsub(/<\/?ul>/, "")
+          end.gsub(%r{</?ul>}, '')
         end
 
         # Process ordered lists
-        result.gsub(/<ol[^>]*>.*?<\/ol>/m) do |ol_block|
+        result.gsub(%r{<ol[^>]*>.*?</ol>}m) do |ol_block|
           counter = 0
-          ol_block.gsub(/<li[^>]*>(.*?)<\/li>/) do |_|
+          ol_block.gsub(%r{<li[^>]*>(.*?)</li>}) do |_|
             counter += 1
             "#{counter}. #{::Regexp.last_match(1)}<br>"
-          end.gsub(/<\/?ol>/, "")
+          end.gsub(%r{</?ol>}, '')
         end
       end
 
       # Convert HTML tables to properly formatted text wrapped in <pre> tags
       def convert_tables(html)
-        html.gsub(/<table[^>]*>.*?<\/table>/m) do |table_block|
+        html.gsub(%r{<table[^>]*>.*?</table>}m) do |table_block|
           # Extract headers (th elements)
-          headers = table_block.scan(/<th[^>]*>(.*?)<\/th>/).flatten
+          headers = table_block.scan(%r{<th[^>]*>(.*?)</th>}).flatten
 
           # Extract data rows (td elements within tr elements)
           data_rows = []
-          table_block.scan(/<tr[^>]*>(.*?)<\/tr>/m) do |row_match|
+          table_block.scan(%r{<tr[^>]*>(.*?)</tr>}m) do |row_match|
             row_html = row_match[0]
             # Skip rows that only contain th elements (header row)
-            next if row_html.include?("<th")
+            next if row_html.include?('<th')
 
-            cells = row_html.scan(/<td[^>]*>(.*?)<\/td>/).flatten
+            cells = row_html.scan(%r{<td[^>]*>(.*?)</td>}).flatten
             data_rows << cells if cells.any?
           end
 
@@ -282,7 +284,7 @@ module Botiasloop
             text = strip_html_tags(header).ljust(col_widths[i])
             "<b>#{text}</b>"
           end
-          lines << formatted_headers.join(" ")
+          lines << formatted_headers.join(' ')
 
           # Format data rows
           data_rows.each do |row|
@@ -291,7 +293,7 @@ module Botiasloop
               # Convert inline markdown to HTML within cells
               convert_inline_markdown(text)
             end
-            lines << formatted_cells.join(" ")
+            lines << formatted_cells.join(' ')
           end
 
           # Wrap in <pre> tags
@@ -301,7 +303,7 @@ module Botiasloop
 
       # Strip HTML tags from text (helper for width calculation)
       def strip_html_tags(html)
-        html.gsub(/<[^>]+>/, "")
+        html.gsub(/<[^>]+>/, '')
       end
 
       # Convert inline markdown to HTML (for table cell content)
@@ -333,9 +335,9 @@ module Botiasloop
         result = html.dup
 
         # Remove all HTML tags that are not in the allowed list
-        result.gsub!(/<\/?(\w+)[^>]*>/) do |tag|
-          tag_name = tag.gsub(/[<>\/]/, "").split.first
-          allowed_tags.include?(tag_name) ? tag : ""
+        result.gsub!(%r{</?(\w+)[^>]*>}) do |tag|
+          tag_name = tag.gsub(%r{[<>/]}, '').split.first
+          allowed_tags.include?(tag_name) ? tag : ''
         end
 
         result
