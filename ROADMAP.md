@@ -187,12 +187,12 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] No separate workflow engine needed (sharp knives philosophy)
 
 ### Identity and Operator Configuration
-- [ ] Load IDENTITY.md from `~/IDENTITY.md`
-- [ ] Load OPERATOR.md from `~/OPERATOR.md`
-- [ ] IDENTITY.md defines agent personality, name, and behavior
-- [ ] OPERATOR.md defines operator preferences and context
-- [ ] Both files support Markdown formatting
-- [ ] Dynamic reloading without restart
+- [x] Load IDENTITY.md from `~/IDENTITY.md`
+- [x] Load OPERATOR.md from `~/OPERATOR.md`
+- [x] IDENTITY.md defines agent personality, name, and behavior
+- [x] OPERATOR.md defines operator preferences and context
+- [x] Both files support Markdown formatting
+- [x] Dynamic reloading without restart
 
 ### Daemon / Background Running
 - [ ] Background process with PID file (Linux/Unix)

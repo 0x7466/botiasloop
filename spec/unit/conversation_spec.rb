@@ -236,9 +236,9 @@ RSpec.describe Botiasloop::Conversation do
 
     it "raises error for invalid label format" do
       conversation.label = "invalid label"
-      expect {
+      expect do
         conversation.save
-      }.to raise_error(Sequel::ValidationFailed, /Invalid label format/)
+      end.to raise_error(Sequel::ValidationFailed, /Invalid label format/)
     end
   end
 
@@ -381,6 +381,88 @@ RSpec.describe Botiasloop::Conversation do
       prompt = conversation.system_prompt
       expect(prompt).to include("Date: 2026-02-20")
       expect(prompt).to include("Time: 10:30:45")
+    end
+
+    context "with IDENTITY.md" do
+      let(:identity_path) { File.expand_path("~/IDENTITY.md") }
+      let(:operator_path) { File.expand_path("~/OPERATOR.md") }
+
+      before do
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:read).and_call_original
+        allow(File).to receive(:exist?).with(identity_path).and_return(false)
+        allow(File).to receive(:exist?).with(operator_path).and_return(false)
+      end
+
+      it "includes creation instructions when file does not exist" do
+        prompt = conversation.system_prompt
+        expect(prompt).to include("IDENTITY.md")
+        expect(prompt).to include("CRITICAL: This file does not exist")
+        expect(prompt).to include("After setting up OPERATOR.md")
+        expect(prompt).to include("Defines who you are")
+      end
+
+      it "includes 'ask questions' instructions when file is empty" do
+        allow(File).to receive(:exist?).with(identity_path).and_return(true)
+        allow(File).to receive(:read).with(identity_path).and_return("")
+
+        prompt = conversation.system_prompt
+        expect(prompt).to include("IDENTITY.md")
+        expect(prompt).to include("CRITICAL: This file is empty")
+        expect(prompt).to include("After setting up OPERATOR.md")
+        expect(prompt).to include("What name should I use for myself?")
+      end
+
+      it "includes file content and update instructions when file has content" do
+        allow(File).to receive(:exist?).with(identity_path).and_return(true)
+        allow(File).to receive(:read).with(identity_path).and_return("My name is Botias and I am helpful.")
+
+        prompt = conversation.system_prompt
+        expect(prompt).to include("IDENTITY.md")
+        expect(prompt).to include("My name is Botias and I am helpful.")
+        expect(prompt).to include("You can update ~/IDENTITY.md")
+      end
+    end
+
+    context "with OPERATOR.md" do
+      let(:identity_path) { File.expand_path("~/IDENTITY.md") }
+      let(:operator_path) { File.expand_path("~/OPERATOR.md") }
+
+      before do
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:read).and_call_original
+        allow(File).to receive(:exist?).with(identity_path).and_return(false)
+        allow(File).to receive(:exist?).with(operator_path).and_return(false)
+      end
+
+      it "includes creation instructions when file does not exist" do
+        prompt = conversation.system_prompt
+        expect(prompt).to include("OPERATOR.md")
+        expect(prompt).to include("CRITICAL: This file does not exist")
+        expect(prompt).to include("Before helping with other tasks, you MUST")
+        expect(prompt).to include("Information about the operator")
+      end
+
+      it "includes 'ask questions' instructions when file is empty" do
+        allow(File).to receive(:exist?).with(operator_path).and_return(true)
+        allow(File).to receive(:read).with(operator_path).and_return("")
+
+        prompt = conversation.system_prompt
+        expect(prompt).to include("OPERATOR.md")
+        expect(prompt).to include("CRITICAL: This file is empty")
+        expect(prompt).to include("Before helping with other tasks, you MUST")
+        expect(prompt).to include("Ask the operator their name")
+      end
+
+      it "includes file content and update instructions when file has content" do
+        allow(File).to receive(:exist?).with(operator_path).and_return(true)
+        allow(File).to receive(:read).with(operator_path).and_return("Operator name is Alice, prefers concise responses.")
+
+        prompt = conversation.system_prompt
+        expect(prompt).to include("OPERATOR.md")
+        expect(prompt).to include("Operator name is Alice")
+        expect(prompt).to include("You can update ~/OPERATOR.md")
+      end
     end
   end
 end

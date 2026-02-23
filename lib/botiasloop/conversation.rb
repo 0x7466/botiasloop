@@ -17,7 +17,7 @@ module Botiasloop
       # Validations
       def validate
         super
-        validates_presence [:conversation_id, :role, :content]
+        validates_presence %i[conversation_id role content]
       end
 
       # Convert message to hash for API compatibility
@@ -53,10 +53,11 @@ module Botiasloop
       super
       validates_presence [:user_id]
 
-      if label && !label.to_s.empty?
-        validates_format ConversationManager::LABEL_REGEX, :label, message: "Invalid label format. Use only letters, numbers, dashes, and underscores."
-        validates_unique [:user_id, :label], message: "Label '#{label}' already in use by another conversation"
-      end
+      return unless label && !label.to_s.empty?
+
+      validates_format ConversationManager::LABEL_REGEX, :label,
+        message: "Invalid label format. Use only letters, numbers, dashes, and underscores."
+      validates_unique %i[user_id label], message: "Label '#{label}' already in use by another conversation"
     end
 
     # Check if this conversation has a label
@@ -183,7 +184,70 @@ module Botiasloop
         SKILLS
       end
 
+      prompt += build_operator_section
+      prompt += build_identity_section
+
       prompt
+    end
+
+    private
+
+    def build_identity_section
+      path = File.expand_path("~/IDENTITY.md")
+      content = File.exist?(path) ? File.read(path).strip : nil
+
+      section = "\n\nIDENTITY.md\nDefines who you are - your name, personality, and how you behave.\n\n"
+
+      if content && !content.empty?
+        section += "#{content}\n\n"
+        section += "You can update ~/IDENTITY.md when the operator wants you to act differently or call you differently (eg. 'Be more concise from now on')."
+      elsif content && content.empty?
+        section += "CRITICAL: This file is empty. After setting up OPERATOR.md, ask the operator:\n\n"
+        section += "1. What name should I use for myself?\n"
+        section += "2. How formal or casual should I be?\n"
+        section += "3. Should I be concise or detailed in responses?\n"
+        section += "4. Any other personality preferences?\n\n"
+        section += "Then create ~/IDENTITY.md with this information."
+      else
+        section += "CRITICAL: This file does not exist. After setting up OPERATOR.md, ask the operator:\n\n"
+        section += "1. What name should I use for myself?\n"
+        section += "2. How formal or casual should I be?\n"
+        section += "3. Should I be concise or detailed in responses?\n"
+        section += "4. Any other personality preferences?\n\n"
+        section += "Then create ~/IDENTITY.md with: `cat > ~/IDENTITY.md << 'EOF'\n[content here]\nEOF`"
+      end
+
+      section
+    end
+
+    def build_operator_section
+      path = File.expand_path("~/OPERATOR.md")
+      content = File.exist?(path) ? File.read(path).strip : nil
+
+      section = "\n\nOPERATOR.md\nInformation about the operator - their preferences, context, background, and more.\n\n"
+
+      if content && !content.empty?
+        section += "#{content}\n\n"
+        section += "You can update ~/OPERATOR.md when you learn something new about the operator (eg. their name, birthday, what they like, etc.)."
+      elsif content && content.empty?
+        section += "CRITICAL: This file is empty. Before helping with other tasks, you MUST:\n\n"
+        section += "1. Ask the operator their name\n"
+        section += "2. Ask their location and timezone\n"
+        section += "3. Ask their preferred language\n"
+        section += "4. Ask about their interests, hobbies, or work\n"
+        section += "5. Ask any relevant personal context they're comfortable sharing (birthday, family, etc.)\n\n"
+        section += "Then create ~/OPERATOR.md with this information."
+      else
+        section += "CRITICAL: This file does not exist. Before helping with other tasks, you MUST:\n\n"
+        section += "1. Ask the operator their name\n"
+        section += "2. Ask their location and timezone\n"
+        section += "3. Ask their preferred language\n"
+        section += "4. Ask about their interests, hobbies, or work\n"
+        section += "5. Ask any relevant personal context they're comfortable sharing (birthday, family, etc.)\n\n"
+        section += "Then create ~/OPERATOR.md with: `cat > ~/OPERATOR.md << 'EOF'\n[content here]\nEOF`"
+      end
+
+      section
     end
   end
 end
