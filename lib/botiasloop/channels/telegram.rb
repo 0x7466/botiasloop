@@ -139,11 +139,11 @@ module Botiasloop
         @allowed_users.include?(username)
       end
 
-      # Deliver a formatted response to Telegram
+      # Deliver a formatted message to Telegram
       #
       # @param chat_id [String] Telegram chat ID (as string)
       # @param formatted_content [String] Formatted message content
-      def deliver_response(chat_id, formatted_content)
+      def deliver_message(chat_id, formatted_content)
         return if formatted_content.nil? || formatted_content.empty?
 
         @bot.api.send_message(
@@ -153,11 +153,11 @@ module Botiasloop
         )
       end
 
-      # Format response for Telegram
+      # Format message for Telegram
       #
-      # @param content [String] Raw response content
+      # @param content [String] Raw message content
       # @return [String] Telegram-compatible HTML
-      def format_response(content)
+      def format_message(content)
         return "" if content.nil? || content.empty?
 
         to_telegram_html(content)

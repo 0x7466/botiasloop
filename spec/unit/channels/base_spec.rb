@@ -202,7 +202,7 @@ RSpec.describe Botiasloop::Channels::Base do
           true
         end
 
-        def deliver_response(source_id, formatted_content)
+        def deliver_message(source_id, formatted_content)
           @delivered_responses << {source_id: source_id, content: formatted_content}
         end
       end
@@ -293,17 +293,17 @@ RSpec.describe Botiasloop::Channels::Base do
     end
   end
 
-  describe "#format_response" do
+  describe "#format_message" do
     let(:channel) { test_channel_class.new }
 
     it "returns content as-is by default" do
-      expect(channel.format_response("Hello **world**")).to eq("Hello **world**")
+      expect(channel.format_message("Hello **world**")).to eq("Hello **world**")
     end
 
     context "when overridden" do
       let(:formatted_channel_class) do
         Class.new(test_channel_class) do
-          def format_response(content)
+          def format_message(content)
             content.upcase
           end
         end
@@ -312,35 +312,35 @@ RSpec.describe Botiasloop::Channels::Base do
       let(:formatted_channel) { formatted_channel_class.new }
 
       it "uses custom formatting" do
-        expect(formatted_channel.format_response("hello")).to eq("HELLO")
+        expect(formatted_channel.format_message("hello")).to eq("HELLO")
       end
     end
   end
 
-  describe "#send_response" do
+  describe "#send_message" do
     let(:channel) { test_channel_class.new }
 
-    it "formats response before sending" do
-      allow(channel).to receive(:format_response).with("Hello").and_return("HELLO")
-      allow(channel).to receive(:deliver_response)
+    it "formats message before sending" do
+      allow(channel).to receive(:format_message).with("Hello").and_return("HELLO")
+      allow(channel).to receive(:deliver_message)
 
-      channel.send_response("user123", "Hello")
-      expect(channel).to have_received(:format_response).with("Hello")
+      channel.send_message("user123", "Hello")
+      expect(channel).to have_received(:format_message).with("Hello")
     end
 
-    it "calls deliver_response with formatted content" do
-      allow(channel).to receive(:format_response).and_return("FORMATTED")
-      allow(channel).to receive(:deliver_response)
+    it "calls deliver_message with formatted content" do
+      allow(channel).to receive(:format_message).and_return("FORMATTED")
+      allow(channel).to receive(:deliver_message)
 
-      channel.send_response("user123", "Hello")
-      expect(channel).to have_received(:deliver_response).with("user123", "FORMATTED")
+      channel.send_message("user123", "Hello")
+      expect(channel).to have_received(:deliver_message).with("user123", "FORMATTED")
     end
   end
 
-  describe "#deliver_response" do
+  describe "#deliver_message" do
     it "raises NotImplementedError (subclasses must implement)" do
       channel = test_channel_class.new
-      expect { channel.deliver_response("id", "content") }.to raise_error(NotImplementedError, /deliver_response/)
+      expect { channel.deliver_message("id", "content") }.to raise_error(NotImplementedError, /deliver_message/)
     end
   end
 

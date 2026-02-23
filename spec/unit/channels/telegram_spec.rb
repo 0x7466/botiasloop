@@ -461,24 +461,24 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
   end
 
-  describe "#format_response" do
+  describe "#format_message" do
     let(:channel) { described_class.new }
 
     it "converts markdown to telegram HTML" do
-      result = channel.format_response("**bold** text")
+      result = channel.format_message("**bold** text")
       expect(result).to include("<strong>bold</strong>")
     end
 
     it "returns empty string for nil content" do
-      expect(channel.format_response(nil)).to eq("")
+      expect(channel.format_message(nil)).to eq("")
     end
 
     it "returns empty string for empty content" do
-      expect(channel.format_response("")).to eq("")
+      expect(channel.format_message("")).to eq("")
     end
   end
 
-  describe "#deliver_response" do
+  describe "#deliver_message" do
     let(:channel) { described_class.new }
     let(:chat_id) { "123456" }
     let(:formatted_content) { "<b>Hello</b> world" }
@@ -493,24 +493,24 @@ RSpec.describe Botiasloop::Channels::Telegram do
         text: formatted_content,
         parse_mode: "HTML"
       )
-      channel.deliver_response(chat_id, formatted_content)
+      channel.deliver_message(chat_id, formatted_content)
     end
 
     it "converts string chat_id to integer" do
       expect(mock_api).to receive(:send_message).with(
         hash_including(chat_id: 123_456)
       )
-      channel.deliver_response("123456", formatted_content)
+      channel.deliver_message("123456", formatted_content)
     end
 
     it "skips sending when content is empty" do
       expect(mock_api).not_to receive(:send_message)
-      channel.deliver_response(chat_id, "")
+      channel.deliver_message(chat_id, "")
     end
 
     it "skips sending when content is nil" do
       expect(mock_api).not_to receive(:send_message)
-      channel.deliver_response(chat_id, nil)
+      channel.deliver_message(chat_id, nil)
     end
   end
 

@@ -103,12 +103,12 @@ module Botiasloop
         else
           agent = Agent.new
           verbose_callback = proc do |verbose_message|
-            send_response(source_id, verbose_message)
+            send_message(source_id, verbose_message)
           end
           agent.chat(content, conversation: conversation, verbose_callback: verbose_callback)
         end
 
-        send_response(source_id, response)
+        send_message(source_id, response)
 
         # Hook: Post-processing
         after_process(source_id, user_id, response, raw_message)
@@ -196,30 +196,30 @@ module Botiasloop
         ConversationManager.current_for(source_id)
       end
 
-      # Format a response for this channel
+      # Format a message for this channel
       #
-      # @param content [String] Raw response content
-      # @return [String] Formatted response
-      def format_response(content)
+      # @param content [String] Raw message content
+      # @return [String] Formatted message
+      def format_message(content)
         content
       end
 
-      # Send a response to a source
+      # Send a message to a source
       #
       # @param source_id [String] Source identifier
-      # @param response [String] Response content
-      def send_response(source_id, response)
-        formatted = format_response(response)
-        deliver_response(source_id, formatted)
+      # @param message [String] Message content
+      def send_message(source_id, message)
+        formatted = format_message(message)
+        deliver_message(source_id, formatted)
       end
 
-      # Deliver a formatted response to a source
+      # Deliver a formatted message to a source
       #
       # @param source_id [String] Source identifier
-      # @param formatted_content [String] Formatted response content
+      # @param formatted_content [String] Formatted message content
       # @raise [NotImplementedError] Subclass must implement
-      def deliver_response(source_id, formatted_content)
-        raise NotImplementedError, "Subclass must implement #deliver_response"
+      def deliver_message(source_id, formatted_content)
+        raise NotImplementedError, "Subclass must implement #deliver_message"
       end
 
       private

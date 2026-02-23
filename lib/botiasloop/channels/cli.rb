@@ -78,14 +78,14 @@ module Botiasloop
       # @param raw_message [Object] Raw message object
       def handle_error(source_id, _user_id, error, _raw_message)
         Logger.error "[CLI] Error processing message: #{error.message}"
-        send_response(source_id, "Error: #{error.message}")
+        send_message(source_id, "Error: #{error.message}")
       end
 
-      # Deliver a formatted response to the CLI
+      # Deliver a formatted message to the CLI
       #
       # @param source_id [String] Source identifier
-      # @param formatted_content [String] Formatted response content
-      def deliver_response(_source_id, formatted_content)
+      # @param formatted_content [String] Formatted message content
+      def deliver_message(_source_id, formatted_content)
         puts "Agent: #{formatted_content}"
         puts
       end

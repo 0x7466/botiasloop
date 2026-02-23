@@ -174,7 +174,7 @@ RSpec.describe Botiasloop::Channels::CLI do
     before do
       allow(channel).to receive(:conversation_for).with("cli").and_return(conversation)
       allow(Botiasloop::Agent).to receive(:new).and_return(agent)
-      allow(channel).to receive(:send_response)
+      allow(channel).to receive(:send_message)
       allow(Botiasloop::Logger).to receive(:error)
     end
 
@@ -192,15 +192,15 @@ RSpec.describe Botiasloop::Channels::CLI do
       channel.process_message("cli", "/help")
     end
 
-    it "sends response after processing" do
+    it "sends message after processing" do
       allow(agent).to receive(:chat).and_return("Response text")
-      expect(channel).to receive(:send_response).with("cli", "Response text")
+      expect(channel).to receive(:send_message).with("cli", "Response text")
       channel.process_message("cli", "Hello")
     end
 
     it "handles errors gracefully" do
       allow(agent).to receive(:chat).and_raise(StandardError.new("Test error"))
-      expect(channel).to receive(:send_response).with("cli", /Error: Test error/)
+      expect(channel).to receive(:send_message).with("cli", /Error: Test error/)
       expect(Botiasloop::Logger).to receive(:error).with(/Test error/)
       channel.process_message("cli", "Hello")
     end
@@ -209,26 +209,26 @@ RSpec.describe Botiasloop::Channels::CLI do
   describe "#handle_error" do
     let(:channel) { described_class.new }
 
-    it "logs the error and sends response to user" do
+    it "logs the error and sends error message to user" do
       error = StandardError.new("Test error")
       expect(Botiasloop::Logger).to receive(:error).with("[CLI] Error processing message: Test error")
-      expect(channel).to receive(:send_response).with("cli", "Error: Test error")
+      expect(channel).to receive(:send_message).with("cli", "Error: Test error")
 
       channel.handle_error("cli", "cli", error, "Hello")
     end
   end
 
-  describe "#deliver_response" do
+  describe "#deliver_message" do
     let(:channel) { described_class.new }
 
-    it "outputs response to stdout" do
-      expect { channel.deliver_response("cli", "Test response") }.to output(/Agent: Test response/).to_stdout
+    it "outputs message to stdout" do
+      expect { channel.deliver_message("cli", "Test message") }.to output(/Agent: Test message/).to_stdout
     end
 
-    it "outputs newline after response" do
+    it "outputs newline after message" do
       output = StringIO.new
       allow(channel).to receive(:puts) { |msg| output.puts(msg) }
-      channel.deliver_response("cli", "Test")
+      channel.deliver_message("cli", "Test")
       expect(output.string).to include("\n")
     end
   end
