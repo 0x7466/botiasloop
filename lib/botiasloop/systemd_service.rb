@@ -245,7 +245,7 @@ module Botiasloop
         Environment="PATH=#{ruby_bin_path}:/usr/local/bin:/usr/bin:/bin"
 
         [Install]
-        WantedBy=multi-user.target
+        WantedBy=default.target
       SERVICE
     end
 
