@@ -17,7 +17,7 @@ RSpec.describe Botiasloop::ConversationManager do
 
       it "stores the mapping with user_id" do
         conversation = described_class.current_for("user123")
-        uuid = described_class.current_uuid_for("user123")
+        uuid = described_class.current_id_for("user123")
         expect(uuid).to eq(conversation.uuid)
 
         # Verify via database
@@ -58,8 +58,8 @@ RSpec.describe Botiasloop::ConversationManager do
       conversation2 = described_class.current_for("user2")
 
       expect(conversation1.uuid).not_to eq(conversation2.uuid)
-      expect(described_class.current_uuid_for("user1")).to eq(conversation1.uuid)
-      expect(described_class.current_uuid_for("user2")).to eq(conversation2.uuid)
+      expect(described_class.current_id_for("user1")).to eq(conversation1.uuid)
+      expect(described_class.current_id_for("user2")).to eq(conversation2.uuid)
     end
   end
 
@@ -67,7 +67,7 @@ RSpec.describe Botiasloop::ConversationManager do
     it "switches user to the specified conversation uuid" do
       Botiasloop::Conversation.create(id: "new-uuid", user_id: "user123")
       described_class.switch("user123", "new-uuid")
-      expect(described_class.current_uuid_for("user123")).to eq("new-uuid")
+      expect(described_class.current_id_for("user123")).to eq("new-uuid")
     end
 
     it "returns the switched-to conversation" do
@@ -92,7 +92,7 @@ RSpec.describe Botiasloop::ConversationManager do
       Botiasloop::Conversation.create(id: "first-uuid", user_id: "user123", is_current: true)
       Botiasloop::Conversation.create(id: "second-uuid", user_id: "user123")
       described_class.switch("user123", "second-uuid")
-      expect(described_class.current_uuid_for("user123")).to eq("second-uuid")
+      expect(described_class.current_id_for("user123")).to eq("second-uuid")
     end
 
     it "clears label when switching to different conversation" do
@@ -150,7 +150,7 @@ RSpec.describe Botiasloop::ConversationManager do
 
     it "switches user to the new conversation" do
       described_class.create_new("user123")
-      expect(described_class.current_uuid_for("user123")).to eq("blue-dog-123")
+      expect(described_class.current_id_for("user123")).to eq("blue-dog-123")
     end
 
     it "returns the new conversation" do
@@ -161,7 +161,7 @@ RSpec.describe Botiasloop::ConversationManager do
     it "overwrites existing mapping" do
       Botiasloop::Conversation.create(id: "old-user-456", user_id: "user123", is_current: true)
       described_class.create_new("user123")
-      expect(described_class.current_uuid_for("user123")).to eq("blue-dog-123")
+      expect(described_class.current_id_for("user123")).to eq("blue-dog-123")
     end
 
     it "initializes with no label" do
@@ -170,14 +170,14 @@ RSpec.describe Botiasloop::ConversationManager do
     end
   end
 
-  describe ".current_uuid_for" do
+  describe ".current_id_for" do
     it "returns nil when user has no conversation" do
-      expect(described_class.current_uuid_for("unknown_user")).to be_nil
+      expect(described_class.current_id_for("unknown_user")).to be_nil
     end
 
     it "returns the uuid when user has a conversation" do
       Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
-      expect(described_class.current_uuid_for("user123")).to eq("test-uuid")
+      expect(described_class.current_id_for("user123")).to eq("test-uuid")
     end
   end
 
@@ -211,7 +211,7 @@ RSpec.describe Botiasloop::ConversationManager do
     it "removes the user's conversation mapping" do
       Botiasloop::Conversation.create(id: "test-uuid", user_id: "user123", is_current: true)
       described_class.remove("user123")
-      expect(described_class.current_uuid_for("user123")).to be_nil
+      expect(described_class.current_id_for("user123")).to be_nil
     end
 
     it "persists the removal" do
@@ -500,7 +500,7 @@ RSpec.describe Botiasloop::ConversationManager do
         result = described_class.archive("user123")
         new_uuid = result[:new_conversation].uuid
 
-        expect(described_class.current_uuid_for("user123")).to eq(new_uuid)
+        expect(described_class.current_id_for("user123")).to eq(new_uuid)
       end
     end
 

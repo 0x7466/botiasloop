@@ -141,7 +141,7 @@ RSpec.describe Botiasloop::Channels::Base do
 
       it "stores the mapping in ConversationManager" do
         conversation = channel.conversation_for("user123")
-        uuid = Botiasloop::ConversationManager.current_uuid_for("user123")
+        uuid = Botiasloop::ConversationManager.current_id_for("user123")
         expect(uuid).to eq(conversation.uuid)
       end
 
@@ -224,7 +224,7 @@ RSpec.describe Botiasloop::Channels::Base do
       channel.process_message("user123", "/new")
 
       # Verify the conversation was switched in ConversationManager
-      current_uuid = Botiasloop::ConversationManager.current_uuid_for("user123")
+      current_uuid = Botiasloop::ConversationManager.current_id_for("user123")
       expect(current_uuid).not_to eq(initial_uuid)
       expect(current_uuid).to be_a(String)
     end

@@ -12,7 +12,7 @@ module Botiasloop
         config = Config.instance
 
         lines = ["**Conversation Status**"]
-        lines << "UUID: #{conversation.uuid}"
+        lines << "ID: #{conversation.uuid}"
         lines << "Label: #{format_label(conversation)}"
         lines << "Model: #{config.providers["openrouter"]["model"]}"
         lines << "Max iterations: #{config.max_iterations}"

@@ -271,7 +271,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
         channel.process_message(chat_id.to_s, message)
 
         # Verify conversation was created and associated with the user
-        current_uuid = Botiasloop::ConversationManager.current_uuid_for(chat_id.to_s)
+        current_uuid = Botiasloop::ConversationManager.current_id_for(chat_id.to_s)
         expect(current_uuid).not_to be_nil
 
         db_conv = Botiasloop::Conversation.find(id: current_uuid)
@@ -291,7 +291,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
         channel.process_message(chat_id.to_s, message)
 
         # Verify the conversation was retrieved
-        expect(Botiasloop::ConversationManager.current_uuid_for(chat_id.to_s)).to eq("existing-uuid")
+        expect(Botiasloop::ConversationManager.current_id_for(chat_id.to_s)).to eq("existing-uuid")
       end
     end
   end

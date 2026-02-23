@@ -2,10 +2,10 @@
 
 module Botiasloop
   module Commands
-    # Switch command - switches to a different conversation by label or UUID
+    # Switch command - switches to a different conversation by label or ID
     class Switch < Base
       command :switch
-      description "Switch to a different conversation by label or UUID"
+      description "Switch to a different conversation by label or ID"
 
       # Execute the switch command
       #
@@ -15,9 +15,7 @@ module Botiasloop
       def execute(context, args = nil)
         identifier = args.to_s.strip
 
-        if identifier.empty?
-          return "Usage: /switch <label-or-uuid>"
-        end
+        return "Usage: /switch <label-or-id>" if identifier.empty?
 
         new_conversation = ConversationManager.switch(context.user_id, identifier)
         context.conversation = new_conversation
@@ -31,7 +29,7 @@ module Botiasloop
 
       def format_switch_response(conversation)
         lines = ["**Conversation switched**"]
-        lines << "- UUID: #{conversation.uuid}"
+        lines << "- ID: #{conversation.uuid}"
 
         lines << if conversation.label?
           "- Label: #{conversation.label}"

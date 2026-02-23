@@ -16,7 +16,7 @@ RSpec.describe Botiasloop::Commands::Switch do
 
   describe ".description" do
     it "returns command description" do
-      expect(described_class.description).to eq("Switch to a different conversation by label or UUID")
+      expect(described_class.description).to eq("Switch to a different conversation by label or ID")
     end
   end
 
@@ -24,12 +24,12 @@ RSpec.describe Botiasloop::Commands::Switch do
     context "when called without arguments" do
       it "returns error message" do
         result = command.execute(context, nil)
-        expect(result).to eq("Usage: /switch <label-or-uuid>")
+        expect(result).to eq("Usage: /switch <label-or-id>")
       end
 
       it "returns error for empty string" do
         result = command.execute(context, "   ")
-        expect(result).to eq("Usage: /switch <label-or-uuid>")
+        expect(result).to eq("Usage: /switch <label-or-id>")
       end
     end
 

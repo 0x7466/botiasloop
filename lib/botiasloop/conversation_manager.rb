@@ -73,11 +73,11 @@ module Botiasloop
         Conversation[conversation.id]
       end
 
-      # Get the UUID for a user's current conversation
+      # Get the ID for a user's current conversation
       #
       # @param user_id [String] User identifier
-      # @return [String, nil] Current conversation UUID or nil if none exists
-      def current_uuid_for(user_id)
+      # @return [String, nil] Current conversation ID or nil if none exists
+      def current_id_for(user_id)
         conversation = Conversation.where(user_id: user_id.to_s, is_current: true).first
         conversation&.id
       end

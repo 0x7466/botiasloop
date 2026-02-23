@@ -17,7 +17,7 @@ module Botiasloop
       def execute(context, args = nil)
         show_archived = args.to_s.strip.downcase == "archived"
         conversations = ConversationManager.list_by_user(context.user_id, archived: show_archived)
-        current_uuid = ConversationManager.current_uuid_for(context.user_id)
+        current_id = ConversationManager.current_id_for(context.user_id)
 
         lines = show_archived ? ["**Archived Conversations**"] : ["**Conversations**"]
 
@@ -27,10 +27,10 @@ module Botiasloop
         end
 
         conversations.each do |conv|
-          prefix = (conv[:uuid] == current_uuid) ? "[current] " : ""
+          prefix = (conv[:id] == current_id) ? "[current] " : ""
           label = conv[:label]
           suffix = label ? " (#{label})" : ""
-          lines << "#{prefix}#{conv[:uuid]}#{suffix}"
+          lines << "#{prefix}#{conv[:id]}#{suffix}"
         end
 
         lines.join("\n")

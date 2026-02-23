@@ -16,7 +16,7 @@ RSpec.describe Botiasloop::Commands::Archive do
 
   describe ".description" do
     it "returns command description" do
-      expect(described_class.description).to eq("Archive current conversation (no args) or a specific conversation by label/UUID")
+      expect(described_class.description).to eq("Archive current conversation (no args) or a specific conversation by label/ID")
     end
   end
 

@@ -2,17 +2,17 @@
 
 module Botiasloop
   module Commands
-    # Archive command - archives a conversation by label or UUID, or current conversation if no args
+    # Archive command - archives a conversation by label or ID, or current conversation if no args
     class Archive < Base
       command :archive
-      description "Archive current conversation (no args) or a specific conversation by label/UUID"
+      description "Archive current conversation (no args) or a specific conversation by label/ID"
 
       # Execute the archive command
       # Without args: archives current conversation and creates a new one
       # With args: archives the specified conversation
       #
       # @param context [Context] Execution context
-      # @param args [String, nil] Label or UUID to archive (nil = archive current)
+      # @param args [String, nil] Label or ID to archive (nil = archive current)
       # @return [String] Command response with archived conversation details
       def execute(context, args = nil)
         identifier = args.to_s.strip
@@ -34,7 +34,7 @@ module Botiasloop
 
       def format_archive_response(conversation)
         lines = ["**Conversation archived successfully**"]
-        lines << "- UUID: #{conversation.uuid}"
+        lines << "- ID: #{conversation.uuid}"
 
         lines << if conversation.label?
           "- Label: #{conversation.label}"
@@ -59,7 +59,7 @@ module Botiasloop
         lines = ["**Current conversation archived and new conversation started**"]
         lines << ""
         lines << "Archived:"
-        lines << "- UUID: #{archived.uuid}"
+        lines << "- ID: #{archived.uuid}"
 
         lines << if archived.label?
           "- Label: #{archived.label}"
@@ -79,7 +79,7 @@ module Botiasloop
 
         lines << ""
         lines << "New conversation:"
-        lines << "- UUID: #{new_conversation.uuid}"
+        lines << "- ID: #{new_conversation.uuid}"
         lines << "- Label: (no label)"
 
         lines.join("\n")

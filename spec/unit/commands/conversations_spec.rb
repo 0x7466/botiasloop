@@ -11,7 +11,7 @@ RSpec.describe Botiasloop::Commands::Conversations do
   before do
     allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return([])
     allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: true).and_return([])
-    allow(Botiasloop::ConversationManager).to receive(:current_uuid_for).with("test-user").and_return("current-uuid-123")
+    allow(Botiasloop::ConversationManager).to receive(:current_id_for).with("test-user").and_return("current-uuid-123")
   end
 
   describe ".command_name" do
@@ -42,9 +42,9 @@ RSpec.describe Botiasloop::Commands::Conversations do
     context "when there are conversations" do
       before do
         conversations = [
-          {uuid: "current-uuid-123", label: "my-project", updated_at: Time.now},
-          {uuid: "other-uuid-456", label: nil, updated_at: Time.now - 60},
-          {uuid: "another-uuid-789", label: "another-label", updated_at: Time.now - 120}
+          {id: "current-uuid-123", label: "my-project", updated_at: Time.now},
+          {id: "other-uuid-456", label: nil, updated_at: Time.now - 60},
+          {id: "another-uuid-789", label: "another-label", updated_at: Time.now - 120}
         ]
         allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user",
           archived: false).and_return(conversations)
@@ -80,11 +80,11 @@ RSpec.describe Botiasloop::Commands::Conversations do
 
       before do
         conversations = [
-          {uuid: "conv-uuid-1", label: "label1", updated_at: Time.now}
+          {id: "conv-uuid-1", label: "label1", updated_at: Time.now}
         ]
         allow(Botiasloop::ConversationManager).to receive(:list_by_user).with(nil,
           archived: false).and_return(conversations)
-        allow(Botiasloop::ConversationManager).to receive(:current_uuid_for).with(nil).and_return(nil)
+        allow(Botiasloop::ConversationManager).to receive(:current_id_for).with(nil).and_return(nil)
       end
 
       it "still lists conversations" do

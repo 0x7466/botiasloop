@@ -13,7 +13,7 @@ module Botiasloop
         new_conversation = ConversationManager.create_new(context.user_id)
         context.conversation = new_conversation
 
-        "**New conversation started (UUID: #{new_conversation.uuid}).**\n" \
+        "**New conversation started (ID: #{new_conversation.uuid}).**\n" \
         "Use `/switch #{new_conversation.uuid}` to return later."
       end
     end
