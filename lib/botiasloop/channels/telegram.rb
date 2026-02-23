@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
-require 'telegram/bot'
-require 'json'
-require 'fileutils'
-require 'redcarpet'
+require "telegram/bot"
+require "json"
+require "fileutils"
+require "redcarpet"
+
+# Regex patterns for markdown parsing
+CODE_BLOCK_REGEX = /```\w*\n?([\s\S]*?)```/
+INLINE_CODE_REGEX = /`([^`]+)`/
 
 module Botiasloop
   module Channels
@@ -18,8 +22,8 @@ module Botiasloop
       def initialize(config)
         super
         cfg = channel_config
-        @bot_token = cfg['bot_token']
-        @allowed_users = cfg['allowed_users'] || []
+        @bot_token = cfg["bot_token"]
+        @allowed_users = cfg["allowed_users"] || []
         @bot = nil
         @thread_id = nil
       end
@@ -27,11 +31,11 @@ module Botiasloop
       # Start the Telegram bot and listen for messages
       def start
         if @allowed_users.empty?
-          @logger.warn '[Telegram] No allowed_users configured. No messages will be processed.'
-          @logger.warn '[Telegram] Add usernames to telegram.allowed_users in config.'
+          @logger.warn "[Telegram] No allowed_users configured. No messages will be processed."
+          @logger.warn "[Telegram] Add usernames to telegram.allowed_users in config."
         end
 
-        @logger.info '[Telegram] Starting bot...'
+        @logger.info "[Telegram] Starting bot..."
 
         @bot = ::Telegram::Bot::Client.new(@bot_token)
         register_bot_commands
@@ -45,7 +49,7 @@ module Botiasloop
           end
         end
       rescue Interrupt
-        @logger.info '[Telegram] Shutting down...'
+        @logger.info "[Telegram] Shutting down..."
       end
 
       # Stop the Telegram bot
@@ -53,7 +57,7 @@ module Botiasloop
       # Interrupts the thread running the bot to gracefully exit
       # the blocking listen loop.
       def stop
-        @logger.info '[Telegram] Stopping bot...'
+        @logger.info "[Telegram] Stopping bot..."
 
         return unless @thread_id
 
@@ -146,7 +150,7 @@ module Botiasloop
         @bot.api.send_message(
           chat_id: chat_id.to_i,
           text: formatted_content,
-          parse_mode: 'HTML'
+          parse_mode: "HTML"
         )
       end
 
@@ -155,7 +159,7 @@ module Botiasloop
       # @param content [String] Raw response content
       # @return [String] Telegram-compatible HTML
       def format_response(content)
-        return '' if content.nil? || content.empty?
+        return "" if content.nil? || content.empty?
 
         to_telegram_html(content)
       end
@@ -167,29 +171,69 @@ module Botiasloop
         commands = Botiasloop::Commands.registry.all.map do |cmd_class|
           {
             command: cmd_class.command_name.to_s,
-            description: cmd_class.description || 'No description'
+            description: cmd_class.description || "No description"
           }
         end
 
         @bot.api.set_my_commands(commands: commands)
         @logger.info "[Telegram] Registered #{commands.length} bot commands"
-      rescue StandardError => e
+      rescue => e
         @logger.warn "[Telegram] Failed to register bot commands: #{e.message}"
       end
 
       # Convert Markdown to Telegram-compatible HTML
       #
+      # Extracts and protects code blocks before other processing,
+      # then restores them with proper HTML tags.
+      #
       # @param markdown [String] Markdown text
       # @return [String] Telegram-compatible HTML
       def to_telegram_html(markdown)
-        # Configure Redcarpet renderer for Telegram-compatible HTML
+        # Step 1: Extract and protect code blocks (fenced ```code```)
+        code_blocks = []
+        text = markdown.gsub(CODE_BLOCK_REGEX) do |_|
+          code_blocks << Regexp.last_match(1)
+          "\x00CB#{code_blocks.length - 1}\x00"
+        end
+
+        # Step 2: Extract and protect inline code (`code`)
+        inline_codes = []
+        text = text.gsub(INLINE_CODE_REGEX) do |_|
+          inline_codes << Regexp.last_match(1)
+          "\x00IC#{inline_codes.length - 1}\x00"
+        end
+
+        # Step 3: Convert remaining markdown to HTML
+        html = markdown_to_html(text)
+
+        # Step 4: Restore inline code with <code> tags
+        inline_codes.each_with_index do |code, i|
+          escaped = escape_html(code)
+          html = html.gsub("\x00IC#{i}\x00", "<code>#{escaped}</code>")
+        end
+
+        # Step 5: Restore code blocks with <pre><code> tags
+        code_blocks.each_with_index do |code, i|
+          escaped = escape_html(code)
+          html = html.gsub("\x00CB#{i}\x00", "<pre><code>#{escaped}</code></pre>")
+        end
+
+        html
+      end
+
+      # Convert markdown text to HTML using Redcarpet
+      #
+      # @param text [String] Markdown text (with placeholders for protected content)
+      # @return [String] HTML
+      def markdown_to_html(text)
         renderer_options = {
           hard_wrap: false,
           filter_html: false
         }
 
+        # NOTE: fenced_code_blocks is false - we handle code blocks manually
         extensions = {
-          fenced_code_blocks: true,
+          fenced_code_blocks: false,
           autolink: true,
           strikethrough: true,
           tables: true,
@@ -198,7 +242,7 @@ module Botiasloop
 
         renderer = Redcarpet::Render::HTML.new(renderer_options)
         markdown_parser = Redcarpet::Markdown.new(renderer, extensions)
-        html = markdown_parser.render(markdown)
+        html = markdown_parser.render(text)
 
         # Post-process HTML for Telegram compatibility
         process_html_for_telegram(html)
@@ -230,7 +274,7 @@ module Botiasloop
         result = html.gsub(%r{<ul[^>]*>.*?</ul>}m) do |ul_block|
           ul_block.gsub(%r{<li[^>]*>(.*?)</li>}) do |_|
             "• #{::Regexp.last_match(1)}<br>"
-          end.gsub(%r{</?ul>}, '')
+          end.gsub(%r{</?ul>}, "")
         end
 
         # Process ordered lists
@@ -239,7 +283,7 @@ module Botiasloop
           ol_block.gsub(%r{<li[^>]*>(.*?)</li>}) do |_|
             counter += 1
             "#{counter}. #{::Regexp.last_match(1)}<br>"
-          end.gsub(%r{</?ol>}, '')
+          end.gsub(%r{</?ol>}, "")
         end
       end
 
@@ -254,7 +298,7 @@ module Botiasloop
           table_block.scan(%r{<tr[^>]*>(.*?)</tr>}m) do |row_match|
             row_html = row_match[0]
             # Skip rows that only contain th elements (header row)
-            next if row_html.include?('<th')
+            next if row_html.include?("<th")
 
             cells = row_html.scan(%r{<td[^>]*>(.*?)</td>}).flatten
             data_rows << cells if cells.any?
@@ -284,7 +328,7 @@ module Botiasloop
             text = strip_html_tags(header).ljust(col_widths[i])
             "<b>#{text}</b>"
           end
-          lines << formatted_headers.join(' ')
+          lines << formatted_headers.join(" ")
 
           # Format data rows
           data_rows.each do |row|
@@ -293,7 +337,7 @@ module Botiasloop
               # Convert inline markdown to HTML within cells
               convert_inline_markdown(text)
             end
-            lines << formatted_cells.join(' ')
+            lines << formatted_cells.join(" ")
           end
 
           # Wrap in <pre> tags
@@ -303,7 +347,7 @@ module Botiasloop
 
       # Strip HTML tags from text (helper for width calculation)
       def strip_html_tags(html)
-        html.gsub(/<[^>]+>/, '')
+        html.gsub(/<[^>]+>/, "")
       end
 
       # Convert inline markdown to HTML (for table cell content)
@@ -336,11 +380,19 @@ module Botiasloop
 
         # Remove all HTML tags that are not in the allowed list
         result.gsub!(%r{</?(\w+)[^>]*>}) do |tag|
-          tag_name = tag.gsub(%r{[<>/]}, '').split.first
-          allowed_tags.include?(tag_name) ? tag : ''
+          tag_name = tag.gsub(%r{[<>/]}, "").split.first
+          allowed_tags.include?(tag_name) ? tag : ""
         end
 
         result
+      end
+
+      # Escape HTML special characters in text
+      #
+      # @param text [String] Text to escape
+      # @return [String] Escaped text
+      def escape_html(text)
+        text.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
       end
     end
 
