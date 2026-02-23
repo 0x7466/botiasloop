@@ -120,10 +120,7 @@ RSpec.describe Botiasloop::AutoLabel do
       end
 
       it "logs the generated label" do
-        logger = instance_double(Logger)
-        allow(Logger).to receive(:new).with($stderr).and_return(logger)
-
-        expect(logger).to receive(:info).with("[AutoLabel] Generated label 'coding-help' for conversation test-conversation-uuid")
+        expect(Botiasloop::Logger).to receive(:info).with("[AutoLabel] Generated label 'coding-help' for conversation test-conversation-uuid")
         described_class.generate(conversation, config)
       end
 

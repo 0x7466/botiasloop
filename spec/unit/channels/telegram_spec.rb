@@ -95,13 +95,11 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
   describe "#start" do
     let(:channel) { described_class.new(config) }
-    let(:logger) { instance_double(Logger) }
 
     before do
-      allow(Logger).to receive(:new).and_return(logger)
-      allow(logger).to receive(:info)
-      allow(logger).to receive(:warn)
-      allow(logger).to receive(:error)
+      allow(Botiasloop::Logger).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:warn)
+      allow(Botiasloop::Logger).to receive(:error)
     end
 
     context "when allowed_users is empty" do
@@ -118,7 +116,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
       end
 
       it "logs a warning about no allowed users" do
-        expect(logger).to receive(:warn).with(/allowed_users/)
+        expect(Botiasloop::Logger).to receive(:warn).with(/allowed_users/)
         allow(mock_bot).to receive(:listen)
         channel.start
       end
@@ -140,15 +138,13 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
   describe "#stop" do
     let(:channel) { described_class.new(config) }
-    let(:logger) { instance_double(Logger) }
 
     before do
-      allow(Logger).to receive(:new).and_return(logger)
-      allow(logger).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:info)
     end
 
     it "logs stopping message" do
-      expect(logger).to receive(:info).with(/Stopping/)
+      expect(Botiasloop::Logger).to receive(:info).with(/Stopping/)
       channel.stop
     end
 
@@ -211,17 +207,16 @@ RSpec.describe Botiasloop::Channels::Telegram do
       )
     end
 
-    let(:logger) { instance_double(Logger) }
     let(:channel) do
       # Stub Logger before creating channel
-      allow(Logger).to receive(:new).and_return(logger)
+
       described_class.new(config)
     end
 
     before do
-      allow(logger).to receive(:info)
-      allow(logger).to receive(:warn)
-      allow(logger).to receive(:error)
+      allow(Botiasloop::Logger).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:warn)
+      allow(Botiasloop::Logger).to receive(:error)
       allow(Botiasloop::Agent).to receive(:new).and_return(mock_agent)
       allow(mock_agent).to receive(:chat).and_return("Test response")
       allow(mock_api).to receive(:send_message)
@@ -238,7 +233,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
       end
 
       it "logs warning about unauthorized user" do
-        expect(logger).to receive(:warn).with(/unauthorized/)
+        expect(Botiasloop::Logger).to receive(:warn).with(/unauthorized/)
         channel.process_message(chat_id.to_s, message)
       end
     end
@@ -397,57 +392,57 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
   describe "#before_process" do
     let(:channel) { described_class.new(config) }
-    let(:logger) { channel.instance_variable_get(:@logger) }
+    let(:logger) { Botiasloop::Logger }
 
     before do
-      allow(logger).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:info)
     end
 
     it "logs message receipt" do
-      expect(logger).to receive(:info).with("[Telegram] Message from @testuser: Hello")
+      expect(Botiasloop::Logger).to receive(:info).with("[Telegram] Message from @testuser: Hello")
       channel.before_process("123456", "testuser", "Hello", nil)
     end
   end
 
   describe "#after_process" do
     let(:channel) { described_class.new(config) }
-    let(:logger) { channel.instance_variable_get(:@logger) }
+    let(:logger) { Botiasloop::Logger }
 
     before do
-      allow(logger).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:info)
     end
 
     it "logs response sent" do
-      expect(logger).to receive(:info).with("[Telegram] Response sent to @testuser")
+      expect(Botiasloop::Logger).to receive(:info).with("[Telegram] Response sent to @testuser")
       channel.after_process("123456", "testuser", "Response text", nil)
     end
   end
 
   describe "#handle_unauthorized" do
     let(:channel) { described_class.new(config) }
-    let(:logger) { channel.instance_variable_get(:@logger) }
+    let(:logger) { Botiasloop::Logger }
 
     before do
-      allow(logger).to receive(:warn)
+      allow(Botiasloop::Logger).to receive(:warn)
     end
 
     it "logs warning about unauthorized user" do
-      expect(logger).to receive(:warn).with("[Telegram] Ignored message from unauthorized user @baduser (chat_id: 123456)")
+      expect(Botiasloop::Logger).to receive(:warn).with("[Telegram] Ignored message from unauthorized user @baduser (chat_id: 123456)")
       channel.handle_unauthorized("123456", "baduser", nil)
     end
   end
 
   describe "#handle_error" do
     let(:channel) { described_class.new(config) }
-    let(:logger) { channel.instance_variable_get(:@logger) }
+    let(:logger) { Botiasloop::Logger }
 
     before do
-      allow(logger).to receive(:error)
+      allow(Botiasloop::Logger).to receive(:error)
     end
 
     it "logs error without re-raising" do
       error = StandardError.new("Test error")
-      expect(logger).to receive(:error).with("[Telegram] Error processing message: Test error")
+      expect(Botiasloop::Logger).to receive(:error).with("[Telegram] Error processing message: Test error")
       expect { channel.handle_error("123456", "testuser", error, nil) }.not_to raise_error
     end
   end

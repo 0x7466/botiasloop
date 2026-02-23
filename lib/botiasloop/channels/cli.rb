@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "logger"
-
 module Botiasloop
   module Channels
     class CLI < Base
@@ -21,7 +19,7 @@ module Botiasloop
       # Start the CLI interactive mode
       def start
         @running = true
-        @logger.info "[CLI] Starting interactive mode..."
+        Logger.info "[CLI] Starting interactive mode..."
 
         puts "botiasloop v#{VERSION} - Interactive Mode"
         puts "Type 'exit', 'quit', or '\\q' to exit"
@@ -37,17 +35,17 @@ module Botiasloop
         end
 
         @running = false
-        @logger.info "[CLI] Interactive mode ended"
+        Logger.info "[CLI] Interactive mode ended"
       rescue Interrupt
         @running = false
         puts "\nGoodbye!"
-        @logger.info "[CLI] Interrupted by user"
+        Logger.info "[CLI] Interrupted by user"
       end
 
       # Stop the CLI channel
       def stop
         @running = false
-        @logger.info "[CLI] Stopping..."
+        Logger.info "[CLI] Stopping..."
       end
 
       # Check if CLI channel is running
@@ -70,7 +68,7 @@ module Botiasloop
       #
       # @param source_id [String] Source identifier to check
       # @return [Boolean] Always true for CLI
-      def authorized?(source_id)
+      def authorized?(_source_id)
         true
       end
 
@@ -80,8 +78,8 @@ module Botiasloop
       # @param user_id [String] User ID
       # @param error [Exception] The error that occurred
       # @param raw_message [Object] Raw message object
-      def handle_error(source_id, user_id, error, raw_message)
-        @logger.error "[CLI] Error processing message: #{error.message}"
+      def handle_error(source_id, _user_id, error, _raw_message)
+        Logger.error "[CLI] Error processing message: #{error.message}"
         send_response(source_id, "Error: #{error.message}")
       end
 
@@ -89,7 +87,7 @@ module Botiasloop
       #
       # @param source_id [String] Source identifier
       # @param formatted_content [String] Formatted response content
-      def deliver_response(source_id, formatted_content)
+      def deliver_response(_source_id, formatted_content)
         puts "Agent: #{formatted_content}"
         puts
       end

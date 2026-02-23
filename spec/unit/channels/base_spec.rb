@@ -92,11 +92,6 @@ RSpec.describe Botiasloop::Channels::Base do
       expect(channel.instance_variable_get(:@config)).to eq(config)
     end
 
-    it "creates a logger" do
-      logger = channel.instance_variable_get(:@logger)
-      expect(logger).to be_a(Logger)
-    end
-
     it "provides channel-specific config via method" do
       expect(channel.channel_config).to eq({"token" => "test-token", "allowed_users" => ["testuser"]})
     end
@@ -198,7 +193,7 @@ RSpec.describe Botiasloop::Channels::Base do
           raw_message
         end
 
-        def authorized?(source_id)
+        def authorized?(_source_id)
           true
         end
 
@@ -247,6 +242,7 @@ RSpec.describe Botiasloop::Channels::Base do
             cfg = channel_config
             allowed_users = cfg["allowed_users"] || []
             return false if source_id.nil? || allowed_users.empty?
+
             allowed_users.include?(source_id)
           end
         end

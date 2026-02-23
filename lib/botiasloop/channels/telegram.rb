@@ -31,11 +31,11 @@ module Botiasloop
       # Start the Telegram bot and listen for messages
       def start
         if @allowed_users.empty?
-          @logger.warn "[Telegram] No allowed_users configured. No messages will be processed."
-          @logger.warn "[Telegram] Add usernames to telegram.allowed_users in config."
+          Logger.warn "[Telegram] No allowed_users configured. No messages will be processed."
+          Logger.warn "[Telegram] Add usernames to telegram.allowed_users in config."
         end
 
-        @logger.info "[Telegram] Starting bot..."
+        Logger.info "[Telegram] Starting bot..."
 
         @bot = ::Telegram::Bot::Client.new(@bot_token)
         register_bot_commands
@@ -49,7 +49,7 @@ module Botiasloop
           end
         end
       rescue Interrupt
-        @logger.info "[Telegram] Shutting down..."
+        Logger.info "[Telegram] Shutting down..."
       end
 
       # Stop the Telegram bot
@@ -57,7 +57,7 @@ module Botiasloop
       # Interrupts the thread running the bot to gracefully exit
       # the blocking listen loop.
       def stop
-        @logger.info "[Telegram] Stopping bot..."
+        Logger.info "[Telegram] Stopping bot..."
 
         return unless @thread_id
 
@@ -98,7 +98,7 @@ module Botiasloop
       # @param content [String] Message text
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
       def before_process(_source_id, user_id, content, _raw_message)
-        @logger.info "[Telegram] Message from @#{user_id}: #{content}"
+        Logger.info "[Telegram] Message from @#{user_id}: #{content}"
       end
 
       # Log successful response after processing
@@ -108,7 +108,7 @@ module Botiasloop
       # @param response [String] Response content
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
       def after_process(_source_id, user_id, _response, _raw_message)
-        @logger.info "[Telegram] Response sent to @#{user_id}"
+        Logger.info "[Telegram] Response sent to @#{user_id}"
       end
 
       # Handle unauthorized access with specific logging
@@ -117,7 +117,7 @@ module Botiasloop
       # @param user_id [String] Username that was denied
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
       def handle_unauthorized(source_id, user_id, _raw_message)
-        @logger.warn "[Telegram] Ignored message from unauthorized user @#{user_id} (chat_id: #{source_id})"
+        Logger.warn "[Telegram] Ignored message from unauthorized user @#{user_id} (chat_id: #{source_id})"
       end
 
       # Handle errors by logging only (don't notify user)
@@ -127,7 +127,7 @@ module Botiasloop
       # @param error [Exception] The error that occurred
       # @param raw_message [Telegram::Bot::Types::Message] Telegram message
       def handle_error(_source_id, _user_id, error, _raw_message)
-        @logger.error "[Telegram] Error processing message: #{error.message}"
+        Logger.error "[Telegram] Error processing message: #{error.message}"
       end
 
       # Check if username is in allowed list
@@ -176,9 +176,9 @@ module Botiasloop
         end
 
         @bot.api.set_my_commands(commands: commands)
-        @logger.info "[Telegram] Registered #{commands.length} bot commands"
+        Logger.info "[Telegram] Registered #{commands.length} bot commands"
       rescue => e
-        @logger.warn "[Telegram] Failed to register bot commands: #{e.message}"
+        Logger.warn "[Telegram] Failed to register bot commands: #{e.message}"
       end
 
       # Convert Markdown to Telegram-compatible HTML

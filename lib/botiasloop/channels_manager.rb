@@ -29,7 +29,6 @@ module Botiasloop
     # @param config [Config] Configuration instance
     def initialize(config)
       @config = config
-      @logger = Logger.new($stdout)
       @threads = {}
       @instances = {}
       @mutex = Mutex.new
@@ -64,7 +63,7 @@ module Botiasloop
           instance = channel_class.new(@config)
         rescue Error => e
           if e.message.match?(/Missing required configuration/)
-            @logger.warn "[ChannelsManager] Skipping #{identifier}: #{e.message}"
+            Logger.warn "[ChannelsManager] Skipping #{identifier}: #{e.message}"
             next
           end
           raise
@@ -76,7 +75,7 @@ module Botiasloop
           @instances[identifier] = instance
         end
 
-        @logger.info "[ChannelsManager] Started #{identifier} in thread #{thread.object_id}"
+        Logger.info "[ChannelsManager] Started #{identifier} in thread #{thread.object_id}"
       end
 
       # Monitor threads for crashes
@@ -99,19 +98,19 @@ module Botiasloop
         @running = false
       end
 
-      @logger.info "[ChannelsManager] Stopping all channels..."
+      Logger.info "[ChannelsManager] Stopping all channels..."
 
       # Stop all channel instances
       @instances.each do |identifier, instance|
         instance.stop if instance.running?
       rescue => e
-        @logger.error "[ChannelsManager] Error stopping #{identifier}: #{e.message}"
+        Logger.error "[ChannelsManager] Error stopping #{identifier}: #{e.message}"
       end
 
       # Wait for threads to complete
       @threads.each do |identifier, thread|
         unless thread.join(SHUTDOWN_TIMEOUT)
-          @logger.warn "[ChannelsManager] Force-killing #{identifier} thread"
+          Logger.warn "[ChannelsManager] Force-killing #{identifier} thread"
           thread.kill
         end
       end
@@ -121,7 +120,7 @@ module Botiasloop
         @instances.clear
       end
 
-      @logger.info "[ChannelsManager] All channels stopped"
+      Logger.info "[ChannelsManager] All channels stopped"
     end
 
     # Check if any channels are currently running
@@ -225,8 +224,8 @@ module Botiasloop
         begin
           instance.start
         rescue => e
-          @logger.error "[ChannelsManager] Channel #{identifier} crashed: #{e.message}"
-          @logger.error "[ChannelsManager] #{e.backtrace&.first(5)&.join("\n")}"
+          Logger.error "[ChannelsManager] Channel #{identifier} crashed: #{e.message}"
+          Logger.error "[ChannelsManager] #{e.backtrace&.first(5)&.join("\n")}"
         end
       end
     end
@@ -248,11 +247,11 @@ module Botiasloop
               next if thread.alive?
 
               instance = @instances[identifier]
-              if instance&.running?
-                @logger.error "[ChannelsManager] Thread for #{identifier} died unexpectedly"
-                @instances.delete(identifier)
-                @threads.delete(identifier)
-              end
+              next unless instance&.running?
+
+              Logger.error "[ChannelsManager] Thread for #{identifier} died unexpectedly"
+              @instances.delete(identifier)
+              @threads.delete(identifier)
             end
 
             # Exit monitor if no more threads
@@ -281,7 +280,7 @@ module Botiasloop
     def handle_shutdown_signal(signal)
       # Defer to separate thread to avoid trap context limitations
       Thread.new do
-        @logger.info "[ChannelsManager] Received #{signal}, shutting down..."
+        Logger.info "[ChannelsManager] Received #{signal}, shutting down..."
         stop_all
 
         # Call original handler if it exists

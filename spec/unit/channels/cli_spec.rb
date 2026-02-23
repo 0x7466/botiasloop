@@ -78,7 +78,7 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
       allow(channel).to receive(:puts)
       allow(channel).to receive(:print)
-      allow(channel.instance_variable_get(:@logger)).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:info)
     end
 
     it "sets running to true" do
@@ -133,7 +133,7 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow($stdin).to receive(:gets).and_return(nil)
       allow(channel).to receive(:puts)
       allow(channel).to receive(:print)
-      allow(channel.instance_variable_get(:@logger)).to receive(:info)
+      allow(Botiasloop::Logger).to receive(:info)
 
       channel.start
       channel.stop
@@ -170,7 +170,7 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow(channel).to receive(:conversation_for).with("cli").and_return(conversation)
       allow(Botiasloop::Agent).to receive(:new).and_return(agent)
       allow(channel).to receive(:send_response)
-      allow(channel.instance_variable_get(:@logger)).to receive(:error)
+      allow(Botiasloop::Logger).to receive(:error)
     end
 
     it "processes non-command messages through agent" do
@@ -196,7 +196,7 @@ RSpec.describe Botiasloop::Channels::CLI do
     it "handles errors gracefully" do
       allow(agent).to receive(:chat).and_raise(StandardError.new("Test error"))
       expect(channel).to receive(:send_response).with("cli", /Error: Test error/)
-      expect(channel.instance_variable_get(:@logger)).to receive(:error).with(/Test error/)
+      expect(Botiasloop::Logger).to receive(:error).with(/Test error/)
       channel.process_message("cli", "Hello")
     end
   end
@@ -206,7 +206,7 @@ RSpec.describe Botiasloop::Channels::CLI do
 
     it "logs the error and sends response to user" do
       error = StandardError.new("Test error")
-      expect(channel.instance_variable_get(:@logger)).to receive(:error).with("[CLI] Error processing message: Test error")
+      expect(Botiasloop::Logger).to receive(:error).with("[CLI] Error processing message: Test error")
       expect(channel).to receive(:send_response).with("cli", "Error: Test error")
 
       channel.handle_error("cli", "cli", error, "Hello")

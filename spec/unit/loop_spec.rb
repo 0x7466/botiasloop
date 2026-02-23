@@ -8,15 +8,12 @@ RSpec.describe Botiasloop::Loop do
   let(:mock_registry) { double("registry") }
   let(:loop) { described_class.new(mock_provider, mock_model, mock_registry, max_iterations: 5) }
   let(:conversation) { instance_double(Botiasloop::Conversation) }
-  let(:logger) { instance_double(Logger) }
-
   before do
     allow(conversation).to receive(:add)
     allow(conversation).to receive(:history).and_return([])
     allow(conversation).to receive(:system_prompt).and_return("System prompt")
     allow(conversation).to receive(:verbose).and_return(false)
-    allow(Logger).to receive(:new).and_return(logger)
-    allow(logger).to receive(:info)
+    allow(Botiasloop::Logger).to receive(:info)
     allow(mock_registry).to receive(:schemas).and_return({})
   end
 
@@ -125,7 +122,7 @@ RSpec.describe Botiasloop::Loop do
       end
 
       it "logs the tool call" do
-        expect(logger).to receive(:info).with(/\[Tool\] Executing shell/)
+        expect(Botiasloop::Logger).to receive(:info).with(/\[Tool\] Executing shell/)
         loop.run(conversation, "Run echo hello")
       end
 

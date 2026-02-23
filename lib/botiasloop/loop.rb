@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "logger"
 require "json"
 
 module Botiasloop
@@ -20,7 +19,6 @@ module Botiasloop
       @registry = registry
       @max_iterations = max_iterations
       @config = config
-      @logger = Logger.new($stderr)
     end
 
     # Run the ReAct loop
@@ -109,7 +107,7 @@ module Botiasloop
     end
 
     def execute_tool(tool_call)
-      @logger.info "[Tool] Executing #{tool_call.name} with arguments: #{tool_call.arguments}"
+      Logger.info "[Tool] Executing #{tool_call.name} with arguments: #{tool_call.arguments}"
 
       if @conversation.verbose && @verbose_callback
         verbose_content = format_tool_message(tool_call)

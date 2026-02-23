@@ -303,16 +303,14 @@ RSpec.describe Botiasloop::ChannelsManager do
       end
 
       it "logs skipped channels" do
-        logger = instance_double(Logger)
-        allow(Logger).to receive(:new).and_return(logger)
-        allow(logger).to receive(:info)
-        allow(logger).to receive(:warn)
-        allow(logger).to receive(:error)
+        allow(Botiasloop::Logger).to receive(:info)
+        allow(Botiasloop::Logger).to receive(:warn)
+        allow(Botiasloop::Logger).to receive(:error)
 
         manager_with_logger = described_class.new(config)
         manager_with_logger.start_channels
 
-        expect(logger).to have_received(:warn).with(/Skipping.*missing_config_channel/)
+        expect(Botiasloop::Logger).to have_received(:warn).with(/Skipping.*missing_config_channel/)
       end
     end
 
@@ -322,17 +320,15 @@ RSpec.describe Botiasloop::ChannelsManager do
       end
 
       it "logs channel startup failures but does not stop other channels" do
-        logger = instance_double(Logger)
-        allow(Logger).to receive(:new).and_return(logger)
-        allow(logger).to receive(:info)
-        allow(logger).to receive(:warn)
-        allow(logger).to receive(:error)
+        allow(Botiasloop::Logger).to receive(:info)
+        allow(Botiasloop::Logger).to receive(:warn)
+        allow(Botiasloop::Logger).to receive(:error)
 
         manager_with_logger = described_class.new(config)
         manager_with_logger.start_channels
         sleep 0.2
 
-        expect(logger).to have_received(:error).with(/Channel failing_channel crashed/)
+        expect(Botiasloop::Logger).to have_received(:error).with(/Channel failing_channel crashed/)
         expect(manager_with_logger.instance(:channel_one)).to be_a(blocking_channel_class)
       end
     end

@@ -19,10 +19,7 @@ module Botiasloop
 
       label = new(config).generate_label(conversation)
 
-      if label
-        logger = Logger.new($stderr)
-        logger.info "[AutoLabel] Generated label '#{label}' for conversation #{conversation.uuid}"
-      end
+      Logger.info "[AutoLabel] Generated label '#{label}' for conversation #{conversation.uuid}" if label
 
       label
     end
@@ -40,8 +37,8 @@ module Botiasloop
       true
     end
 
-    def initialize(config)
-      @config = config
+    def initialize(config = nil)
+      @config = config || Config.instance
     end
 
     # Generate a label based on conversation content

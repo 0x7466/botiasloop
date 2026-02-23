@@ -8,6 +8,7 @@ module Botiasloop
   class Config < Anyway::Config
     attr_config \
       max_iterations: 20,
+      log_level: "info",
       tools: {
         web_search: {}
       },

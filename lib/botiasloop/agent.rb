@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "ruby_llm"
-require "logger"
 
 module Botiasloop
   class Agent
@@ -10,7 +9,6 @@ module Botiasloop
     # @param config [Config, nil] Configuration instance (loads default if nil)
     def initialize(config = nil)
       @config = config || Config.new
-      @logger = Logger.new($stderr)
       setup_ruby_llm
     end
 

@@ -2,7 +2,6 @@
 
 require "json"
 require "fileutils"
-require "logger"
 
 module Botiasloop
   module Channels
@@ -41,7 +40,6 @@ module Botiasloop
       # @raise [Error] If required configuration is missing
       def initialize(config)
         @config = config
-        @logger = Logger.new($stderr)
 
         validate_required_config!
       end
@@ -170,7 +168,7 @@ module Botiasloop
       # @param user_id [String] User ID that was denied
       # @param raw_message [Object] Raw message object
       def handle_unauthorized(source_id, user_id, _raw_message)
-        @logger.warn "[#{self.class.channel_identifier}] Unauthorized access from #{user_id} (source: #{source_id})"
+        Logger.warn "[#{self.class.channel_identifier}] Unauthorized access from #{user_id} (source: #{source_id})"
       end
 
       # Handle errors during message processing
@@ -181,7 +179,7 @@ module Botiasloop
       # @param error [Exception] The error that occurred
       # @param raw_message [Object] Raw message object
       def handle_error(_source_id, _user_id, error, _raw_message)
-        @logger.error "[#{self.class.channel_identifier}] Error processing message: #{error.message}"
+        Logger.error "[#{self.class.channel_identifier}] Error processing message: #{error.message}"
         raise error
       end
 

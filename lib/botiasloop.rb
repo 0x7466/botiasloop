@@ -2,6 +2,7 @@
 
 require_relative "botiasloop/version"
 require_relative "botiasloop/config"
+require_relative "botiasloop/logger"
 require_relative "botiasloop/database"
 
 require_relative "botiasloop/conversation"
