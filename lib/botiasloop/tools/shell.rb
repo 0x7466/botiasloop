@@ -13,9 +13,14 @@ module Botiasloop
       #
       # @param command [String] Shell command to execute
       # @return [Hash] Result with stdout, stderr, exit_code, and success?
+      # @raise [Botiasloop::Error] When command execution fails
       def execute(command:)
         stdout, stderr, status = Open3.capture3(command)
         Result.new(stdout, stderr, status.exitstatus).to_h
+      rescue Errno::ENOENT => e
+        raise Error, "Command not found: #{e.message}"
+      rescue Errno::EACCES => e
+        raise Error, "Permission denied: #{e.message}"
       end
 
       # Result wrapper for shell execution

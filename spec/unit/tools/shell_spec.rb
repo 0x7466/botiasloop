@@ -36,6 +36,16 @@ RSpec.describe Botiasloop::Tools::Shell do
       result = tool.execute(command: "printf 'line1\nline2\n'")
       expect(result[:stdout]).to eq("line1\nline2\n")
     end
+
+    it "raises Botiasloop::Error when command is not found" do
+      allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT, "No such file or directory - nonexistent_command")
+      expect { tool.execute(command: "nonexistent_command") }.to raise_error(Botiasloop::Error, /Command not found/)
+    end
+
+    it "raises Botiasloop::Error when permission is denied" do
+      allow(Open3).to receive(:capture3).and_raise(Errno::EACCES, "Permission denied")
+      expect { tool.execute(command: "/root/secret") }.to raise_error(Botiasloop::Error, /Permission denied/)
+    end
   end
 
   describe "Result" do
