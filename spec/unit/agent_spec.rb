@@ -122,5 +122,23 @@ RSpec.describe Botiasloop::Agent do
         agent_without_web_search.chat("Hello")
       end
     end
+
+    context "with different providers" do
+      # Note: We test that providers are configured correctly in config_spec.rb
+      # Here we just verify the Agent properly uses whatever provider is active
+
+      it "uses the active provider's model" do
+        allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
+        allow(Botiasloop::Loop).to receive(:new).and_return(mock_loop)
+        allow(conversation).to receive(:uuid).and_return("test-uuid")
+        allow(RubyLLM::Models).to receive(:find).and_return(mock_model)
+        allow(RubyLLM::Provider).to receive(:for).and_return(mock_provider_class)
+        allow(mock_provider_class).to receive(:new).and_return(mock_provider)
+        allow(mock_loop).to receive(:run).and_return("response")
+
+        expect(RubyLLM::Models).to receive(:find).with("test/model").and_return(mock_model)
+        agent.chat("Hello")
+      end
+    end
   end
 end

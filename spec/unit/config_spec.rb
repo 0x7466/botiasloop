@@ -138,4 +138,190 @@ RSpec.describe Botiasloop::Config do
       end
     end
   end
+
+  describe "#active_provider" do
+    it "returns openrouter as default when no providers have api_key" do
+      config = described_class.new({
+        "providers" => {
+          "openrouter" => {
+            "model" => "moonshotai/kimi-k2.5"
+          }
+        }
+      })
+      name, provider_config = config.active_provider
+      expect(name).to eq("openrouter")
+      expect(provider_config["model"]).to eq("moonshotai/kimi-k2.5")
+    end
+
+    it "returns first provider with api_key" do
+      config = described_class.new({
+        "providers" => {
+          "openrouter" => {
+            "api_key" => "openrouter-key",
+            "model" => "moonshotai/kimi-k2.5"
+          },
+          "openai" => {
+            "api_key" => "openai-key",
+            "model" => "gpt-5-nano"
+          }
+        }
+      })
+      name, provider_config = config.active_provider
+      expect(name).to eq("openrouter")
+      expect(provider_config["api_key"]).to eq("openrouter-key")
+    end
+
+    it "returns openai when only openai has api_key" do
+      config = described_class.new({
+        "providers" => {
+          "openrouter" => {
+            "model" => "moonshotai/kimi-k2.5"
+          },
+          "openai" => {
+            "api_key" => "openai-key",
+            "model" => "gpt-5-nano"
+          }
+        }
+      })
+      name, provider_config = config.active_provider
+      expect(name).to eq("openai")
+      expect(provider_config["api_key"]).to eq("openai-key")
+    end
+
+    context "with local providers (ollama, gpustack)" do
+      it "returns ollama without api_key" do
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "model" => "moonshotai/kimi-k2.5"
+            },
+            "ollama" => {
+              "api_base" => "http://localhost:11434/v1",
+              "model" => "llama3.2"
+            }
+          }
+        })
+        name, provider_config = config.active_provider
+        expect(name).to eq("ollama")
+        expect(provider_config["api_base"]).to eq("http://localhost:11434/v1")
+      end
+
+      it "returns gpustack without api_key when api_base is set" do
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "model" => "moonshotai/kimi-k2.5"
+            },
+            "gpustack" => {
+              "api_base" => "http://gpustack:8080/v1",
+              "model" => "llama3.2"
+            }
+          }
+        })
+        name, provider_config = config.active_provider
+        expect(name).to eq("gpustack")
+        expect(provider_config["api_base"]).to eq("http://gpustack:8080/v1")
+      end
+    end
+
+    context "with various cloud providers" do
+      %w[anthropic gemini deepseek mistral perplexity].each do |provider|
+        it "returns #{provider} when configured with api_key" do
+          config = described_class.new({
+            "providers" => {
+              "openrouter" => {
+                "model" => "moonshotai/kimi-k2.5"
+              },
+              provider => {
+                "api_key" => "#{provider}-key",
+                "model" => "test-model"
+              }
+            }
+          })
+          name, provider_config = config.active_provider
+          expect(name).to eq(provider)
+          expect(provider_config["api_key"]).to eq("#{provider}-key")
+        end
+      end
+    end
+
+    context "with vertexai (GCP) provider" do
+      it "returns vertexai when configured with project_id" do
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "model" => "moonshotai/kimi-k2.5"
+            },
+            "vertexai" => {
+              "project_id" => "my-gcp-project",
+              "location" => "us-central1",
+              "model" => "gemini-1.5-flash"
+            }
+          }
+        })
+        name, provider_config = config.active_provider
+        expect(name).to eq("vertexai")
+        expect(provider_config["project_id"]).to eq("my-gcp-project")
+      end
+    end
+
+    context "with bedrock (AWS) provider" do
+      it "returns bedrock when configured with api_key and region" do
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "model" => "moonshotai/kimi-k2.5"
+            },
+            "bedrock" => {
+              "api_key" => "aws-access-key",
+              "secret_key" => "aws-secret-key",
+              "region" => "us-east-1",
+              "model" => "claude-3-5-sonnet"
+            }
+          }
+        })
+        name, provider_config = config.active_provider
+        expect(name).to eq("bedrock")
+        expect(provider_config["api_key"]).to eq("aws-access-key")
+      end
+    end
+
+    context "with azure provider" do
+      it "returns azure when configured with api_base and api_key" do
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "model" => "moonshotai/kimi-k2.5"
+            },
+            "azure" => {
+              "api_base" => "https://myproject.openai.azure.com",
+              "api_key" => "azure-api-key",
+              "model" => "gpt-5-nano"
+            }
+          }
+        })
+        name, provider_config = config.active_provider
+        expect(name).to eq("azure")
+        expect(provider_config["api_base"]).to eq("https://myproject.openai.azure.com")
+      end
+
+      it "returns azure when configured with api_base and ai_auth_token" do
+        config = described_class.new({
+          "providers" => {
+            "openrouter" => {
+              "model" => "moonshotai/kimi-k2.5"
+            },
+            "azure" => {
+              "api_base" => "https://myproject.openai.azure.com",
+              "ai_auth_token" => "azure-auth-token",
+              "model" => "gpt-5-nano"
+            }
+          }
+        })
+        name, provider_config = config.active_provider
+        expect(name).to eq("azure")
+        expect(provider_config["ai_auth_token"]).to eq("azure-auth-token")
+      end
+    end
+  end
 end
