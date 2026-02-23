@@ -232,7 +232,7 @@ module Botiasloop
       <<~SERVICE
         [Unit]
         Description=botiasloop - AI Agent Gateway
-        Documentation=https://github.com/anomalyco/botiasloop
+        Documentation=https://github.com/0x7466/botiasloop
         After=network.target
 
         [Service]
