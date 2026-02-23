@@ -10,10 +10,10 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#initialize" do
-    context "with no uuid provided" do
-      it "generates a new uuid" do
+    context "with no id provided" do
+      it "generates a new human-readable id" do
         conversation = described_class.new
-        expect(conversation.uuid).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
+        expect(conversation.uuid).to match(/\A[a-z]+(-[a-z]+)+-[0-9]{3}\z/)
       end
 
       it "creates a new conversation in the database" do
@@ -25,16 +25,16 @@ RSpec.describe Botiasloop::Conversation do
       end
     end
 
-    context "with uuid provided" do
-      it "uses the provided uuid when conversation exists" do
+    context "with id provided" do
+      it "uses the provided id when conversation exists" do
         # Create a conversation first
         model = described_class.create(user_id: "test")
         conversation = described_class[model.id]
-        expect(conversation.uuid).to eq(model.id)
+        expect(conversation.id).to eq(model.id)
       end
 
       it "returns nil when conversation does not exist" do
-        conversation = described_class["nonexistent-uuid"]
+        conversation = described_class["nonexistent-id-999"]
         expect(conversation).to be_nil
       end
     end

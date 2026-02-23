@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "securerandom"
 require "time"
 
 module Botiasloop
@@ -42,9 +41,9 @@ module Botiasloop
     # Allow setting primary key (id) for UUID
     unrestrict_primary_key
 
-    # Auto-generate UUID before creation if not provided
+    # Auto-generate human-readable ID before creation if not provided
     def before_create
-      self.id ||= SecureRandom.uuid
+      self.id ||= HumanId.generate
       super
     end
 
@@ -127,10 +126,10 @@ module Botiasloop
       messages_dataset.order(:timestamp).map(&:to_hash)
     end
 
-    # @return [String] UUID of the conversation
+    # @return [String] Human-readable ID of the conversation
     def uuid
       # Return existing id or generate a new one for unsaved records
-      self.id ||= SecureRandom.uuid
+      self.id ||= HumanId.generate
     end
 
     # Reset conversation - clear all messages and reset token counts

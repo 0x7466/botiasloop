@@ -23,24 +23,27 @@ module Botiasloop
         end
       end
 
-      # Switch a user to a different conversation by label or UUID
+      # Switch a user to a different conversation by label or ID
       # Auto-unarchives archived conversations when switching to them
       #
       # @param user_id [String] User identifier
-      # @param identifier [String] Conversation label or UUID to switch to
+      # @param identifier [String] Conversation label or ID to switch to
       # @return [Conversation] The switched-to conversation
       # @raise [Error] If conversation with given identifier doesn't exist
       def switch(user_id, identifier)
         user_key = user_id.to_s
         identifier = identifier.to_s.strip
 
-        raise Error, "Usage: /switch <label-or-uuid>" if identifier.empty?
+        raise Error, "Usage: /switch <label-or-id>" if identifier.empty?
 
         # First try to find by label (include archived)
         conversation = Conversation.where(user_id: user_key, label: identifier).first
 
-        # If not found by label, treat as UUID (include archived)
-        conversation ||= Conversation.find(id: identifier, user_id: user_key)
+        # If not found by label, treat as ID (case-insensitive, include archived)
+        unless conversation
+          normalized_id = HumanId.normalize(identifier)
+          conversation = Conversation.where(user_id: user_key).find { |c| HumanId.normalize(c.id) == normalized_id }
+        end
 
         raise Error, "Conversation '#{identifier}' not found" unless conversation
 
@@ -107,21 +110,21 @@ module Botiasloop
 
       # Get the label for a conversation
       #
-      # @param uuid [String] Conversation UUID
+      # @param id [String] Conversation ID
       # @return [String, nil] Label value or nil
-      def label(uuid)
-        conversation = Conversation.find(id: uuid)
+      def label(id)
+        conversation = Conversation.find(id: id)
         conversation&.label
       end
 
       # Set the label for a conversation
       #
-      # @param uuid [String] Conversation UUID
+      # @param id [String] Conversation ID
       # @param value [String] Label value
       # @return [String] The label value
       # @raise [Error] If label format is invalid or already in use
-      def set_label(uuid, value)
-        conversation = Conversation.find(id: uuid)
+      def set_label(id, value)
+        conversation = Conversation.find(id: id)
         raise Error, "Conversation not found" unless conversation
 
         # Validate label format
@@ -131,14 +134,14 @@ module Botiasloop
 
         # Check uniqueness per user (excluding current conversation)
         user_id = conversation.user_id
-        if value && !value.to_s.empty? && label_exists?(user_id, value, exclude_uuid: uuid)
+        if value && !value.to_s.empty? && label_exists?(user_id, value, exclude_id: id)
           raise Error, "Label '#{value}' already in use by another conversation"
         end
 
         # Allow empty string to be treated as nil (clearing the label)
         value = nil if value.to_s.empty?
 
-        Conversation.where(id: uuid).update(label: value)
+        Conversation.where(id: id).update(label: value)
         value
       end
 
@@ -146,13 +149,13 @@ module Botiasloop
       #
       # @param user_id [String] User identifier
       # @param label [String] Label to check
-      # @param exclude_uuid [String, nil] UUID to exclude from check
+      # @param exclude_id [String, nil] ID to exclude from check
       # @return [Boolean] True if label exists for user
-      def label_exists?(user_id, label, exclude_uuid: nil)
+      def label_exists?(user_id, label, exclude_id: nil)
         return false unless label
 
         query = Conversation.where(user_id: user_id.to_s, label: label)
-        query = query.exclude(id: exclude_uuid) if exclude_uuid
+        query = query.exclude(id: exclude_id) if exclude_id
         query.count > 0
       end
 
@@ -161,20 +164,20 @@ module Botiasloop
       #
       # @param user_id [String] User identifier
       # @param archived [Boolean, nil] Filter by archived status (nil = all, true = archived only, false = unarchived only)
-      # @return [Array<Hash>] Array of {uuid, label, updated_at} hashes
+      # @return [Array<Hash>] Array of {id, label, updated_at} hashes
       def list_by_user(user_id, archived: false)
         dataset = Conversation.where(user_id: user_id.to_s)
         dataset = dataset.where(archived: archived) unless archived.nil?
         dataset.order(Sequel.desc(:updated_at)).all.map do |conv|
-          {uuid: conv.id, label: conv.label, updated_at: conv.updated_at}
+          {id: conv.id, label: conv.label, updated_at: conv.updated_at}
         end
       end
 
-      # Find conversation UUID by label for a user
+      # Find conversation ID by label for a user
       #
       # @param user_id [String] User identifier
       # @param label [String] Label to search for
-      # @return [String, nil] UUID or nil if not found
+      # @return [String, nil] ID or nil if not found
       def find_by_label(user_id, label)
         conversation = Conversation.where(user_id: user_id.to_s, label: label).first
         conversation&.id
@@ -207,14 +210,21 @@ module Botiasloop
             new_conversation: new_conversation
           }
         else
-          # Archive by label or UUID
+          # Archive by label or ID (case-insensitive)
           conversation = Conversation.where(user_id: user_key, label: identifier).first
-          conversation ||= Conversation.find(id: identifier, user_id: user_key)
+
+          unless conversation
+            normalized_id = HumanId.normalize(identifier)
+            conversation = Conversation.where(user_id: user_key).find { |c| HumanId.normalize(c.id) == normalized_id }
+          end
 
           raise Error, "Conversation '#{identifier}' not found" unless conversation
 
           # Cannot archive current conversation (must use archive without args)
-          raise Error, "Cannot archive the current conversation. Use /archive without arguments to archive current and start new." if conversation.is_current
+          if conversation.is_current
+            raise Error,
+              "Cannot archive the current conversation. Use /archive without arguments to archive current and start new."
+          end
 
           conversation.update(archived: true, is_current: false)
           {archived: Conversation[conversation.id]}

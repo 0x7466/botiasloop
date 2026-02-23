@@ -21,15 +21,15 @@ RSpec.describe Botiasloop::Conversation do
       expect(conversation.valid?).to be false
     end
 
-    it "generates a UUID if not provided" do
+    it "generates a human-readable ID if not provided" do
       conversation = described_class.new(user_id: "user1")
       conversation.save
-      expect(conversation.id).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
+      expect(conversation.id).to match(/\A[a-z]+(-[a-z]+)+-[0-9]{3}\z/)
     end
 
-    it "allows custom UUID" do
-      conversation = described_class.new(id: "custom-uuid", user_id: "user1")
-      expect(conversation.id).to eq("custom-uuid")
+    it "allows custom ID" do
+      conversation = described_class.new(id: "custom-convo-123", user_id: "user1")
+      expect(conversation.id).to eq("custom-convo-123")
     end
   end
 

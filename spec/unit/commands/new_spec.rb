@@ -24,7 +24,7 @@ RSpec.describe Botiasloop::Commands::New do
 
   describe "#execute" do
     it "returns a string message" do
-      allow(SecureRandom).to receive(:uuid).and_return("new-uuid-456")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
       original_conversation = Botiasloop::Conversation.new
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
 
@@ -34,7 +34,7 @@ RSpec.describe Botiasloop::Commands::New do
     end
 
     it "updates context.conversation to a new conversation" do
-      allow(SecureRandom).to receive(:uuid).and_return("new-uuid-456")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
       original_conversation = Botiasloop::Conversation.new
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
 
@@ -42,29 +42,29 @@ RSpec.describe Botiasloop::Commands::New do
 
       expect(context.conversation).not_to eq(original_conversation)
       expect(context.conversation).to be_a(Botiasloop::Conversation)
-      expect(context.conversation.uuid).to eq("new-uuid-456")
+      expect(context.conversation.uuid).to eq("blue-dog-456")
     end
 
     it "returns message with new conversation UUID" do
-      allow(SecureRandom).to receive(:uuid).and_return("new-uuid-456")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
       original_conversation = Botiasloop::Conversation.new
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
 
       result = command.execute(context)
 
-      expect(result).to include("new-uuid-456")
+      expect(result).to include("blue-dog-456")
       expect(result).to include("New conversation started")
       expect(result).to include("/switch")
     end
 
     it "includes instructions to switch back" do
-      allow(SecureRandom).to receive(:uuid).and_return("test-uuid")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("red-cat-789")
       original_conversation = Botiasloop::Conversation.new
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
 
       result = command.execute(context)
 
-      expect(result).to match(%r{use `/switch test-uuid` to return later}i)
+      expect(result).to match(%r{use `/switch red-cat-789` to return later}i)
     end
 
     it "context.conversation has a different UUID than the original" do

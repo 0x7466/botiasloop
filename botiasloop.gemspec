@@ -19,18 +19,19 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "ruby_llm", "~> 1.12.1"
-  spec.add_dependency "telegram-bot-ruby", "~> 2.5"
-  spec.add_dependency "redcarpet", "~> 3.6"
   spec.add_dependency "anyway_config", "~> 2.8"
+  spec.add_dependency "ffaker", "~> 2.25.0"
+  spec.add_dependency "redcarpet", "~> 3.6"
+  spec.add_dependency "ruby_llm", "~> 1.12.1"
   spec.add_dependency "sequel", "~> 5.101"
   spec.add_dependency "sqlite3", "~> 2.9"
+  spec.add_dependency "telegram-bot-ruby", "~> 2.5"
 
   # Development dependencies
+  spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.13.2"
+  spec.add_development_dependency "simplecov", "~> 0.22.0"
+  spec.add_development_dependency "standard", "~> 1.54.0"
   spec.add_development_dependency "vcr", "~> 6.4.0"
   spec.add_development_dependency "webmock", "~> 3.26.1"
-  spec.add_development_dependency "standard", "~> 1.54.0"
-  spec.add_development_dependency "simplecov", "~> 0.22.0"
-  spec.add_development_dependency "rake", "~> 13.0"
 end
