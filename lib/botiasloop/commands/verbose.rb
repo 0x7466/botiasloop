@@ -5,7 +5,7 @@ module Botiasloop
     # Verbose command - controls verbose mode for tool call output
     class Verbose < Base
       command :verbose
-      description "Toggle verbose mode (tool call output). Usage: /verbose [on|off]"
+      description "Toggle verbose mode (shows reasoning and tool calls). Usage: /verbose [on|off]"
 
       def execute(context, args = nil)
         conversation = context.conversation

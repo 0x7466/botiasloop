@@ -46,6 +46,12 @@ module Botiasloop
         total_output_tokens += response.output_tokens || 0
 
         if response.tool_call?
+          # Send reasoning to verbose callback if verbose mode enabled
+          if @conversation.verbose && @verbose_callback && response.content && !response.content.empty?
+            reasoning_content = format_reasoning_message(response.content)
+            @verbose_callback.call(reasoning_content)
+          end
+
           # Add the assistant's message with tool_calls first
           messages << response
 
@@ -123,6 +129,18 @@ module Botiasloop
         retry if retries < MAX_TOOL_RETRIES
         "Error: #{e.message}"
       end
+    end
+
+    def format_reasoning_message(content)
+      reasoning_msg = "💭 **Reasoning**"
+
+      if content && !content.empty?
+        reasoning_display = content.to_s
+        reasoning_display = reasoning_display[0..500] + "..." if reasoning_display.length > 500
+        reasoning_msg += "```\n#{reasoning_display}\n```"
+      end
+
+      reasoning_msg
     end
 
     def format_tool_message(tool_call)

@@ -20,7 +20,7 @@ RSpec.describe Botiasloop::Commands::Verbose do
 
   describe ".description" do
     it "returns command description" do
-      expect(described_class.description).to eq("Toggle verbose mode (tool call output). Usage: /verbose [on|off]")
+      expect(described_class.description).to eq("Toggle verbose mode (shows reasoning and tool calls). Usage: /verbose [on|off]")
     end
   end
 
