@@ -209,6 +209,21 @@ module Botiasloop
       }
     end
 
+    # Display service logs using journalctl
+    #
+    # @param follow [Boolean] Whether to follow logs in real-time (tail -f mode)
+    # @param lines [Integer] Number of lines to show (default: 50)
+    # @raise [SystemdError] If systemd is not available
+    # @return [Boolean] True on success
+    def logs(follow: false, lines: 50)
+      raise SystemdError, "systemd is not available on this system" unless systemd_available?
+
+      args = ["--user", "-u", SERVICE_NAME, "-n", lines.to_s]
+      args << (follow ? "-f" : "--no-pager")
+
+      system("journalctl", *args)
+    end
+
     private
 
     # Get the systemd user directory path

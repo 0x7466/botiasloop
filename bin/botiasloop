@@ -22,8 +22,13 @@ def print_help
   puts "  stop             Stop the systemd service"
   puts "  restart          Restart the systemd service"
   puts "  status           Show systemd service status"
+  puts "  logs             Show service logs (journalctl)"
   puts "  enable           Install and enable systemd service (auto-start on login)"
   puts "  disable          Disable and uninstall systemd service"
+  puts
+  puts "Logs Options:"
+  puts "  -f, --follow     Follow log output in real-time"
+  puts "  -n, --lines N    Show last N lines (default: 50)"
 end
 
 def start_gateway(config)
@@ -97,6 +102,51 @@ elsif ARGV[0] == "gateway"
       status = service.status
       puts "Service status: #{status[:message]}"
       exit(status[:active] ? 0 : 1)
+    else
+      puts "Error: systemd is not available on this system"
+      exit 1
+    end
+  elsif ARGV[1] == "logs"
+    service = Botiasloop::SystemdService.new(config)
+    if service.systemd_available?
+      # Parse logs options
+      follow = false
+      lines = 50
+
+      # Parse arguments from ARGV[2..] to support both -n 100 and --lines 100 formats
+      i = 2
+      while i < ARGV.length
+        arg = ARGV[i]
+
+        if arg == "-f" || arg == "--follow"
+          follow = true
+          i += 1
+        elsif arg == "-n" || arg == "--lines"
+          if i + 1 >= ARGV.length
+            puts "Error: #{arg} requires a value"
+            exit 1
+          end
+
+          lines_str = ARGV[i + 1]
+          unless lines_str.match(/^\d+$/)
+            puts "Error: Invalid number of lines: #{lines_str}"
+            exit 1
+          end
+
+          lines = lines_str.to_i
+          i += 2
+        else
+          puts "Unknown option: #{arg}"
+          exit 1
+        end
+      end
+
+      begin
+        service.logs(follow: follow, lines: lines)
+      rescue Botiasloop::SystemdError => e
+        puts "Error: #{e.message}"
+        exit 1
+      end
     else
       puts "Error: systemd is not available on this system"
       exit 1
