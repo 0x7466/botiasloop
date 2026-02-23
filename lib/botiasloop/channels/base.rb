@@ -51,14 +51,14 @@ module Botiasloop
 
       # Start the channel and begin listening for messages
       # @raise [NotImplementedError] Subclass must implement
-      def start
-        raise NotImplementedError, "Subclass must implement #start"
+      def start_listening
+        raise NotImplementedError, "Subclass must implement #start_listening"
       end
 
       # Stop the channel and cleanup
       # @raise [NotImplementedError] Subclass must implement
-      def stop
-        raise NotImplementedError, "Subclass must implement #stop"
+      def stop_listening
+        raise NotImplementedError, "Subclass must implement #stop_listening"
       end
 
       # Check if the channel is currently running

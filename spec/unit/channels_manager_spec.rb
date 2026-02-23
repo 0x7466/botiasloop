@@ -34,7 +34,7 @@ RSpec.describe Botiasloop::ChannelsManager do
         @thread_id = nil
       end
 
-      def start
+      def start_listening
         @started = true
         @running = true
         @thread_id = Thread.current.object_id
@@ -42,7 +42,7 @@ RSpec.describe Botiasloop::ChannelsManager do
         sleep 0.1 while @running
       end
 
-      def stop
+      def stop_listening
         @stopped = true
         @running = false
       end
@@ -72,14 +72,14 @@ RSpec.describe Botiasloop::ChannelsManager do
         @thread_id = nil
       end
 
-      def start
+      def start_listening
         @started = true
         @running = true
         @thread_id = Thread.current.object_id
         sleep 0.1 while @running
       end
 
-      def stop
+      def stop_listening
         @stopped = true
         @running = false
       end
@@ -108,13 +108,13 @@ RSpec.describe Botiasloop::ChannelsManager do
         @running = false
       end
 
-      def start
+      def start_listening
         @started = true
         @running = true
         sleep 0.1 while @running
       end
 
-      def stop
+      def stop_listening
         @stopped = true
         @running = false
       end
@@ -138,8 +138,12 @@ RSpec.describe Botiasloop::ChannelsManager do
         super
       end
 
-      def start
+      def start_listening
         raise Botiasloop::Error, "Channel startup failed"
+      end
+
+      def stop_listening
+        # noop
       end
 
       def stop
@@ -165,11 +169,11 @@ RSpec.describe Botiasloop::ChannelsManager do
         super
       end
 
-      def start
+      def start_listening
         @running = true
       end
 
-      def stop
+      def stop_listening
         @running = false
       end
 
@@ -197,10 +201,14 @@ RSpec.describe Botiasloop::ChannelsManager do
         @mutex = Mutex.new
       end
 
-      def start
+      def start_listening
         sleep 0.05
         @mutex.synchronize { @crashed = true }
         raise "Crashed during operation"
+      end
+
+      def stop_listening
+        @stopped = true
       end
 
       def stop
@@ -222,13 +230,13 @@ RSpec.describe Botiasloop::ChannelsManager do
     # Clear singleton registry before each test
     Botiasloop::Channels.instance_variable_set(:@registry, nil)
     # Clear manager state
-    manager.stop_all if manager.running?
+    manager.stop_listening if manager.running?
   end
 
   after do
     Botiasloop::Config.instance = nil
     # Ensure all threads are cleaned up
-    manager.stop_all if manager.running?
+    manager.stop_listening if manager.running?
   end
 
   describe "#initialize" do
@@ -241,14 +249,14 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
   end
 
-  describe "#start_channels" do
+  describe "#start_listening" do
     before do
       Botiasloop::Channels.registry.register(blocking_channel_class)
       Botiasloop::Channels.registry.register(channel_two_class)
     end
 
     it "starts all configured channels in separate threads" do
-      manager.start_channels
+      manager.start_listening
 
       # Give threads time to start
       sleep 0.2
@@ -258,7 +266,7 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "stores channel instances" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       expect(manager.instance(:channel_one)).to be_a(blocking_channel_class)
@@ -266,7 +274,7 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "runs each channel in a different thread" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       channel_one = manager.instance(:channel_one)
@@ -277,14 +285,14 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "returns self for method chaining" do
-      expect(manager.start_channels).to eq(manager)
+      expect(manager.start_listening).to eq(manager)
     end
 
     it "raises error if already running" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
-      expect { manager.start_channels }.to raise_error(Botiasloop::Error, /already running/)
+      expect { manager.start_listening }.to raise_error(Botiasloop::Error, /already running/)
     end
 
     context "with missing configuration" do
@@ -293,7 +301,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       end
 
       it "skips channels with missing required configuration" do
-        manager.start_channels
+        manager.start_listening
         sleep 0.2
 
         expect(manager.instance(:channel_one)).to be_a(blocking_channel_class)
@@ -306,7 +314,7 @@ RSpec.describe Botiasloop::ChannelsManager do
         allow(Botiasloop::Logger).to receive(:error)
 
         manager_with_logger = described_class.new
-        manager_with_logger.start_channels
+        manager_with_logger.start_listening
 
         expect(Botiasloop::Logger).to have_received(:warn).with(/Skipping.*missing_config_channel/)
       end
@@ -323,7 +331,7 @@ RSpec.describe Botiasloop::ChannelsManager do
         allow(Botiasloop::Logger).to receive(:error)
 
         manager_with_logger = described_class.new
-        manager_with_logger.start_channels
+        manager_with_logger.start_listening
         sleep 0.2
 
         expect(Botiasloop::Logger).to have_received(:error).with(/Channel failing_channel crashed/)
@@ -337,7 +345,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       end
 
       it "logs thread crashes but does not affect other channels" do
-        manager.start_channels
+        manager.start_listening
         sleep 0.3
 
         # Check that the crashing channel was detected and logged
@@ -351,20 +359,20 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
   end
 
-  describe "#stop_all" do
+  describe "#stop_listening" do
     before do
       Botiasloop::Channels.registry.register(blocking_channel_class)
       Botiasloop::Channels.registry.register(channel_two_class)
     end
 
     it "stops all running channels" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       channel_one = manager.instance(:channel_one)
       channel_two = manager.instance(:channel_two)
 
-      manager.stop_all
+      manager.stop_listening
 
       expect(channel_one.stopped).to be true
       expect(channel_two.stopped).to be true
@@ -372,20 +380,20 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "cleans up thread references" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
-      manager.stop_all
+      manager.stop_listening
 
       expect(manager.thread_count).to eq(0)
     end
 
     it "handles already stopped channels gracefully" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
-      manager.stop_all
+      manager.stop_listening
 
-      expect { manager.stop_all }.not_to raise_error
+      expect { manager.stop_listening }.not_to raise_error
     end
 
     it "handles channels without stop method errors" do
@@ -403,13 +411,13 @@ RSpec.describe Botiasloop::ChannelsManager do
           @running = false
         end
 
-        def start
+        def start_listening
           @started = true
           @running = true
           sleep 0.1 while @running
         end
 
-        def stop
+        def stop_listening
           @stopped = true
           raise "Stop failed"
         end
@@ -436,13 +444,13 @@ RSpec.describe Botiasloop::ChannelsManager do
           @running = false
         end
 
-        def start
+        def start_listening
           @started = true
           @running = true
           sleep 0.1 while @running
         end
 
-        def stop
+        def stop_listening
           @stopped = true
           @running = false
         end
@@ -468,16 +476,16 @@ RSpec.describe Botiasloop::ChannelsManager do
       })
       Botiasloop::Config.instance = partial_config
       manager_with_bad = described_class.new
-      manager_with_bad.start_channels
+      manager_with_bad.start_listening
       sleep 0.2
 
       # Verify channels are running before stop
       expect(manager_with_bad.instance(:good_channel).running?).to be true
 
       # Stop all should not raise even though bad_stop_channel fails
-      expect { manager_with_bad.stop_all }.not_to raise_error
+      expect { manager_with_bad.stop_listening }.not_to raise_error
 
-      # After stop_all, both should be stopped (instances cleared, but we can verify
+      # After stop_listening, both should be stopped (instances cleared, but we can verify
       # by checking that the thread was stopped via the timeout/force-kill path)
       expect(manager_with_bad.running?).to be false
     end
@@ -493,16 +501,16 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "returns true when channels are running" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       expect(manager.running?).to be true
     end
 
     it "returns false after all channels are stopped" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
-      manager.stop_all
+      manager.stop_listening
 
       expect(manager.running?).to be false
     end
@@ -515,7 +523,7 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "returns status for a specific channel" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       status = manager.channel_status(:channel_one)
@@ -533,7 +541,7 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "returns running: false for stopped channels" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       # Get status while running first
@@ -541,10 +549,10 @@ RSpec.describe Botiasloop::ChannelsManager do
       expect(running_status[:running]).to be true
       expect(running_status[:thread_alive]).to be true
 
-      manager.stop_all
+      manager.stop_listening
 
       status = manager.channel_status(:channel_one)
-      expect(status).to be_nil # Instances are cleared after stop_all
+      expect(status).to be_nil # Instances are cleared after stop_listening
     end
   end
 
@@ -555,7 +563,7 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "returns status for all channels" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       statuses = manager.all_statuses
@@ -575,8 +583,8 @@ RSpec.describe Botiasloop::ChannelsManager do
       Botiasloop::Channels.registry.register(blocking_channel_class)
     end
 
-    it "blocks until stop_all is called" do
-      manager.start_channels
+    it "blocks until stop_listening is called" do
+      manager.start_listening
       sleep 0.2
 
       wait_thread = Thread.new { manager.wait }
@@ -584,7 +592,7 @@ RSpec.describe Botiasloop::ChannelsManager do
 
       expect(wait_thread.alive?).to be true
 
-      manager.stop_all
+      manager.stop_listening
       sleep 0.2
 
       expect(wait_thread.alive?).to be false
@@ -610,16 +618,16 @@ RSpec.describe Botiasloop::ChannelsManager do
     end
 
     it "returns the number of active threads" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       expect(manager.thread_count).to eq(2)
     end
 
     it "updates when channels stop" do
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
-      manager.stop_all
+      manager.stop_listening
 
       expect(manager.thread_count).to eq(0)
     end
@@ -630,12 +638,12 @@ RSpec.describe Botiasloop::ChannelsManager do
       Botiasloop::Channels.registry.register(blocking_channel_class)
     end
 
-    it "sets up signal handlers on start_channels" do
+    it "sets up signal handlers on start_listening" do
       expect(Signal).to receive(:trap).with("INT")
       expect(Signal).to receive(:trap).with("TERM")
 
-      manager.start_channels
-      manager.stop_all
+      manager.start_listening
+      manager.stop_listening
     end
 
     it "handles shutdown signals gracefully", :skip do
@@ -661,13 +669,13 @@ RSpec.describe Botiasloop::ChannelsManager do
           @mutex = Mutex.new
         end
 
-        def start
+        def start_listening
           sleep 0.05
           @mutex.synchronize { @crashed = true }
           raise "Crashed during operation"
         end
 
-        def stop
+        def stop_listening
           @stopped = true
         end
 
@@ -695,13 +703,13 @@ RSpec.describe Botiasloop::ChannelsManager do
           @running = false
         end
 
-        def start
+        def start_listening
           @started = true
           @running = true
           sleep 0.1 while @running
         end
 
-        def stop
+        def stop_listening
           @stopped = true
           @running = false
         end
@@ -731,7 +739,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       })
       Botiasloop::Config.instance = isolation_config
       isolation_manager = described_class.new
-      isolation_manager.start_channels
+      isolation_manager.start_listening
       sleep 0.3
 
       # crash_test_channel crashes after 0.05s
@@ -740,7 +748,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       expect(isolation_manager.instance(:good_test_channel).running?).to be true
       expect(isolation_manager.thread_count).to be >= 1 # At least good_test_channel remains
 
-      isolation_manager.stop_all
+      isolation_manager.stop_listening
     end
   end
 
@@ -758,13 +766,13 @@ RSpec.describe Botiasloop::ChannelsManager do
           @running = false
         end
 
-        def start
+        def start_listening
           @started = true
           @running = true
           sleep 0.1 while @running
         end
 
-        def stop
+        def stop_listening
           @running = false
         end
 
@@ -783,7 +791,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       Botiasloop::Channels.registry.register(cli_test_class)
       Botiasloop::Channels.registry.register(blocking_channel_class)
 
-      manager.start_channels
+      manager.start_listening
       sleep 0.2
 
       # CLI should not be started
@@ -793,7 +801,7 @@ RSpec.describe Botiasloop::ChannelsManager do
       # But other channels should be started
       expect(manager.instance(:channel_one)).not_to be_nil
 
-      manager.stop_all
+      manager.stop_listening
     end
   end
 end

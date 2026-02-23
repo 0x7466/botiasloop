@@ -15,7 +15,7 @@ module Botiasloop
       end
 
       # Start the CLI interactive mode
-      def start
+      def start_listening
         @running = true
         Logger.info "[CLI] Starting interactive mode..."
 
@@ -41,7 +41,7 @@ module Botiasloop
       end
 
       # Stop the CLI channel
-      def stop
+      def stop_listening
         @running = false
         Logger.info "[CLI] Stopping..."
       end

@@ -12,7 +12,7 @@ module Botiasloop
   #
   # @example Basic usage
   #   manager = Botiasloop::ChannelsManager.new
-  #   manager.start_channels.wait
+  #   manager.start_listening.wait
   #
   class ChannelsManager
     # Time to wait for graceful shutdown before force-killing threads
@@ -39,7 +39,7 @@ module Botiasloop
     #
     # @return [ChannelsManager] self for method chaining
     # @raise [Error] If channels are already running
-    def start_channels
+    def start_listening
       @mutex.synchronize do
         raise Error, "Channels are already running" if @running
 
@@ -84,7 +84,7 @@ module Botiasloop
     # to complete. Force-kills threads that don't stop within timeout.
     #
     # @return [void]
-    def stop_all
+    def stop_listening
       @mutex.synchronize do
         return unless @running
 
@@ -96,7 +96,7 @@ module Botiasloop
 
       # Stop all channel instances
       @instances.each do |identifier, instance|
-        instance.stop if instance.running?
+        instance.stop_listening if instance.running?
       rescue => e
         Logger.error "[ChannelsManager] Error stopping #{identifier}: #{e.message}"
       end
@@ -216,7 +216,7 @@ module Botiasloop
         Thread.current.name = "botiasloop-#{identifier}"
 
         begin
-          instance.start
+          instance.start_listening
         rescue => e
           Logger.error "[ChannelsManager] Channel #{identifier} crashed: #{e.message}"
           Logger.error "[ChannelsManager] #{e.backtrace&.first(5)&.join("\n")}"
@@ -275,7 +275,7 @@ module Botiasloop
       # Defer to separate thread to avoid trap context limitations
       Thread.new do
         Logger.info "[ChannelsManager] Received #{signal}, shutting down..."
-        stop_all
+        stop_listening
 
         # Call original handler if it exists
         case signal

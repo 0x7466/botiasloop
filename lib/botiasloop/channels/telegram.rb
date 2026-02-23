@@ -28,7 +28,7 @@ module Botiasloop
       end
 
       # Start the Telegram bot and listen for messages
-      def start
+      def start_listening
         if @allowed_users.empty?
           Logger.warn "[Telegram] No allowed_users configured. No messages will be processed."
           Logger.warn "[Telegram] Add usernames to telegram.allowed_users in config."
@@ -55,7 +55,7 @@ module Botiasloop
       #
       # Interrupts the thread running the bot to gracefully exit
       # the blocking listen loop.
-      def stop
+      def stop_listening
         Logger.info "[Telegram] Stopping bot..."
 
         return unless @thread_id

@@ -75,7 +75,7 @@ RSpec.describe Botiasloop::Channels::CLI do
     end
   end
 
-  describe "#start" do
+  describe "#start_listening" do
     let(:channel) { described_class.new }
     let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "cli-test-uuid") }
 
@@ -88,7 +88,7 @@ RSpec.describe Botiasloop::Channels::CLI do
 
     it "sets running to true" do
       allow($stdin).to receive(:gets).and_return("exit")
-      channel.start
+      channel.start_listening
       expect(channel.running?).to be false # Reset after exit
     end
 
@@ -96,41 +96,41 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow($stdin).to receive(:gets).and_return("exit")
       expect(channel).to receive(:puts).with(/botiasloop.*Interactive Mode/)
       expect(channel).to receive(:puts).with(/Type.*exit/)
-      channel.start
+      channel.start_listening
     end
 
     it "exits on 'exit' command" do
       allow($stdin).to receive(:gets).and_return("exit")
-      channel.start
+      channel.start_listening
       expect(channel.running?).to be false
     end
 
     it "exits on 'quit' command" do
       allow($stdin).to receive(:gets).and_return("quit")
-      channel.start
+      channel.start_listening
       expect(channel.running?).to be false
     end
 
     it "exits on '\\q' command" do
       allow($stdin).to receive(:gets).and_return('\\q')
-      channel.start
+      channel.start_listening
       expect(channel.running?).to be false
     end
 
     it "exits on nil input (EOF)" do
       allow($stdin).to receive(:gets).and_return(nil)
-      channel.start
+      channel.start_listening
       expect(channel.running?).to be false
     end
 
     it "handles Ctrl+C gracefully" do
       allow($stdin).to receive(:gets).and_raise(Interrupt)
       expect(channel).to receive(:puts).with(/Goodbye/)
-      expect { channel.start }.not_to raise_error
+      expect { channel.start_listening }.not_to raise_error
     end
   end
 
-  describe "#stop" do
+  describe "#stop_listening" do
     let(:channel) { described_class.new }
 
     it "sets running to false" do
@@ -140,8 +140,8 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow(channel).to receive(:print)
       allow(Botiasloop::Logger).to receive(:info)
 
-      channel.start
-      channel.stop
+      channel.start_listening
+      channel.stop_listening
       expect(channel.running?).to be false
     end
   end

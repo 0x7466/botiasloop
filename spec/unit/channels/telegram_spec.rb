@@ -103,7 +103,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
   end
 
-  describe "#start" do
+  describe "#start_listening" do
     let(:channel) { described_class.new }
 
     before do
@@ -132,25 +132,25 @@ RSpec.describe Botiasloop::Channels::Telegram do
       it "logs a warning about no allowed users" do
         expect(Botiasloop::Logger).to receive(:warn).with(/allowed_users/)
         allow(mock_bot).to receive(:listen)
-        channel.start
+        channel.start_listening
       end
     end
 
     context "when allowed_users is configured" do
       it "starts polling for messages" do
         expect(mock_bot).to receive(:listen).and_yield(nil)
-        channel.start
+        channel.start_listening
       end
 
       it "sets bot instance" do
         allow(mock_bot).to receive(:listen).and_yield(nil)
-        channel.start
+        channel.start_listening
         expect(channel.instance_variable_get(:@bot)).to eq(mock_bot)
       end
     end
   end
 
-  describe "#stop" do
+  describe "#stop_listening" do
     let(:channel) { described_class.new }
 
     before do
@@ -159,7 +159,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     it "logs stopping message" do
       expect(Botiasloop::Logger).to receive(:info).with(/Stopping/)
-      channel.stop
+      channel.stop_listening
     end
 
     it "interrupts the running thread" do
@@ -172,7 +172,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
       # Start the channel in a separate thread
       thread = Thread.new do
-        channel.start
+        channel.start_listening
       end
 
       # Wait for blocking to start
@@ -182,7 +182,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
       expect(thread.alive?).to be true
 
       # Stop should interrupt the thread
-      channel.stop
+      channel.stop_listening
 
       # Wait for thread to finish
       sleep 0.2

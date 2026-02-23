@@ -39,12 +39,12 @@ RSpec.describe Botiasloop::Channels::Base do
         @running = false
       end
 
-      def start
+      def start_listening
         @started = true
         @running = true
       end
 
-      def stop
+      def stop_listening
         @stopped = true
         @running = false
       end
@@ -109,14 +109,14 @@ RSpec.describe Botiasloop::Channels::Base do
       end
     end
 
-    it "raises NotImplementedError for start if not implemented" do
+    it "raises NotImplementedError for start_listening if not implemented" do
       channel = incomplete_class.new
-      expect { channel.start }.to raise_error(NotImplementedError, /start/)
+      expect { channel.start_listening }.to raise_error(NotImplementedError, /start_listening/)
     end
 
-    it "raises NotImplementedError for stop if not implemented" do
+    it "raises NotImplementedError for stop_listening if not implemented" do
       channel = incomplete_class.new
-      expect { channel.stop }.to raise_error(NotImplementedError, /stop/)
+      expect { channel.stop_listening }.to raise_error(NotImplementedError, /stop_listening/)
     end
 
     it "raises NotImplementedError for running? if not implemented" do
@@ -184,10 +184,10 @@ RSpec.describe Botiasloop::Channels::Base do
           @delivered_responses = []
         end
 
-        def start
+        def start_listening
         end
 
-        def stop
+        def stop_listening
         end
 
         def running?
