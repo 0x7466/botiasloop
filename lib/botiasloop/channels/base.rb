@@ -49,6 +49,14 @@ module Botiasloop
         Config.instance.channels[self.class.channel_identifier.to_s] || {}
       end
 
+      # Get the channel type string (e.g., "telegram", "cli")
+      # Override in subclasses if needed
+      #
+      # @return [String] Channel type string
+      def channel_type
+        self.class.channel_identifier.to_s
+      end
+
       # Start the channel and begin listening for messages
       # @raise [NotImplementedError] Subclass must implement
       def start_listening
@@ -91,11 +99,13 @@ module Botiasloop
         before_process(source_id, user_id, content, raw_message)
 
         # Core processing logic
-        conversation = conversation_for(source_id)
+        chat = chat_for(source_id, user_identifier: user_id)
+        conversation = chat.current_conversation
 
         response = if Commands.command?(content)
           context = Commands::Context.new(
             conversation: conversation,
+            chat: chat,
             channel: self,
             user_id: source_id
           )
@@ -186,13 +196,13 @@ module Botiasloop
         false
       end
 
-      # Get or create a conversation for a source
-      # Uses the global ConversationManager for state management.
+      # Get or create a chat for a source
       #
       # @param source_id [String] Source identifier
-      # @return [Conversation] Conversation instance
-      def conversation_for(source_id)
-        ConversationManager.current_for(source_id)
+      # @param user_identifier [String, nil] Optional user identifier (e.g., username)
+      # @return [Chat] Chat instance
+      def chat_for(source_id, user_identifier: nil)
+        Chat.find_or_create(channel_type, source_id, user_identifier: user_identifier)
       end
 
       # Format a message for this channel

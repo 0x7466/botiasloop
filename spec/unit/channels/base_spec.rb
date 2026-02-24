@@ -59,11 +59,6 @@ RSpec.describe Botiasloop::Channels::Base do
     end
   end
 
-  before do
-    # Clear database state before each test
-    Botiasloop::ConversationManager.clear_all
-  end
-
   describe ".channel_name" do
     it "sets the channel identifier" do
       expect(test_channel_class.channel_identifier).to eq(:test_channel)
@@ -130,44 +125,48 @@ RSpec.describe Botiasloop::Channels::Base do
     end
   end
 
-  describe "#conversation_for" do
+  describe "#chat_for" do
     let(:channel) { test_channel_class.new }
 
     context "when source does not exist" do
-      it "creates a new conversation" do
-        conversation = channel.conversation_for("user123")
-        expect(conversation).to be_a(Botiasloop::Conversation)
+      it "creates a new chat" do
+        chat = channel.chat_for("user123")
+        expect(chat).to be_a(Botiasloop::Chat)
+        expect(chat.channel).to eq("test_channel")
+        expect(chat.external_id).to eq("user123")
       end
 
-      it "stores the mapping in ConversationManager" do
-        conversation = channel.conversation_for("user123")
-        uuid = Botiasloop::ConversationManager.current_id_for("user123")
-        expect(uuid).to eq(conversation.uuid)
+      it "returns a chat with a current conversation" do
+        chat = channel.chat_for("user123")
+        expect(chat.current_conversation).to be_a(Botiasloop::Conversation)
       end
 
-      it "saves to persistent storage via ConversationManager" do
-        conversation = channel.conversation_for("user123")
+      it "saves to persistent storage via database" do
+        chat = channel.chat_for("user123")
+        conversation = chat.current_conversation
 
         # Verify via database
-        db_conv = Botiasloop::Conversation.find(id: conversation.uuid)
+        db_conv = Botiasloop::Conversation.find(id: conversation.id)
         expect(db_conv).not_to be_nil
-        expect(db_conv.user_id).to eq("user123")
+        expect(db_conv.id).to eq(conversation.id)
       end
     end
 
     context "when source already exists" do
       before do
-        Botiasloop::Conversation.create(id: "existing-uuid", user_id: "user123", is_current: true)
+        @chat = Botiasloop::Chat.create(channel: "test_channel", external_id: "user123")
+        @conversation = Botiasloop::Conversation.create
+        @chat.update(current_conversation_id: @conversation.id)
       end
 
-      it "returns existing conversation" do
-        result = channel.conversation_for("user123")
-        expect(result.uuid).to eq("existing-uuid")
+      it "returns existing chat" do
+        chat = channel.chat_for("user123")
+        expect(chat.id).to eq(@chat.id)
       end
 
-      it "does not create a new conversation" do
-        expect(Botiasloop::Conversation).not_to receive(:create)
-        channel.conversation_for("user123")
+      it "returns the same conversation" do
+        chat = channel.chat_for("user123")
+        expect(chat.current_conversation.id).to eq(@conversation.id)
       end
     end
   end
@@ -213,18 +212,19 @@ RSpec.describe Botiasloop::Channels::Base do
       allow(Botiasloop::Agent).to receive(:chat).and_return("Agent response")
     end
 
-    it "updates ConversationManager when /new command changes conversation" do
-      # First, establish an initial conversation
-      initial_conversation = channel.conversation_for("user123")
+    it "updates chat when /new command changes conversation" do
+      # First, establish an initial chat and conversation
+      chat = channel.chat_for("user123")
+      initial_conversation = chat.current_conversation
       initial_uuid = initial_conversation.uuid
 
       # Now execute the /new command that will switch conversations
       channel.process_message("user123", "/new")
 
-      # Verify the conversation was switched in ConversationManager
-      current_uuid = Botiasloop::ConversationManager.current_id_for("user123")
-      expect(current_uuid).not_to eq(initial_uuid)
-      expect(current_uuid).to be_a(String)
+      # Verify the conversation was switched in the chat
+      chat.reload
+      expect(chat.current_conversation_id).not_to eq(initial_uuid)
+      expect(chat.current_conversation).to be_a(Botiasloop::Conversation)
     end
   end
 

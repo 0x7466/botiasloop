@@ -34,6 +34,7 @@ module Botiasloop
         db = connect
         db[:messages].delete if db.table_exists?(:messages)
         db[:conversations].delete if db.table_exists?(:conversations)
+        db[:chats].delete if db.table_exists?(:chats)
       end
 
       # Close database connection
@@ -52,12 +53,23 @@ module Botiasloop
         # Ensure directory exists
         FileUtils.mkdir_p(File.dirname(DEFAULT_PATH))
 
+        # Create chats table
+        db.create_table?(:chats) do
+          primary_key :id
+          String :channel, null: false
+          String :external_id, null: false
+          String :user_identifier
+          String :current_conversation_id
+          DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
+          DateTime :updated_at, default: Sequel::CURRENT_TIMESTAMP
+
+          index %i[channel external_id], unique: true
+        end
+
         # Create conversations table
         db.create_table?(:conversations) do
           String :id, primary_key: true
-          String :user_id, null: false
           String :label
-          TrueClass :is_current, default: false
           TrueClass :archived, default: false
           TrueClass :verbose, default: false
           Integer :input_tokens, default: 0
@@ -65,8 +77,7 @@ module Botiasloop
           DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
           DateTime :updated_at, default: Sequel::CURRENT_TIMESTAMP
 
-          index %i[user_id label], unique: true
-          index %i[user_id archived]
+          index :label, unique: true
         end
 
         # Create messages table

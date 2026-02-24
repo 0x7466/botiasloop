@@ -16,21 +16,44 @@ module Botiasloop
       # @return [String] Command response with archived conversation details
       def execute(context, args = nil)
         identifier = args.to_s.strip
-        result = ConversationManager.archive(context.user_id, identifier.empty? ? nil : identifier)
 
-        if result[:new_conversation]
-          # Archived current and created new
+        if identifier.empty?
+          # Archive current conversation and create new one
+          result = context.chat.archive_current
           context.conversation = result[:new_conversation]
           format_archive_current_response(result[:archived], result[:new_conversation])
         else
-          # Archived specific conversation
-          format_archive_response(result[:archived])
+          # Archive specific conversation by label or ID
+          conversation = find_conversation(identifier)
+          raise Botiasloop::Error, "Conversation '#{identifier}' not found" unless conversation
+
+          # Cannot archive current conversation via identifier
+          if conversation.id == context.conversation.id
+            raise Botiasloop::Error,
+              "Cannot archive the current conversation. Use /archive without arguments to archive current and start new."
+          end
+
+          conversation.archive!
+          format_archive_response(conversation)
         end
       rescue Botiasloop::Error => e
         "Error: #{e.message}"
       end
 
       private
+
+      def find_conversation(identifier)
+        # First try to find by label
+        conversation = Conversation.find(label: identifier)
+
+        # If not found by label, treat as ID (case-insensitive)
+        unless conversation
+          normalized_id = HumanId.normalize(identifier)
+          conversation = Conversation.all.find { |c| HumanId.normalize(c.id) == normalized_id }
+        end
+
+        conversation
+      end
 
       def format_archive_response(conversation)
         lines = ["**Conversation archived successfully**"]

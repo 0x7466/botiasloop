@@ -17,7 +17,7 @@ module Botiasloop
 
         return "Usage: /switch <label-or-id>" if identifier.empty?
 
-        new_conversation = ConversationManager.switch(context.user_id, identifier)
+        new_conversation = context.chat.switch_conversation(identifier)
         context.conversation = new_conversation
 
         format_switch_response(new_conversation)

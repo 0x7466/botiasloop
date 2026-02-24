@@ -16,10 +16,15 @@ module Botiasloop
       # @return [String] Formatted list of conversations
       def execute(context, args = nil)
         show_archived = args.to_s.strip.downcase == "archived"
-        conversations = ConversationManager.list_by_user(context.user_id, archived: show_archived)
-        current_id = ConversationManager.current_id_for(context.user_id)
+        current_conversation = context.conversation
 
-        lines = show_archived ? ["**Archived Conversations**"] : ["**Conversations**"]
+        if show_archived
+          conversations = context.chat.archived_conversations
+          lines = ["**Archived Conversations**"]
+        else
+          conversations = context.chat.active_conversations
+          lines = ["**Conversations**"]
+        end
 
         if conversations.empty?
           lines << (show_archived ? "No archived conversations found." : "No conversations found.")
@@ -27,10 +32,10 @@ module Botiasloop
         end
 
         conversations.each do |conv|
-          prefix = (conv[:id] == current_id) ? "[current] " : ""
-          label = conv[:label]
+          prefix = (conv.id == current_conversation.id) ? "[current] " : ""
+          label = conv.label
           suffix = label ? " (#{label})" : ""
-          lines << "#{prefix}#{conv[:id]}#{suffix}"
+          lines << "#{prefix}#{conv.id}#{suffix}"
         end
 
         lines.join("\n")

@@ -4,15 +4,9 @@ require "spec_helper"
 
 RSpec.describe Botiasloop::Commands::Conversations do
   let(:command) { described_class.new }
-  let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "current-uuid-123") }
-  let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: "test-user") }
-
-  before do
-    allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: false).and_return([])
-    allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user", archived: true).and_return([])
-    allow(Botiasloop::ConversationManager).to receive(:current_id_for).with("test-user").and_return("current-uuid-123")
-  end
+  let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "current-uuid-123", id: "current-uuid-123") }
+  let(:chat) { instance_double(Botiasloop::Chat) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, chat: chat, user_id: "test-user") }
 
   describe ".command_name" do
     it "returns :conversations" do
@@ -29,8 +23,7 @@ RSpec.describe Botiasloop::Commands::Conversations do
   describe "#execute" do
     context "when there are no conversations" do
       before do
-        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user",
-          archived: false).and_return([])
+        allow(chat).to receive(:active_conversations).and_return([])
       end
 
       it "shows no conversations message" do
@@ -40,14 +33,12 @@ RSpec.describe Botiasloop::Commands::Conversations do
     end
 
     context "when there are conversations" do
+      let(:conv1) { instance_double(Botiasloop::Conversation, id: "current-uuid-123", label: "my-project") }
+      let(:conv2) { instance_double(Botiasloop::Conversation, id: "other-uuid-456", label: nil) }
+      let(:conv3) { instance_double(Botiasloop::Conversation, id: "another-uuid-789", label: "another-label") }
+
       before do
-        conversations = [
-          {id: "current-uuid-123", label: "my-project", updated_at: Time.now},
-          {id: "other-uuid-456", label: nil, updated_at: Time.now - 60},
-          {id: "another-uuid-789", label: "another-label", updated_at: Time.now - 120}
-        ]
-        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with("test-user",
-          archived: false).and_return(conversations)
+        allow(chat).to receive(:active_conversations).and_return([conv3, conv2, conv1])
       end
 
       it "lists all conversations" do
@@ -75,27 +66,14 @@ RSpec.describe Botiasloop::Commands::Conversations do
       end
     end
 
-    context "when user_id is nil" do
-      let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: nil) }
-
+    context "when listing archived conversations" do
       before do
-        conversations = [
-          {id: "conv-uuid-1", label: "label1", updated_at: Time.now}
-        ]
-        allow(Botiasloop::ConversationManager).to receive(:list_by_user).with(nil,
-          archived: false).and_return(conversations)
-        allow(Botiasloop::ConversationManager).to receive(:current_id_for).with(nil).and_return(nil)
+        allow(chat).to receive(:archived_conversations).and_return([])
       end
 
-      it "still lists conversations" do
-        result = command.execute(context, nil)
-        expect(result).to include("conv-uuid-1")
-        expect(result).to include("(label1)")
-      end
-
-      it "does not mark any conversation as current" do
-        result = command.execute(context, nil)
-        expect(result).not_to include("[current]")
+      it "shows no archived conversations message" do
+        result = command.execute(context, "archived")
+        expect(result).to eq("**Archived Conversations**\nNo archived conversations found.")
       end
     end
   end

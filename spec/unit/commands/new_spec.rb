@@ -7,7 +7,9 @@ RSpec.describe Botiasloop::Commands::New do
   let(:config) { instance_double(Botiasloop::Config) }
 
   before do
-    Botiasloop::ConversationManager.clear_all
+    Botiasloop::Database.disconnect
+    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
+    Botiasloop::Database.setup!
   end
 
   describe ".command_name" do
@@ -25,8 +27,9 @@ RSpec.describe Botiasloop::Commands::New do
   describe "#execute" do
     it "returns a string message" do
       allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
-      original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      original_conversation = chat.current_conversation
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       result = command.execute(context)
 
@@ -35,8 +38,9 @@ RSpec.describe Botiasloop::Commands::New do
 
     it "updates context.conversation to a new conversation" do
       allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
-      original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      original_conversation = chat.current_conversation
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       command.execute(context)
 
@@ -47,8 +51,9 @@ RSpec.describe Botiasloop::Commands::New do
 
     it "returns message with new conversation UUID" do
       allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
-      original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      original_conversation = chat.current_conversation
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       result = command.execute(context)
 
@@ -59,8 +64,9 @@ RSpec.describe Botiasloop::Commands::New do
 
     it "includes instructions to switch back" do
       allow(Botiasloop::HumanId).to receive(:generate).and_return("red-cat-789")
-      original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      original_conversation = chat.current_conversation
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       result = command.execute(context)
 
@@ -68,8 +74,9 @@ RSpec.describe Botiasloop::Commands::New do
     end
 
     it "context.conversation has a different UUID than the original" do
-      original_conversation = Botiasloop::Conversation.new
-      context = Botiasloop::Commands::Context.new(conversation: original_conversation, user_id: "test-user")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      original_conversation = chat.current_conversation
+      context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       command.execute(context)
 

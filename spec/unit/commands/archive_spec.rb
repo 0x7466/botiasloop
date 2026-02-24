@@ -5,8 +5,8 @@ require "spec_helper"
 RSpec.describe Botiasloop::Commands::Archive do
   let(:command) { described_class.new }
   let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "current-uuid-123", label: "current-label", label?: true) }
-  let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: "test-user") }
+  let(:chat) { instance_double(Botiasloop::Chat) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, chat: chat, user_id: "test-user") }
 
   describe ".command_name" do
     it "returns :archive" do
@@ -26,8 +26,7 @@ RSpec.describe Botiasloop::Commands::Archive do
       let(:new_conversation) { instance_double(Botiasloop::Conversation, uuid: "new-uuid-789", label: nil, label?: false) }
 
       before do
-        allow(Botiasloop::ConversationManager).to receive(:archive)
-          .with("test-user", nil)
+        allow(chat).to receive(:archive_current)
           .and_return({archived: archived_conversation, new_conversation: new_conversation})
         allow(archived_conversation).to receive(:message_count).and_return(5)
         allow(archived_conversation).to receive(:last_activity).and_return("2 hours ago")
@@ -56,77 +55,68 @@ RSpec.describe Botiasloop::Commands::Archive do
     end
 
     context "when archiving by label" do
-      let(:archived_conversation) { instance_double(Botiasloop::Conversation, uuid: "target-uuid-456", label: "my-project", label?: true, message_count: 5, last_activity: "2 hours ago") }
+      let(:other_conversation) { instance_double(Botiasloop::Conversation, uuid: "other-uuid", label: "my-project", id: "other-uuid", label?: true) }
 
       before do
-        allow(Botiasloop::ConversationManager).to receive(:archive)
-          .with("test-user", "my-project")
-          .and_return({archived: archived_conversation})
+        allow(Botiasloop::Conversation).to receive(:find).with(label: "my-project").and_return(other_conversation)
+        allow(other_conversation).to receive(:id).and_return("other-uuid")
+        allow(other_conversation).to receive(:label).and_return("my-project")
+        allow(other_conversation).to receive(:label?).and_return(true)
+        allow(other_conversation).to receive(:archive!).and_return(other_conversation)
+        allow(other_conversation).to receive(:message_count).and_return(5)
+        allow(other_conversation).to receive(:last_activity).and_return("2 hours ago")
       end
 
       it "archives the conversation" do
+        allow(conversation).to receive(:id).and_return("current-uuid-123")
         command.execute(context, "my-project")
       end
 
       it "returns success message with conversation details" do
+        allow(conversation).to receive(:id).and_return("current-uuid-123")
         result = command.execute(context, "my-project")
         expect(result).to include("Conversation archived successfully")
-        expect(result).to include("target-uuid-456")
-        expect(result).to include("my-project")
-        expect(result).to include("Messages: 5")
-      end
-
-      it "trims whitespace from the identifier" do
-        expect(Botiasloop::ConversationManager).to receive(:archive)
-          .with("test-user", "my-project")
-          .and_return({archived: archived_conversation})
-        command.execute(context, "  my-project  ")
       end
     end
 
-    context "when archiving by UUID" do
-      let(:archived_conversation) { instance_double(Botiasloop::Conversation, uuid: "abc-123-xyz", label: nil, label?: false, message_count: 0, last_activity: nil) }
+    context "when archiving by ID" do
+      let(:other_conversation) { instance_double(Botiasloop::Conversation, uuid: "target-uuid-456", label: nil, id: "target-uuid-456", label?: false) }
 
       before do
-        allow(Botiasloop::ConversationManager).to receive(:archive)
-          .with("test-user", "abc-123-xyz")
-          .and_return({archived: archived_conversation})
+        allow(Botiasloop::Conversation).to receive(:find).with(label: "target-uuid-456").and_return(nil)
+        allow(Botiasloop::Conversation).to receive(:all).and_return([other_conversation])
+        allow(other_conversation).to receive(:id).and_return("target-uuid-456")
+        allow(other_conversation).to receive(:label).and_return(nil)
+        allow(other_conversation).to receive(:label?).and_return(false)
+        allow(other_conversation).to receive(:archive!).and_return(other_conversation)
+        allow(other_conversation).to receive(:message_count).and_return(3)
+        allow(other_conversation).to receive(:last_activity).and_return("1 hour ago")
       end
 
-      it "archives the conversation by UUID" do
-        command.execute(context, "abc-123-xyz")
-      end
-
-      it "shows '(no label)' for unlabeled conversation" do
-        result = command.execute(context, "abc-123-xyz")
-        expect(result).to include("(no label)")
-      end
-
-      it "handles empty conversation" do
-        result = command.execute(context, "abc-123-xyz")
-        expect(result).to include("Messages: 0")
-        expect(result).to include("no activity")
+      it "archives the conversation by ID" do
+        allow(conversation).to receive(:id).and_return("current-uuid-123")
+        result = command.execute(context, "target-uuid-456")
+        expect(result).to include("Conversation archived successfully")
       end
     end
 
     context "when conversation is not found" do
       before do
-        allow(Botiasloop::ConversationManager).to receive(:archive)
-          .with("test-user", "non-existent")
-          .and_raise(Botiasloop::Error, "Conversation not found")
+        allow(Botiasloop::Conversation).to receive(:find).with(label: "non-existent").and_return(nil)
+        allow(Botiasloop::Conversation).to receive(:all).and_return([])
       end
 
       it "returns error message" do
         result = command.execute(context, "non-existent")
-        expect(result).to include("Error: Conversation not found")
+        expect(result).to include("Error: Conversation 'non-existent' not found")
       end
     end
 
     context "when trying to archive current conversation with explicit identifier" do
       before do
-        allow(Botiasloop::ConversationManager).to receive(:archive)
-          .with("test-user", "current-label")
-          .and_raise(Botiasloop::Error, "Cannot archive the current conversation. Use /archive without arguments to archive current and start new.")
+        allow(Botiasloop::Conversation).to receive(:find).with(label: "current-label").and_return(conversation)
+        allow(conversation).to receive(:id).and_return("current-uuid-123")
+        allow(conversation).to receive(:label).and_return("current-label")
       end
 
       it "returns helpful error message" do

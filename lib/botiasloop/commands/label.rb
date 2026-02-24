@@ -14,7 +14,6 @@ module Botiasloop
       # @return [String] Command response
       def execute(context, args = nil)
         conversation = context.conversation
-        user_id = context.user_id
 
         if args.nil? || args.strip.empty?
           # Show current label
@@ -23,7 +22,7 @@ module Botiasloop
 
         # Set label
         label_value = args.strip
-        set_label(conversation, user_id, label_value)
+        set_label(conversation, label_value)
       end
 
       private
@@ -36,28 +35,27 @@ module Botiasloop
         end
       end
 
-      def set_label(conversation, user_id, label_value)
+      def set_label(conversation, label_value)
         # Validate label format
         unless label_value.match?(/\A[a-zA-Z0-9_-]+\z/)
           return "Invalid label format. Use only letters, numbers, dashes, and underscores."
         end
 
-        # Check uniqueness per user
-        if label_in_use?(user_id, label_value, conversation.uuid)
+        # Check uniqueness globally
+        if label_in_use?(label_value, conversation.id)
           return "Label '#{label_value}' already in use by another conversation."
         end
 
-        conversation.update(label: label_value)
+        conversation.label = label_value
+        conversation.save
         "Label set to: #{label_value}"
       rescue Botiasloop::Error => e
         "Error setting label: #{e.message}"
       end
 
-      def label_in_use?(user_id, label, current_uuid)
-        return false if user_id.nil?
-
-        existing_uuid = ConversationManager.find_by_label(user_id, label)
-        existing_uuid && existing_uuid != current_uuid
+      def label_in_use?(label, current_id)
+        other = Conversation.find(label: label)
+        other && other.id != current_id
       end
     end
   end

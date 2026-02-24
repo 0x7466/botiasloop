@@ -6,6 +6,9 @@ module Botiasloop
   # Conversation model - represents a chat conversation with messages
   # Direct Sequel model with all database and business logic combined
   class Conversation < Sequel::Model(:conversations)
+    # Valid label format: alphanumeric, dashes, and underscores
+    LABEL_REGEX = /\A[a-zA-Z0-9_-]+\z/
+
     # Message model nested within Conversation namespace
     class Message < Sequel::Model(:messages)
       plugin :validation_helpers
@@ -50,13 +53,12 @@ module Botiasloop
     # Validations
     def validate
       super
-      validates_presence [:user_id]
 
       return unless label && !label.to_s.empty?
 
-      validates_format ConversationManager::LABEL_REGEX, :label,
+      validates_format LABEL_REGEX, :label,
         message: "Invalid label format. Use only letters, numbers, dashes, and underscores."
-      validates_unique %i[user_id label], message: "Label '#{label}' already in use by another conversation"
+      validates_unique :label, message: "Label '#{label}' already in use by another conversation"
     end
 
     # Check if this conversation has a label
@@ -64,6 +66,30 @@ module Botiasloop
     # @return [Boolean] True if label is set
     def label?
       !label.nil? && !label.to_s.empty?
+    end
+
+    # Check if this conversation is archived
+    #
+    # @return [Boolean] True if archived
+    def archived?
+      archived == true
+    end
+
+    # Set the label for this conversation
+    #
+    # @param value [String] Label value
+    def label=(value)
+      # Allow empty string to be treated as nil (clearing the label)
+      value = nil if value.to_s.empty?
+      super
+    end
+
+    # Archive this conversation
+    #
+    # @return [Conversation] self
+    def archive!
+      update(archived: true)
+      self
     end
 
     # Get the timestamp of the last activity in the conversation

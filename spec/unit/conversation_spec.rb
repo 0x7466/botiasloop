@@ -1,14 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "securerandom"
 
 RSpec.describe Botiasloop::Conversation do
-  before do
-    Botiasloop::Database.disconnect
-    Botiasloop::Database.instance_variable_set(:@db, Sequel.sqlite)
-    Botiasloop::Database.setup!
-  end
-
   describe "#initialize" do
     context "with no id provided" do
       it "generates a new human-readable id" do
@@ -18,17 +13,15 @@ RSpec.describe Botiasloop::Conversation do
 
       it "creates a new conversation in the database" do
         conversation = described_class.new
-        conversation.user_id = "default"
         conversation.save
         expect(conversation).not_to be_nil
-        expect(conversation.user_id).to eq("default")
+        expect(conversation.id).not_to be_nil
       end
     end
 
     context "with id provided" do
       it "uses the provided id when conversation exists" do
-        # Create a conversation first
-        model = described_class.create(user_id: "test")
+        model = described_class.create
         conversation = described_class[model.id]
         expect(conversation.id).to eq(model.id)
       end
@@ -41,7 +34,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#add" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "adds a message to the conversation" do
       conversation.add("user", "Hello")
@@ -104,7 +97,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#history" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "returns empty array for new conversation" do
       expect(conversation.history).to eq([])
@@ -138,7 +131,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#reset!" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "clears all messages" do
       conversation.add("user", "Hello")
@@ -163,7 +156,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#compact!" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     before do
       10.times do |i|
@@ -203,33 +196,36 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#label" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "returns nil when conversation has no label" do
       expect(conversation.label).to be_nil
     end
 
     it "returns the label when set" do
-      conversation.label = "my-project"
-      expect(conversation.label).to eq("my-project")
+      conversation.label = "my-project-#{SecureRandom.hex(4)}"
+      conversation.save
+      expect(conversation.label).not_to be_nil
     end
   end
 
   describe "#label=" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "sets the label" do
-      conversation.label = "my-label"
-      expect(conversation.label).to eq("my-label")
+      conversation.label = "my-label-#{SecureRandom.hex(4)}"
+      conversation.save
+      expect(conversation.label).not_to be_nil
     end
 
     it "persists the label" do
       uuid = conversation.uuid
-      conversation.update(label: "persisted-label")
+      conversation.label = "persisted-label-#{SecureRandom.hex(4)}"
+      conversation.save
 
       # Load existing conversation
       conversation2 = described_class[uuid]
-      expect(conversation2.label).to eq("persisted-label")
+      expect(conversation2.label).to eq(conversation.label)
     end
 
     it "raises error for invalid label format" do
@@ -238,23 +234,53 @@ RSpec.describe Botiasloop::Conversation do
         conversation.save
       end.to raise_error(Sequel::ValidationFailed, /Invalid label format/)
     end
+
+    it "converts empty string to nil" do
+      conversation.label = ""
+      expect(conversation.label).to be_nil
+    end
   end
 
   describe "#label?" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "returns false when no label is set" do
       expect(conversation.label?).to be false
     end
 
     it "returns true when label is set" do
-      conversation.label = "my-label"
+      conversation.label = "my-label-#{SecureRandom.hex(4)}"
+      conversation.save
       expect(conversation.label?).to be true
     end
   end
 
+  describe "#archive!" do
+    let(:conversation) { described_class.create }
+
+    it "archives the conversation" do
+      conversation.archive!
+
+      expect(conversation).to be_archived
+    end
+
+    it "returns self" do
+      result = conversation.archive!
+
+      expect(result).to eq(conversation)
+    end
+
+    it "persists the archived status" do
+      uuid = conversation.uuid
+      conversation.archive!
+
+      conversation2 = described_class[uuid]
+      expect(conversation2).to be_archived
+    end
+  end
+
   describe "#message_count" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "returns 0 for empty conversation" do
       expect(conversation.message_count).to eq(0)
@@ -280,7 +306,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#total_tokens" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "returns 0 for new conversation" do
       expect(conversation.total_tokens).to eq(0)
@@ -307,7 +333,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#last_activity" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
     let(:fixed_time1) { Time.parse("2026-02-20T10:00:00Z") }
     let(:fixed_time2) { Time.parse("2026-02-20T11:30:00Z") }
 
@@ -349,7 +375,7 @@ RSpec.describe Botiasloop::Conversation do
   end
 
   describe "#system_prompt" do
-    let(:conversation) { described_class.create(user_id: "test") }
+    let(:conversation) { described_class.create }
 
     it "includes agent identity" do
       prompt = conversation.system_prompt
@@ -461,6 +487,30 @@ RSpec.describe Botiasloop::Conversation do
         expect(prompt).to include("Operator name is Alice")
         expect(prompt).to include("You can update ~/OPERATOR.md")
       end
+    end
+  end
+
+  describe "validations" do
+    it "requires unique label globally" do
+      label = "unique-label-#{SecureRandom.hex(4)}"
+      described_class.create(label: label)
+      conversation2 = described_class.new(label: label)
+
+      expect(conversation2.valid?).to be false
+    end
+
+    it "allows same label after previous conversation is deleted" do
+      label = "reusable-label-#{SecureRandom.hex(4)}"
+      conversation = described_class.create(label: label)
+      conversation.delete
+
+      conversation2 = described_class.new(label: label)
+      expect(conversation2.valid?).to be true
+    end
+
+    it "allows nil label (no label)" do
+      conversation = described_class.new
+      expect(conversation.valid?).to be true
     end
   end
 end

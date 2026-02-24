@@ -41,11 +41,11 @@ RSpec.describe Botiasloop::Database do
 
       columns = schema.map { |col| col.first }
       expect(columns).to include(:id)
-      expect(columns).to include(:user_id)
       expect(columns).to include(:label)
-      expect(columns).to include(:is_current)
       expect(columns).to include(:archived)
       expect(columns).to include(:verbose)
+      expect(columns).to include(:input_tokens)
+      expect(columns).to include(:output_tokens)
       expect(columns).to include(:created_at)
       expect(columns).to include(:updated_at)
     end
@@ -71,7 +71,7 @@ RSpec.describe Botiasloop::Database do
       db = Botiasloop::Database.connect
 
       # Insert test data
-      db[:conversations].insert(id: "test-uuid", user_id: "user1", is_current: 1)
+      db[:conversations].insert(id: "test-uuid", label: "test-label", archived: 0)
       db[:messages].insert(conversation_id: "test-uuid", role: "user", content: "hello")
 
       # Reset

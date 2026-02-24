@@ -5,8 +5,8 @@ require "spec_helper"
 RSpec.describe Botiasloop::Commands::Switch do
   let(:command) { described_class.new }
   let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "current-uuid-123", label: "current-label", label?: true) }
-  let(:config) { instance_double(Botiasloop::Config) }
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, user_id: "test-user") }
+  let(:chat) { instance_double(Botiasloop::Chat) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, chat: chat, user_id: "test-user") }
 
   describe ".command_name" do
     it "returns :switch" do
@@ -37,8 +37,8 @@ RSpec.describe Botiasloop::Commands::Switch do
       let(:target_conversation) { instance_double(Botiasloop::Conversation, uuid: "target-uuid-456", label: "my-project", label?: true) }
 
       before do
-        allow(Botiasloop::ConversationManager).to receive(:switch)
-          .with("test-user", "my-project")
+        allow(chat).to receive(:switch_conversation)
+          .with("my-project")
           .and_return(target_conversation)
         allow(target_conversation).to receive(:message_count).and_return(5)
         allow(target_conversation).to receive(:last_activity).and_return("2 hours ago")
@@ -58,8 +58,8 @@ RSpec.describe Botiasloop::Commands::Switch do
       end
 
       it "trims whitespace from the identifier" do
-        expect(Botiasloop::ConversationManager).to receive(:switch)
-          .with("test-user", "my-project")
+        expect(chat).to receive(:switch_conversation)
+          .with("my-project")
           .and_return(target_conversation)
         command.execute(context, "  my-project  ")
       end
@@ -69,8 +69,8 @@ RSpec.describe Botiasloop::Commands::Switch do
       let(:target_conversation) { instance_double(Botiasloop::Conversation, uuid: "abc-123-xyz", label: nil, label?: false) }
 
       before do
-        allow(Botiasloop::ConversationManager).to receive(:switch)
-          .with("test-user", "abc-123-xyz")
+        allow(chat).to receive(:switch_conversation)
+          .with("abc-123-xyz")
           .and_return(target_conversation)
         allow(target_conversation).to receive(:message_count).and_return(0)
         allow(target_conversation).to receive(:last_activity).and_return(nil)
@@ -95,8 +95,8 @@ RSpec.describe Botiasloop::Commands::Switch do
 
     context "when conversation is not found" do
       before do
-        allow(Botiasloop::ConversationManager).to receive(:switch)
-          .with("test-user", "non-existent")
+        allow(chat).to receive(:switch_conversation)
+          .with("non-existent")
           .and_raise(Botiasloop::Error, "Conversation not found")
       end
 
@@ -113,7 +113,7 @@ RSpec.describe Botiasloop::Commands::Switch do
 
     context "when label format is invalid" do
       it "returns error for invalid characters" do
-        allow(Botiasloop::ConversationManager).to receive(:switch)
+        allow(chat).to receive(:switch_conversation)
           .and_raise(Botiasloop::Error, "Invalid identifier")
         result = command.execute(context, "bad@label")
         expect(result).to include("Error")
