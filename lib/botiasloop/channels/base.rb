@@ -101,11 +101,10 @@ module Botiasloop
           )
           Commands.execute(content, context)
         else
-          agent = Agent.new
           verbose_callback = proc do |verbose_message|
             send_message(source_id, verbose_message)
           end
-          agent.chat(content, conversation: conversation, verbose_callback: verbose_callback)
+          Agent.chat(content, conversation: conversation, verbose_callback: verbose_callback)
         end
 
         send_message(source_id, response)

@@ -169,17 +169,16 @@ RSpec.describe Botiasloop::Channels::CLI do
   describe "#process_message" do
     let(:channel) { described_class.new }
     let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "cli-test-uuid") }
-    let(:agent) { instance_double(Botiasloop::Agent) }
 
     before do
       allow(channel).to receive(:conversation_for).with("cli").and_return(conversation)
-      allow(Botiasloop::Agent).to receive(:new).and_return(agent)
+      allow(Botiasloop::Agent).to receive(:chat).and_return("Test response")
       allow(channel).to receive(:send_message)
       allow(Botiasloop::Logger).to receive(:error)
     end
 
     it "processes non-command messages through agent" do
-      expect(agent).to receive(:chat).with("Hello", conversation: conversation,
+      expect(Botiasloop::Agent).to receive(:chat).with("Hello", conversation: conversation,
         verbose_callback: anything).and_return("Response")
       channel.process_message("cli", "Hello")
     end
@@ -188,18 +187,18 @@ RSpec.describe Botiasloop::Channels::CLI do
       allow(Botiasloop::Commands).to receive(:command?).with("/help").and_return(true)
       allow(Botiasloop::Commands).to receive(:execute).and_return("Help text")
 
-      expect(agent).not_to receive(:chat)
+      expect(Botiasloop::Agent).not_to receive(:chat)
       channel.process_message("cli", "/help")
     end
 
     it "sends message after processing" do
-      allow(agent).to receive(:chat).and_return("Response text")
+      allow(Botiasloop::Agent).to receive(:chat).and_return("Response text")
       expect(channel).to receive(:send_message).with("cli", "Response text")
       channel.process_message("cli", "Hello")
     end
 
     it "handles errors gracefully" do
-      allow(agent).to receive(:chat).and_raise(StandardError.new("Test error"))
+      allow(Botiasloop::Agent).to receive(:chat).and_raise(StandardError.new("Test error"))
       expect(channel).to receive(:send_message).with("cli", /Error: Test error/)
       expect(Botiasloop::Logger).to receive(:error).with(/Test error/)
       channel.process_message("cli", "Hello")

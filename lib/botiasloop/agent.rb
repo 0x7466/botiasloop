@@ -4,6 +4,23 @@ require "ruby_llm"
 
 module Botiasloop
   class Agent
+    @instance = nil
+
+    class << self
+      # @return [Agent] Singleton instance of the agent
+      def instance
+        @instance ||= new
+      end
+
+      # @return [Agent] Singleton instance of the agent (alias for instance)
+      def chat(message, conversation: nil, verbose_callback: nil)
+        instance.chat(message, conversation: conversation, verbose_callback: verbose_callback)
+      end
+
+      # Set the instance directly (primarily for testing)
+      # @param agent [Agent, nil] Agent instance or nil to reset
+      attr_writer :instance
+    end
     # Initialize the agent
     def initialize
       setup_ruby_llm

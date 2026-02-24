@@ -150,4 +150,68 @@ RSpec.describe Botiasloop::Agent do
       end
     end
   end
+
+  describe ".instance" do
+    let(:instance1) { described_class.instance }
+    let(:instance2) { described_class.instance }
+
+    before do
+      # Reset the singleton instance before each test
+      described_class.instance = nil
+    end
+
+    after do
+      described_class.instance = nil
+    end
+
+    it "returns the same instance on multiple calls" do
+      expect(instance1).to be_a(described_class)
+      expect(instance1.object_id).to eq(instance2.object_id)
+    end
+
+    it "creates a new instance after reset" do
+      original_instance = described_class.instance
+      described_class.instance = nil
+      new_instance = described_class.instance
+
+      expect(new_instance).to be_a(described_class)
+      expect(new_instance.object_id).not_to eq(original_instance.object_id)
+    end
+  end
+
+  describe ".chat" do
+    let(:mock_instance) { instance_double(described_class) }
+
+    before do
+      described_class.instance = mock_instance
+    end
+
+    after do
+      described_class.instance = nil
+    end
+
+    it "delegates to the singleton instance" do
+      conversation = instance_double(Botiasloop::Conversation)
+      callback = proc {}
+
+      expect(mock_instance).to receive(:chat).with(
+        "Hello",
+        conversation: conversation,
+        verbose_callback: callback
+      ).and_return("response")
+
+      result = described_class.chat("Hello", conversation: conversation, verbose_callback: callback)
+      expect(result).to eq("response")
+    end
+
+    it "delegates with default parameters" do
+      expect(mock_instance).to receive(:chat).with(
+        "Hello",
+        conversation: nil,
+        verbose_callback: nil
+      ).and_return("response")
+
+      described_class.chat("Hello")
+    end
+  end
 end

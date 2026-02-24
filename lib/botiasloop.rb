@@ -45,4 +45,8 @@ module Botiasloop
       super("I've reached my thinking limit (#{max_iterations} iterations). Please try a more specific question.")
     end
   end
+
+  # Eagerly initialize the singleton Agent instance at boot time
+  # This ensures thread-safe initialization in single-threaded boot context
+  Agent.instance
 end

@@ -206,7 +206,6 @@ RSpec.describe Botiasloop::Channels::Telegram do
   end
 
   describe "#process_message" do
-    let(:mock_agent) { instance_double(Botiasloop::Agent) }
     let(:mock_conversation) { instance_double(Botiasloop::Conversation) }
     let(:chat_id) { 123_456 }
     let(:message_text) { "Hello bot" }
@@ -231,8 +230,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
       allow(Botiasloop::Logger).to receive(:info)
       allow(Botiasloop::Logger).to receive(:warn)
       allow(Botiasloop::Logger).to receive(:error)
-      allow(Botiasloop::Agent).to receive(:new).and_return(mock_agent)
-      allow(mock_agent).to receive(:chat).and_return("Test response")
+      allow(Botiasloop::Agent).to receive(:chat).and_return("Test response")
       allow(mock_api).to receive(:send_message)
       channel.instance_variable_set(:@bot, mock_bot)
     end
@@ -241,7 +239,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
       let(:username) { "unauthorized_user" }
 
       it "silently ignores the message" do
-        expect(mock_agent).not_to receive(:chat)
+        expect(Botiasloop::Agent).not_to receive(:chat)
         expect(mock_api).not_to receive(:send_message)
         channel.process_message(chat_id.to_s, message)
       end
@@ -254,7 +252,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
 
     context "when user is in allowed list" do
       it "processes the message and sends response" do
-        expect(mock_agent).to receive(:chat).with(
+        expect(Botiasloop::Agent).to receive(:chat).with(
           message_text,
           conversation: anything,
           verbose_callback: anything
@@ -285,7 +283,7 @@ RSpec.describe Botiasloop::Channels::Telegram do
       end
 
       it "reuses existing conversation" do
-        allow(mock_agent).to receive(:chat).and_return("Test response")
+        allow(Botiasloop::Agent).to receive(:chat).and_return("Test response")
 
         # Process message - should use existing conversation
         channel.process_message(chat_id.to_s, message)

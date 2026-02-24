@@ -208,11 +208,9 @@ RSpec.describe Botiasloop::Channels::Base do
       end
     end
     let(:channel) { process_test_channel_class.new }
-    let(:mock_agent) { instance_double(Botiasloop::Agent) }
 
     before do
-      allow(Botiasloop::Agent).to receive(:new).and_return(mock_agent)
-      allow(mock_agent).to receive(:chat).and_return("Agent response")
+      allow(Botiasloop::Agent).to receive(:chat).and_return("Agent response")
     end
 
     it "updates ConversationManager when /new command changes conversation" do
