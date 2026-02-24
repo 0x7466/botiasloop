@@ -18,6 +18,11 @@ This document outlines the planned features and improvements for botiasloop.
 - [x] Handle channel-specific message formatting
 - [x] Channel configuration in YAML
 
+### Custom Keyboard Support
+- [ ] Generic interface in base channel: `custom_keyboard_supported?`, `custom_inline_keyboard_supported?`
+- [ ] Telegram implementation - [Custom keyboards](https://github.com/atipugin/telegram-bot-ruby?tab=readme-ov-file#custom-keyboards)
+- [ ] Other channels implement same interface when supported
+
 ### 3. Slash Commands
 - [x] `/reset` - Clear conversation history
 - [x] `/status` - Show current model, token usage, iteration count
