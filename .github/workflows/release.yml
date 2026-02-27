@@ -54,10 +54,12 @@ jobs:
 
       - name: Detect version change
         id: version
-        uses: dorny/version-path@v2
-        with:
-          versionFile: lib/botiasloop/version.rb
-          bump: false
+        run: |
+          if git diff HEAD~1 -- lib/botiasloop/version.rb | grep -q "^+\s*VERSION"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Skip if no version change
         if: steps.version.outputs.changed != 'true'
@@ -81,7 +83,7 @@ jobs:
           RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_TOKEN }}
 
       - name: Publish to GitHub Packages
-        uses: jstastny/publish-gem-to-github@main
+        uses: jstastny/publish-gem-to-github@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           owner: 0x7466
