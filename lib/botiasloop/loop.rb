@@ -50,8 +50,11 @@ module Botiasloop
             @verbose_callback.call(reasoning_content)
           end
 
-          # Add the assistant's message with tool_calls first
-          messages << response
+          # Add the assistant's message as a RubyLLM::Message object
+          messages << RubyLLM::Message.new(
+            role: :assistant,
+            content: response.content || ""
+          )
 
           response.tool_calls.each_value do |tool_call|
             observation = execute_tool(tool_call)
