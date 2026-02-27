@@ -77,13 +77,22 @@ jobs:
       - name: Build gem
         run: bundle exec rake build
 
-      - name: Publish to RubyGems
-        run: gem push pkg/botiasloop-$(cat lib/botiasloop/version.rb | tr -d '"').gem
-        env:
-          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_TOKEN }}
-
       - name: Publish to GitHub Packages
-        uses: jstastny/publish-gem-to-github@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          owner: 0x7466
+        run: |
+          mkdir -p $HOME/.gem
+          touch $HOME/.gem/credentials
+          chmod 0600 $HOME/.gem/credentials
+          printf -- "---\n:github: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
+          gem push --key github --host https://rubygems.pkg.github.com/${{ github.repository_owner }} pkg/*.gem
+        env:
+          GEM_HOST_API_KEY: "Bearer ${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Publish to RubyGems
+        run: |
+          mkdir -p $HOME/.gem
+          touch $HOME/.gem/credentials
+          chmod 0600 $HOME/.gem/credentials
+          printf -- "---\n:rubygems_api_key: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
+          gem push pkg/*.gem
+        env:
+          GEM_HOST_API_KEY: "${{ secrets.RUBYGEMS_API_TOKEN }}"
