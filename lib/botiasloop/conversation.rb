@@ -92,6 +92,15 @@ module Botiasloop
       self
     end
 
+    # Delete this conversation permanently
+    # Also deletes all associated messages via cascade
+    #
+    # @return [void]
+    def delete!
+      messages_dataset.delete
+      delete
+    end
+
     # Get the timestamp of the last activity in the conversation
     #
     # @return [String, nil] ISO8601 timestamp of last message, or nil if no messages

@@ -14,6 +14,7 @@ require_relative "commands/conversations"
 require_relative "commands/switch"
 require_relative "commands/archive"
 require_relative "commands/system_prompt"
+require_relative "commands/delete"
 
 module Botiasloop
   # Slash commands module
