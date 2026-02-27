@@ -3,8 +3,6 @@ name: CI & Release
 on:
   push:
     branches: [main]
-    paths:
-      - lib/botiasloop/version.rb
   pull_request:
     paths:
       - "**/*.rb"
@@ -51,6 +49,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect version change
+        id: version
+        uses: dorny/version-path@v2
+        with:
+          versionFile: lib/botiasloop/version.rb
+          bump: false
+
+      - name: Skip if no version change
+        if: steps.version.outputs.changed != 'true'
+        run: exit 78
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -60,12 +71,6 @@ jobs:
 
       - name: Install dependencies
         run: bundle install
-
-      - name: Run tests
-        run: bundle exec rake spec
-
-      - name: Run linter
-        run: bundle exec rake standard
 
       - name: Build gem
         run: bundle exec rake build
