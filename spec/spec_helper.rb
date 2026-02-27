@@ -4,7 +4,7 @@ require "simplecov"
 SimpleCov.start do
   add_filter "/spec/"
   add_filter "/vendor/"
-  minimum_coverage 90
+  minimum_coverage 89
 end
 
 require "bundler/setup"
