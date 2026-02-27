@@ -38,14 +38,11 @@ jobs:
       - name: Run linter
         run: bundle exec rake standard
 
-  release:
-    name: Release Gem
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  version-changed:
+    name: Check version change
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      changed: ${{ steps.version.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,9 +58,17 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Skip if no version change
-        if: steps.version.outputs.changed != 'true'
-        run: exit 78
+  release:
+    name: Release Gem
+    needs: [test, version-changed]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version-changed.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
