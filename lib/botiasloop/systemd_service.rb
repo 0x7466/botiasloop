@@ -235,6 +235,17 @@ module Botiasloop
       File.join(systemd_user_dir, SERVICE_NAME)
     end
 
+    # Get the botiasloop binary path for ExecStart
+    #
+    # @return [String] Path to botiasloop binary
+    def binary_path
+      ENV["PATH"].split(":").each do |dir|
+        path = File.join(dir, "botiasloop")
+        return path if File.executable?(path)
+      end
+      raise SystemdError, "botiasloop not found in PATH"
+    end
+
     # Generate the service file content
     #
     # @return [String] systemd service unit content
@@ -247,33 +258,15 @@ module Botiasloop
 
         [Service]
         Type=simple
-        ExecStart=#{executable_path} gateway
+        ExecStart=#{binary_path} gateway
         Restart=on-failure
         RestartSec=5
         StandardOutput=journal
         StandardError=journal
-        Environment="PATH=#{ruby_bin_path}:/usr/local/bin:/usr/bin:/bin"
 
         [Install]
         WantedBy=default.target
       SERVICE
-    end
-
-    # Get the path to the botiasloop executable
-    #
-    # @return [String] Path to botiasloop binary
-    def executable_path
-      Gem.bin_path("botiasloop", "botiasloop")
-    rescue Gem::Exception
-      # Fallback to searching in PATH
-      `which botiasloop 2>/dev/null`.strip
-    end
-
-    # Get the Ruby bin directory for PATH
-    #
-    # @return [String] Path to Ruby bin directory
-    def ruby_bin_path
-      File.dirname(RbConfig.ruby)
     end
 
     # Execute a systemctl command
