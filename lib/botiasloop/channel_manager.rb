@@ -5,23 +5,23 @@ require "logger"
 module Botiasloop
   # Manages concurrent execution of multiple channels
   #
-  # ChannelsManager provides a higher-level abstraction over the Channel Registry,
+  # ChannelManager provides a higher-level abstraction over the Channel Registry,
   # handling the threading and lifecycle management required to run multiple
   # channels simultaneously. Each channel runs in its own thread, allowing
   # independent operation and error isolation.
   #
   # @example Basic usage
-  #   manager = Botiasloop::ChannelsManager.new
+  #   manager = Botiasloop::ChannelManager.new
   #   manager.start_listening.wait
   #
-  class ChannelsManager
+  class ChannelManager
     # Time to wait for graceful shutdown before force-killing threads
     SHUTDOWN_TIMEOUT = 5
 
     # Channels that should not be auto-started (interactive channels)
     EXCLUDED_CHANNELS = %i[cli].freeze
 
-    # Initialize a new ChannelsManager
+    # Initialize a new ChannelManager
     def initialize
       @threads = {}
       @instances = {}
@@ -37,7 +37,7 @@ module Botiasloop
     # a warning. Startup failures are logged but don't prevent other
     # channels from starting.
     #
-    # @return [ChannelsManager] self for method chaining
+    # @return [ChannelManager] self for method chaining
     # @raise [Error] If channels are already running
     def start_listening
       @mutex.synchronize do
@@ -57,7 +57,7 @@ module Botiasloop
           instance = channel_class.new
         rescue Error => e
           if e.message.match?(/Missing required configuration/)
-            Logger.warn "[ChannelsManager] Skipping #{identifier}: #{e.message}"
+            Logger.warn "[ChannelManager] Skipping #{identifier}: #{e.message}"
             next
           end
           raise
@@ -69,7 +69,7 @@ module Botiasloop
           @instances[identifier] = instance
         end
 
-        Logger.info "[ChannelsManager] Started #{identifier} in thread #{thread.object_id}"
+        Logger.info "[ChannelManager] Started #{identifier} in thread #{thread.object_id}"
       end
 
       # Monitor threads for crashes
@@ -92,19 +92,19 @@ module Botiasloop
         @running = false
       end
 
-      Logger.info "[ChannelsManager] Stopping all channels..."
+      Logger.info "[ChannelManager] Stopping all channels..."
 
       # Stop all channel instances
       @instances.each do |identifier, instance|
         instance.stop_listening if instance.running?
       rescue => e
-        Logger.error "[ChannelsManager] Error stopping #{identifier}: #{e.message}"
+        Logger.error "[ChannelManager] Error stopping #{identifier}: #{e.message}"
       end
 
       # Wait for threads to complete
       @threads.each do |identifier, thread|
         unless thread.join(SHUTDOWN_TIMEOUT)
-          Logger.warn "[ChannelsManager] Force-killing #{identifier} thread"
+          Logger.warn "[ChannelManager] Force-killing #{identifier} thread"
           thread.kill
         end
       end
@@ -114,7 +114,7 @@ module Botiasloop
         @instances.clear
       end
 
-      Logger.info "[ChannelsManager] All channels stopped"
+      Logger.info "[ChannelManager] All channels stopped"
     end
 
     # Check if any channels are currently running
@@ -218,8 +218,8 @@ module Botiasloop
         begin
           instance.start_listening
         rescue => e
-          Logger.error "[ChannelsManager] Channel #{identifier} crashed: #{e.message}"
-          Logger.error "[ChannelsManager] #{e.backtrace&.first(5)&.join("\n")}"
+          Logger.error "[ChannelManager] Channel #{identifier} crashed: #{e.message}"
+          Logger.error "[ChannelManager] #{e.backtrace&.first(5)&.join("\n")}"
         end
       end
     end
@@ -243,7 +243,7 @@ module Botiasloop
               instance = @instances[identifier]
               next unless instance&.running?
 
-              Logger.error "[ChannelsManager] Thread for #{identifier} died unexpectedly"
+              Logger.error "[ChannelManager] Thread for #{identifier} died unexpectedly"
               @instances.delete(identifier)
               @threads.delete(identifier)
             end
@@ -274,7 +274,7 @@ module Botiasloop
     def handle_shutdown_signal(signal)
       # Defer to separate thread to avoid trap context limitations
       Thread.new do
-        Logger.info "[ChannelsManager] Received #{signal}, shutting down..."
+        Logger.info "[ChannelManager] Received #{signal}, shutting down..."
         stop_listening
 
         # Call original handler if it exists

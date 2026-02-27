@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Botiasloop::ChannelsManager do
+RSpec.describe Botiasloop::ChannelManager do
   let(:test_config) do
     Botiasloop::Config.new({
       "channels" => {

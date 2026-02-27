@@ -44,7 +44,7 @@ def start_gateway
     exit 1
   end
 
-  manager = Botiasloop::ChannelsManager.new
+  manager = Botiasloop::ChannelManager.new
 
   # Start all channels and wait
   manager.start_listening.wait

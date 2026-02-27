@@ -6,7 +6,7 @@ module Botiasloop
     #
     # The Registry maintains a static mapping of channel identifiers to
     # channel classes. It does not manage runtime instances - that is handled
-    # by ChannelsManager.
+    # by ChannelManager.
     #
     class Registry
       attr_reader :channels

@@ -420,7 +420,7 @@ botiasloop/
 │       │   ├── base.rb         # Channel base class
 │       │   ├── cli.rb          # CLI channel
 │       │   └── telegram.rb     # Telegram bot
-│       ├── channels_manager.rb # Multi-channel orchestration
+│       ├── channel_manager.rb # Multi-channel orchestration
 │       └── systemd_service.rb  # Service management
 ├── data/
 │   └── skills/                 # Default skills
