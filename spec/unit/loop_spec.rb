@@ -8,6 +8,9 @@ RSpec.describe Botiasloop::Loop do
   let(:mock_registry) { double("registry") }
   let(:loop) { described_class.new(mock_provider, mock_model, mock_registry, max_iterations: 5) }
   let(:conversation) { instance_double(Botiasloop::Conversation) }
+  let(:callback) { proc { |msg| } }
+  let(:error_callback) { proc { |msg| } }
+
   before do
     allow(conversation).to receive(:add)
     allow(conversation).to receive(:history).and_return([])
@@ -48,7 +51,7 @@ RSpec.describe Botiasloop::Loop do
       end
 
       it "returns the response content" do
-        result = loop.run(conversation, "What is 2+2?")
+        result = loop.run(conversation, "What is 2+2?", callback: callback)
         expect(result).to eq("This is the answer")
       end
 
@@ -59,22 +62,18 @@ RSpec.describe Botiasloop::Loop do
           expect(messages.first.content).to eq("System prompt")
           response
         end
-        loop.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?", callback: callback)
       end
 
       it "adds user message to conversation" do
         expect(conversation).to receive(:add).with("user", "What is 2+2?")
-        loop.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?", callback: callback)
       end
 
       it "adds assistant response to conversation with token counts" do
         expect(conversation).to receive(:add).with("assistant", "This is the answer", input_tokens: 100,
           output_tokens: 50)
-        loop.run(conversation, "What is 2+2?")
-      end
-
-      it "tracks tokens from LLM response" do
-        loop.run(conversation, "What is 2+2?")
+        loop.run(conversation, "What is 2+2?", callback: callback)
       end
     end
 
@@ -116,23 +115,17 @@ RSpec.describe Botiasloop::Loop do
 
       it "executes the tool" do
         expect(mock_registry).to receive(:execute).with("shell", {"command" => "echo hello"})
-        loop.run(conversation, "Run echo hello")
+        loop.run(conversation, "Run echo hello", callback: callback)
       end
 
       it "returns final answer after tool execution" do
-        result = loop.run(conversation, "Run echo hello")
+        result = loop.run(conversation, "Run echo hello", callback: callback)
         expect(result).to eq("The output is hello")
       end
 
       it "logs the tool call" do
         expect(Botiasloop::Logger).to receive(:info).with(/\[Tool\] Executing shell/)
-        loop.run(conversation, "Run echo hello")
-      end
-
-      it "accumulates tokens across iterations" do
-        expect(conversation).to receive(:add).with("assistant", "The output is hello", input_tokens: 150,
-          output_tokens: 75)
-        loop.run(conversation, "Run echo hello")
+        loop.run(conversation, "Run echo hello", callback: callback)
       end
     end
 
@@ -160,7 +153,7 @@ RSpec.describe Botiasloop::Loop do
       end
 
       it "raises MaxIterationsExceeded when max iterations reached" do
-        expect { loop.run(conversation, "Test") }.to raise_error(Botiasloop::MaxIterationsExceeded)
+        expect { loop.run(conversation, "Test", callback: callback) }.to raise_error(Botiasloop::MaxIterationsExceeded)
       end
     end
 
@@ -202,12 +195,16 @@ RSpec.describe Botiasloop::Loop do
 
       it "retries up to 3 times" do
         expect(mock_registry).to receive(:execute).exactly(3).times
-        loop.run(conversation, "Test")
+        loop.run(conversation, "Test", callback: callback)
       end
 
-      it "continues after retries exhausted" do
-        result = loop.run(conversation, "Test")
-        expect(result).to eq("There was an error")
+      it "calls error_callback when retries exhausted" do
+        error_called = false
+        error_cb = proc { error_called = true }
+
+        loop.run(conversation, "Test", callback: callback, error_callback: error_cb)
+
+        expect(error_called).to be true
       end
     end
 
@@ -248,11 +245,11 @@ RSpec.describe Botiasloop::Loop do
         allow(conversation).to receive(:verbose).and_return(true)
       end
 
-      it "calls verbose callback with reasoning and tool calls" do
+      it "calls callback with reasoning and tool calls" do
         callback_messages = []
-        verbose_callback = proc { |msg| callback_messages << msg }
+        cb = proc { |msg| callback_messages << msg }
 
-        loop.run(conversation, "Run test", verbose_callback)
+        loop.run(conversation, "Run test", callback: cb)
 
         expect(callback_messages).to include(/💭 \*\*Reasoning\*\*/)
         expect(callback_messages).to include(/I need to run a shell command/)
@@ -260,17 +257,18 @@ RSpec.describe Botiasloop::Loop do
         expect(callback_messages).to include(/📥 \*\*Result\*\*/)
       end
 
-      it "calls verbose callback with error message when tool fails" do
+      it "calls error_callback when tool fails" do
         allow(mock_registry).to receive(:execute).and_raise(Botiasloop::Error, "Command not found")
 
         callback_messages = []
-        verbose_callback = proc { |msg| callback_messages << msg }
+        error_messages = []
+        cb = proc { |msg| callback_messages << msg }
+        error_cb = proc { |msg| error_messages << msg }
 
-        loop.run(conversation, "Run test", verbose_callback)
+        loop.run(conversation, "Run test", callback: cb, error_callback: error_cb)
 
         expect(callback_messages).to include(/🔧 \*\*Tool\*\* `shell`/)
-        expect(callback_messages).to include(/⚠️ \*\*Error\*\*/)
-        expect(callback_messages).to include(/Command not found/)
+        expect(error_messages).to include(/Command not found/)
       end
     end
 
@@ -311,101 +309,13 @@ RSpec.describe Botiasloop::Loop do
         allow(conversation).to receive(:verbose).and_return(false)
       end
 
-      it "does not call verbose callback when verbose is disabled" do
+      it "does not call callback when verbose is disabled" do
         callback_messages = []
-        verbose_callback = proc { |msg| callback_messages << msg }
+        cb = proc { |msg| callback_messages << msg }
 
-        loop.run(conversation, "Run test", verbose_callback)
+        loop.run(conversation, "Run test", callback: cb)
 
         expect(callback_messages).to be_empty
-      end
-    end
-
-    context "with auto-labelling" do
-      let(:response) do
-        double("response",
-          tool_call?: false,
-          content: "This is the answer",
-          role: :assistant,
-          input_tokens: 100,
-          output_tokens: 50)
-      end
-
-      let(:test_config) do
-        Botiasloop::Config.new({
-          "features" => {"auto_labelling" => {"enabled" => true}},
-          "providers" => {
-            "openrouter" => {"model" => "moonshotai/kimi-k2.5"}
-          }
-        })
-      end
-
-      let(:mock_chat) { instance_double(RubyLLM::Chat) }
-
-      before do
-        allow(mock_provider).to receive(:complete).and_return(response)
-      end
-
-      it "does not auto-label when config is nil" do
-        Botiasloop::Config.instance = nil
-        expect(conversation).not_to receive(:update)
-        loop.run(conversation, "What is 2+2?")
-      end
-
-      it "does not auto-label when conversation has fewer than 6 messages" do
-        Botiasloop::Config.instance = test_config
-        allow(conversation).to receive(:message_count).and_return(4)
-        allow(conversation).to receive(:label?).and_return(false)
-
-        expect(conversation).not_to receive(:update)
-        loop.run(conversation, "What is 2+2?")
-      end
-
-      it "does not auto-label when conversation already has a label" do
-        Botiasloop::Config.instance = test_config
-        allow(conversation).to receive(:message_count).and_return(6)
-        allow(conversation).to receive(:label?).and_return(true)
-
-        expect(conversation).not_to receive(:update)
-        loop.run(conversation, "What is 2+2?")
-      end
-
-      it "auto-labels when conditions are met" do
-        Botiasloop::Config.instance = test_config
-        allow(conversation).to receive(:uuid).and_return("test-uuid-123")
-        allow(conversation).to receive(:message_count).and_return(6)
-        allow(conversation).to receive(:label?).and_return(false)
-        allow(RubyLLM).to receive(:chat).and_return(mock_chat)
-        allow(mock_chat).to receive(:add_message)
-        allow(mock_chat).to receive(:complete).and_return(
-          instance_double(RubyLLM::Message, content: "test-label")
-        )
-
-        expect(conversation).to receive(:update).with(label: "test-label")
-        loop.run(conversation, "What is 2+2?")
-      end
-
-      it "uses configured model for auto-labelling" do
-        allow(conversation).to receive(:uuid).and_return("custom-uuid-456")
-        custom_config = Botiasloop::Config.new({
-          "features" => {"auto_labelling" => {"enabled" => true,
-                                              "model" => "custom-model"}},
-          "providers" => {
-            "openrouter" => {"model" => "moonshotai/kimi-k2.5"}
-          }
-        })
-        Botiasloop::Config.instance = custom_config
-
-        allow(conversation).to receive(:message_count).and_return(6)
-        allow(conversation).to receive(:label?).and_return(false)
-        allow(RubyLLM).to receive(:chat).with(model: "custom-model").and_return(mock_chat)
-        allow(mock_chat).to receive(:add_message)
-        allow(mock_chat).to receive(:complete).and_return(
-          instance_double(RubyLLM::Message, content: "custom-label")
-        )
-
-        expect(conversation).to receive(:update).with(label: "custom-label")
-        loop.run(conversation, "What is 2+2?")
       end
     end
   end

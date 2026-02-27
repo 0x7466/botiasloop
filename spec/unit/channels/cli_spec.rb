@@ -11,6 +11,7 @@ RSpec.describe Botiasloop::Channels::CLI do
 
   before do
     Botiasloop::Config.instance = test_config
+    Botiasloop::Channels.registry.register(described_class)
   end
 
   after do
@@ -169,17 +170,21 @@ RSpec.describe Botiasloop::Channels::CLI do
     let(:channel) { described_class.new }
     let(:chat) { Botiasloop::Chat.find_or_create("cli", "cli") }
     let(:conversation) { chat.current_conversation }
+    let(:mock_run) { instance_double(Botiasloop::Loop::Run) }
 
     before do
       Botiasloop::Agent.instance_variable_set(:@instance, nil)
-      allow(Botiasloop::Agent).to receive(:chat).and_return("Test response")
+      allow(Botiasloop::Agent).to receive(:chat).and_return(mock_run)
+      allow(mock_run).to receive(:start).and_return(mock_run)
       allow(channel).to receive(:send_message)
       allow(Botiasloop::Logger).to receive(:error)
     end
 
     it "processes non-command messages through agent" do
-      expect(Botiasloop::Agent).to receive(:chat).with("Hello", conversation: conversation,
-        verbose_callback: anything).and_return("Response")
+      expect(Botiasloop::Agent).to receive(:chat).with(
+        "Hello",
+        hash_including(callback: kind_of(Proc), conversation: conversation)
+      )
       channel.process_message("cli", "Hello")
     end
 
@@ -191,16 +196,23 @@ RSpec.describe Botiasloop::Channels::CLI do
       channel.process_message("cli", "/help")
     end
 
-    it "sends message after processing" do
-      allow(Botiasloop::Agent).to receive(:chat).and_return("Response text")
+    it "calls send_message via callback with response" do
+      allow(Botiasloop::Agent).to receive(:chat) do |message, **options|
+        options[:callback].call("Response text")
+        mock_run
+      end
+
       expect(channel).to receive(:send_message).with("cli", "Response text")
       channel.process_message("cli", "Hello")
     end
 
-    it "handles errors gracefully" do
-      allow(Botiasloop::Agent).to receive(:chat).and_raise(StandardError.new("Test error"))
+    it "handles errors via error_callback" do
+      allow(Botiasloop::Agent).to receive(:chat) do |message, **options|
+        options[:error_callback].call("Test error")
+        mock_run
+      end
+
       expect(channel).to receive(:send_message).with("cli", /Error: Test error/)
-      expect(Botiasloop::Logger).to receive(:error).with(/Test error/)
       channel.process_message("cli", "Hello")
     end
   end

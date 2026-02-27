@@ -5,6 +5,8 @@ require "ruby_llm"
 module Botiasloop
   class Agent
     @instance = nil
+    @mutex = Mutex.new
+    @active_loop_runs = []
 
     class << self
       # @return [Agent] Singleton instance of the agent
@@ -12,36 +14,59 @@ module Botiasloop
         @instance ||= new
       end
 
-      # @return [Agent] Singleton instance of the agent (alias for instance)
-      def chat(message, conversation: nil, verbose_callback: nil)
-        instance.chat(message, conversation: conversation, verbose_callback: verbose_callback)
+      # @return [Array<Loop::Run>] Active loop runs
+      def active_loop_runs
+        @active_loop_runs ||= []
+      end
+
+      # Send a message and get a response asynchronously
+      #
+      # @param message [String] User message
+      # @param callback [Proc] Callback for messages (verbose + final response)
+      # @param error_callback [Proc, nil] Callback for errors
+      # @param conversation [Conversation, nil] Existing conversation
+      # @return [Loop::Run] Run instance
+      def chat(message, callback:, error_callback: nil, conversation: nil)
+        instance.chat(message, callback: callback, error_callback: error_callback, conversation: conversation)
       end
 
       # Set the instance directly (primarily for testing)
       # @param agent [Agent, nil] Agent instance or nil to reset
       attr_writer :instance
     end
+
     # Initialize the agent
     def initialize
       setup_ruby_llm
+
+      @provider, @model = create_provider_and_model
+      @registry = create_registry
+      @max_iterations = Config.instance.max_iterations
     end
 
-    # Send a message and get a response
+    # Send a message and get a response asynchronously
     #
     # @param message [String] User message
+    # @param callback [Proc] Callback for messages (verbose + final response)
+    # @param error_callback [Proc, nil] Callback for errors
     # @param conversation [Conversation, nil] Existing conversation
-    # @param verbose_callback [Proc, nil] Callback for verbose messages
-    # @return [String] Assistant response
-    def chat(message, conversation: nil, verbose_callback: nil)
+    # @return [Loop::Run] Run instance
+    def chat(message, callback:, error_callback: nil, conversation: nil)
       conversation ||= Conversation.new
 
-      registry = create_registry
-      provider, model = create_provider_and_model
-      loop = Loop.new(provider, model, registry, max_iterations: Config.instance.max_iterations)
+      run = Loop::Run.new(
+        provider: @provider,
+        model: @model,
+        registry: @registry,
+        max_iterations: @max_iterations,
+        conversation: conversation,
+        user_input: message,
+        callback: callback,
+        error_callback: error_callback
+      )
 
-      loop.run(conversation, message, verbose_callback)
-    rescue MaxIterationsExceeded => e
-      e.message
+      self.class.active_loop_runs << run
+      run.start
     end
 
     private

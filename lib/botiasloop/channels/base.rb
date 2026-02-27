@@ -102,25 +102,23 @@ module Botiasloop
         chat = chat_for(source_id, user_identifier: user_id)
         conversation = chat.current_conversation
 
-        response = if Commands.command?(content)
+        if Commands.command?(content)
           context = Commands::Context.new(
             conversation: conversation,
             chat: chat,
             channel: self,
             user_id: source_id
           )
-          Commands.execute(content, context)
+          response = Commands.execute(content, context)
+          send_message(source_id, response)
         else
-          verbose_callback = proc do |verbose_message|
-            send_message(source_id, verbose_message)
-          end
-          Agent.chat(content, conversation: conversation, verbose_callback: verbose_callback)
+          callback = proc { |message| send_message(source_id, message) }
+          error_callback = proc { |error| send_message(source_id, "Error: #{error}") }
+          Agent.chat(content, callback: callback, error_callback: error_callback, conversation: conversation)
         end
 
-        send_message(source_id, response)
-
         # Hook: Post-processing
-        after_process(source_id, user_id, response, raw_message)
+        after_process(source_id, user_id, nil, raw_message)
       rescue => e
         handle_error(source_id, user_id, e, raw_message)
       end

@@ -248,21 +248,30 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
 
     context "when user is in allowed list" do
-      it "processes the message and sends response" do
-        expect(Botiasloop::Agent).to receive(:chat).with(
-          message_text,
-          conversation: anything,
-          verbose_callback: anything
-        ).and_return("Test response")
+      let(:mock_run) { instance_double(Botiasloop::Loop::Run) }
+
+      before do
+        allow(Botiasloop::Agent).to receive(:chat).and_return(mock_run)
+        allow(mock_run).to receive(:start).and_return(mock_run)
+      end
+
+      it "processes the message and sends response via callback" do
+        allow(Botiasloop::Agent).to receive(:chat) do |message, **options|
+          options[:callback].call("Test response")
+          mock_run
+        end
+
         expect(mock_api).to receive(:send_message).with(
           chat_id: chat_id,
-          text: anything,
+          text: /Test response/,
           parse_mode: "HTML"
         )
+
         channel.process_message(chat_id.to_s, message)
       end
 
       it "uses Chat for conversation state" do
+        allow(Botiasloop::Agent).to receive(:chat).and_return(mock_run)
         channel.process_message(chat_id.to_s, message)
 
         # Verify chat was created and associated with the user

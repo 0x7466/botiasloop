@@ -23,34 +23,33 @@ module Botiasloop
     #
     # @param conversation [Conversation] Conversation instance
     # @param user_input [String] User input
-    # @param verbose_callback [Proc, nil] Callback for verbose messages
+    # @param callback [Proc] Callback for messages (verbose + final response)
+    # @param error_callback [Proc, nil] Callback for errors
     # @return [String] Final response
     # @raise [Error] If max iterations exceeded
-    def run(conversation, user_input, verbose_callback = nil)
+    def run(conversation, user_input, callback:, error_callback: nil)
       @conversation = conversation
-      @verbose_callback = verbose_callback
+      @callback = callback
+      @error_callback = error_callback
+
       conversation.add("user", user_input)
       messages = build_messages(conversation)
 
-      # Track accumulated tokens across all iterations
       total_input_tokens = 0
       total_output_tokens = 0
 
       @max_iterations.times do
         response = iterate(messages)
 
-        # Accumulate tokens from this response
         total_input_tokens += response.input_tokens || 0
         total_output_tokens += response.output_tokens || 0
 
         if response.tool_call?
-          # Send reasoning to verbose callback if verbose mode enabled
-          if @conversation.verbose && @verbose_callback && response.content && !response.content.empty?
+          if @conversation.verbose && response.content && !response.content.empty?
             reasoning_content = format_reasoning_message(response.content)
-            @verbose_callback.call(reasoning_content)
+            @callback.call(reasoning_content)
           end
 
-          # Add the assistant's message as a RubyLLM::Message object
           messages << RubyLLM::Message.new(
             role: :assistant,
             content: response.content || ""
@@ -110,9 +109,9 @@ module Botiasloop
     def execute_tool(tool_call)
       Logger.info "[Tool] Executing #{tool_call.name} with arguments: #{tool_call.arguments}"
 
-      if @conversation.verbose && @verbose_callback
+      if @conversation.verbose
         verbose_content = format_tool_message(tool_call)
-        @verbose_callback.call(verbose_content)
+        @callback.call(verbose_content)
       end
 
       retries = 0
@@ -120,9 +119,9 @@ module Botiasloop
         result = @registry.execute(tool_call.name, tool_call.arguments)
         observation = build_observation(result)
 
-        if @conversation.verbose && @verbose_callback
+        if @conversation.verbose
           result_content = format_result_message(observation)
-          @verbose_callback.call(result_content)
+          @callback.call(result_content)
         end
 
         observation
@@ -130,7 +129,10 @@ module Botiasloop
         retries += 1
         retry if retries < MAX_TOOL_RETRIES
         error_content = "Error: #{e.message}"
-        @verbose_callback.call(format_error_message(error_content)) if @conversation.verbose && @verbose_callback
+        if @conversation.verbose
+          @callback.call(format_error_message(error_content))
+        end
+        @error_callback&.call(error_content)
         error_content
       end
     end
