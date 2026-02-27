@@ -1,0 +1,82 @@
+name: CI & Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - lib/botiasloop/version.rb
+  pull_request:
+    paths:
+      - "**/*.rb"
+      - Gemfile
+      - Gemfile.lock
+      - botiasloop.gemspec
+      - .github/workflows/release.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Run tests
+        run: bundle exec rake spec
+
+      - name: Run linter
+        run: bundle exec rake standard
+
+  release:
+    name: Release Gem
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Run tests
+        run: bundle exec rake spec
+
+      - name: Run linter
+        run: bundle exec rake standard
+
+      - name: Build gem
+        run: bundle exec rake build
+
+      - name: Publish to RubyGems
+        run: gem push pkg/botiasloop-$(cat lib/botiasloop/version.rb | tr -d '"').gem
+        env:
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_TOKEN }}
+
+      - name: Publish to GitHub Packages
+        uses: jstastny/publish-gem-to-github@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: 0x7466

@@ -282,6 +282,42 @@ bundle exec rspec
 - `.mise.toml` - Project-level tool configuration
 - `.tool-versions` - Alternative version file (legacy)
 
+## Release Workflow
+
+The project uses GitHub Actions to automatically publish the gem to both RubyGems and GitHub Packages when the version is updated.
+
+### How It Works
+
+1. CI runs on every PR and push to main (test + lint)
+2. Release runs only when:
+   - Push to main branch
+   - `lib/botiasloop/version.rb` is modified
+   - All tests and linting pass
+
+### Publishing a New Version
+
+1. Update the version in `lib/botiasloop/version.rb`:
+   ```ruby
+   VERSION = "0.0.3"  # bump the version number
+   ```
+2. Commit and push to main
+3. CI will run tests and linting
+4. If all pass, the gem will be published to:
+   - RubyGems (https://rubygems.org/gems/botiasloop)
+   - GitHub Packages
+
+### Required Secrets
+
+The following secrets must be configured in the repository settings:
+
+1. **RUBYGEMS_API_TOKEN** - RubyGems.org API token
+   - Get it from: https://rubygems.org/profile/api_keys
+   - Create a new API key with "Push" scope
+
+2. **GITHUB_TOKEN** - automatically available (no setup needed)
+
+Configure secrets at: `https://github.com/0x7466/botiasloop/settings/secrets/actions`
+
 ## Philosophy
 
 This gem follows the "sharp knives" philosophy - it provides full shell access without restrictions. This is intentional. The gem is designed for dedicated infrastructure, not personal devices.
