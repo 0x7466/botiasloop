@@ -7,9 +7,14 @@ RSpec.describe Botiasloop::Commands::Compact do
   let(:mock_chat) { instance_double(RubyLLM::Chat) }
   let(:conversation) do
     instance_double(Botiasloop::Conversation,
+      id: "test-uuid-123",
       uuid: "test-uuid-123",
       history: [],
       compact!: nil)
+  end
+  let(:chat) do
+    instance_double(Botiasloop::Chat,
+      current_conversation: conversation)
   end
   let(:config) do
     instance_double(Botiasloop::Config,
@@ -20,7 +25,7 @@ RSpec.describe Botiasloop::Commands::Compact do
         "summarize" => {}
       })
   end
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, chat: chat) }
 
   before do
     allow(RubyLLM).to receive(:chat).and_return(mock_chat)

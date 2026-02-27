@@ -109,7 +109,7 @@ module Botiasloop
 
     def valid_label?(label)
       return false if label.nil? || label.empty?
-      return false unless label.match?(ConversationManager::LABEL_REGEX)
+      return false unless label.match?(Conversation::LABEL_REGEX)
 
       true
     end

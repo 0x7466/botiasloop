@@ -14,12 +14,13 @@ RSpec.describe Botiasloop::Commands::Status do
       output_tokens: 75,
       total_tokens: 225)
   end
+  let(:chat) { instance_double(Botiasloop::Chat) }
   let(:config) do
     instance_double(Botiasloop::Config,
       max_iterations: 20,
       providers: {"openrouter" => {"model" => "moonshotai/kimi-k2.5"}})
   end
-  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation) }
+  let(:context) { Botiasloop::Commands::Context.new(conversation: conversation, chat: chat) }
 
   describe ".command_name" do
     it "returns :status" do

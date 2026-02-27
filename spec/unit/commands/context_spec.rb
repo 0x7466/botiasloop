@@ -62,7 +62,7 @@ RSpec.describe Botiasloop::Commands::Context do
     end
 
     it "returns nil when not set" do
-      context = described_class.new(conversation: conversation)
+      context = described_class.new(conversation: conversation, chat: nil)
       expect(context.chat).to be_nil
     end
   end

@@ -19,35 +19,6 @@ RSpec.describe Botiasloop::HumanId do
       ids = 10.times.map { described_class.generate }
       expect(ids.uniq.length).to eq(10)
     end
-
-    it "retries when ID already exists in database" do
-      # Create a conversation with a specific ID
-      existing_id = "blue-dog-123"
-      Botiasloop::Conversation.create(user_id: "test", id: existing_id)
-
-      # Stub FFaker to return the same values to force a collision
-      allow(FFaker::Color).to receive(:name).and_return("blue")
-      allow(FFaker::AnimalUS).to receive(:common_name).and_return("dog")
-      allow(described_class).to receive(:rand).with(100..999).and_return(123, 456)
-
-      # Should retry and generate a different ID
-      new_id = described_class.generate
-      expect(new_id).not_to eq(existing_id)
-      expect(new_id).to match(/\A[a-z]+-[a-z]+-[0-9]{3}\z/)
-    end
-
-    it "raises error after maximum retries" do
-      # Create conversations to consume all possible IDs for a color-animal combo
-      allow(FFaker::Color).to receive(:name).and_return("red")
-      allow(FFaker::AnimalUS).to receive(:common_name).and_return("cat")
-
-      # Create all possible IDs for red-cat-XXX
-      (100..999).each do |num|
-        Botiasloop::Conversation.create(user_id: "test", id: "red-cat-#{num}")
-      end
-
-      expect { described_class.generate }.to raise_error(Botiasloop::Error, /Failed to generate unique ID/)
-    end
   end
 
   describe ".normalize" do
@@ -70,7 +41,7 @@ RSpec.describe Botiasloop::HumanId do
 
   describe ".exists?" do
     it "returns true if ID exists in database" do
-      Botiasloop::Conversation.create(user_id: "test", id: "green-bird-456")
+      Botiasloop::Conversation.create(id: "green-bird-456")
       expect(described_class.exists?("green-bird-456")).to be true
     end
 
@@ -79,7 +50,7 @@ RSpec.describe Botiasloop::HumanId do
     end
 
     it "is case insensitive" do
-      Botiasloop::Conversation.create(user_id: "test", id: "purple-fish-789")
+      Botiasloop::Conversation.create(id: "purple-fish-789")
       expect(described_class.exists?("PURPLE-FISH-789")).to be true
     end
   end

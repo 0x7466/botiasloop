@@ -27,9 +27,6 @@ RSpec.describe Botiasloop::Channels::Telegram do
     # Ensure Telegram is registered in the global registry
     Botiasloop::Channels.registry.register(described_class)
 
-    # Clear database state
-    Botiasloop::ConversationManager.clear_all
-
     # Mock Telegram::Bot::Client
     stub_const("Telegram::Bot::Client", double)
     stub_const("Telegram::Bot::Types::Message", Class.new)
@@ -265,59 +262,58 @@ RSpec.describe Botiasloop::Channels::Telegram do
         channel.process_message(chat_id.to_s, message)
       end
 
-      it "uses ConversationManager for conversation state" do
+      it "uses Chat for conversation state" do
         channel.process_message(chat_id.to_s, message)
 
-        # Verify conversation was created and associated with the user
-        current_uuid = Botiasloop::ConversationManager.current_id_for(chat_id.to_s)
-        expect(current_uuid).not_to be_nil
-
-        db_conv = Botiasloop::Conversation.find(id: current_uuid)
-        expect(db_conv.user_id).to eq(chat_id.to_s)
+        # Verify chat was created and associated with the user
+        chat = Botiasloop::Chat.find(channel: "telegram", external_id: chat_id.to_s)
+        expect(chat).not_to be_nil
+        expect(chat.current_conversation).not_to be_nil
       end
     end
 
     context "when chat already exists" do
       before do
-        Botiasloop::Conversation.create(id: "existing-uuid", user_id: chat_id.to_s, is_current: true)
+        Botiasloop::Chat.create(channel: "telegram", external_id: chat_id.to_s)
       end
 
       it "reuses existing conversation" do
         allow(Botiasloop::Agent).to receive(:chat).and_return("Test response")
 
-        # Process message - should use existing conversation
+        # Process message - should use existing chat
         channel.process_message(chat_id.to_s, message)
 
-        # Verify the conversation was retrieved
-        expect(Botiasloop::ConversationManager.current_id_for(chat_id.to_s)).to eq("existing-uuid")
+        # Verify the chat was retrieved
+        chat = Botiasloop::Chat.find(channel: "telegram", external_id: chat_id.to_s)
+        expect(chat).not_to be_nil
       end
     end
   end
 
-  describe "#conversation_for" do
+  describe "#chat_for" do
     let(:channel) { described_class.new }
 
     context "when chat does not exist" do
-      it "creates new conversation and saves mapping via ConversationManager" do
-        conversation = channel.conversation_for("123456")
+      it "creates new chat and conversation" do
+        chat = channel.chat_for("123456")
 
-        expect(conversation).to be_a(Botiasloop::Conversation)
+        expect(chat).to be_a(Botiasloop::Chat)
+        expect(chat.current_conversation).to be_a(Botiasloop::Conversation)
 
         # Verify via database
-        db_conv = Botiasloop::Conversation.find(id: conversation.uuid)
+        db_conv = Botiasloop::Conversation.find(id: chat.current_conversation.id)
         expect(db_conv).not_to be_nil
-        expect(db_conv.user_id).to eq("123456")
       end
     end
 
     context "when chat exists" do
       before do
-        Botiasloop::Conversation.create(id: "existing-uuid", user_id: "123456", is_current: true)
+        Botiasloop::Chat.create(channel: "telegram", external_id: "123456")
       end
 
-      it "returns existing conversation" do
-        conversation = channel.conversation_for("123456")
-        expect(conversation.uuid).to eq("existing-uuid")
+      it "returns existing chat" do
+        chat = channel.chat_for("123456")
+        expect(chat.external_id).to eq("123456")
       end
     end
   end

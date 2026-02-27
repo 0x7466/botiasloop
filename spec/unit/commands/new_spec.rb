@@ -26,8 +26,8 @@ RSpec.describe Botiasloop::Commands::New do
 
   describe "#execute" do
     it "returns a string message" do
-      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
-      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456", "green-bird-789")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-new-1")
       original_conversation = chat.current_conversation
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
@@ -37,8 +37,8 @@ RSpec.describe Botiasloop::Commands::New do
     end
 
     it "updates context.conversation to a new conversation" do
-      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
-      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-457", "green-bird-790")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-new-2")
       original_conversation = chat.current_conversation
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
@@ -46,35 +46,36 @@ RSpec.describe Botiasloop::Commands::New do
 
       expect(context.conversation).not_to eq(original_conversation)
       expect(context.conversation).to be_a(Botiasloop::Conversation)
-      expect(context.conversation.uuid).to eq("blue-dog-456")
+      expect(context.conversation.uuid).to eq("green-bird-790")
     end
 
     it "returns message with new conversation UUID" do
-      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-456")
-      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("blue-dog-458", "green-bird-791")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-new-3")
       original_conversation = chat.current_conversation
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       result = command.execute(context)
 
-      expect(result).to include("blue-dog-456")
+      expect(result).to include("green-bird-791")
       expect(result).to include("New conversation started")
       expect(result).to include("/switch")
     end
 
     it "includes instructions to switch back" do
-      allow(Botiasloop::HumanId).to receive(:generate).and_return("red-cat-789")
-      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("red-cat-789", "purple-fish-101")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-new-4")
       original_conversation = chat.current_conversation
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 
       result = command.execute(context)
 
-      expect(result).to match(%r{use `/switch red-cat-789` to return later}i)
+      expect(result).to match(%r{use `/switch purple-fish-101` to return later}i)
     end
 
     it "context.conversation has a different UUID than the original" do
-      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-123")
+      allow(Botiasloop::HumanId).to receive(:generate).and_return("red-cat-790", "purple-fish-102")
+      chat = Botiasloop::Chat.create(channel: "test", external_id: "test-new-5")
       original_conversation = chat.current_conversation
       context = Botiasloop::Commands::Context.new(conversation: original_conversation, chat: chat, user_id: "test-user")
 

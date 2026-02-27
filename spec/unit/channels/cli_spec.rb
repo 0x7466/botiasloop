@@ -11,7 +11,6 @@ RSpec.describe Botiasloop::Channels::CLI do
 
   before do
     Botiasloop::Config.instance = test_config
-    Botiasloop::ConversationManager.clear_all
   end
 
   after do
@@ -168,10 +167,11 @@ RSpec.describe Botiasloop::Channels::CLI do
 
   describe "#process_message" do
     let(:channel) { described_class.new }
-    let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "cli-test-uuid") }
+    let(:chat) { Botiasloop::Chat.find_or_create("cli", "cli") }
+    let(:conversation) { chat.current_conversation }
 
     before do
-      allow(channel).to receive(:conversation_for).with("cli").and_return(conversation)
+      Botiasloop::Agent.instance_variable_set(:@instance, nil)
       allow(Botiasloop::Agent).to receive(:chat).and_return("Test response")
       allow(channel).to receive(:send_message)
       allow(Botiasloop::Logger).to receive(:error)
@@ -235,28 +235,31 @@ RSpec.describe Botiasloop::Channels::CLI do
   describe "conversation persistence" do
     let(:channel) { described_class.new }
 
-    it "uses 'cli' as fixed source_id for conversation_for" do
-      conversation = channel.conversation_for("cli")
-      expect(conversation).to be_a(Botiasloop::Conversation)
+    it "uses 'cli' as fixed source_id for chat_for" do
+      chat = channel.chat_for("cli")
+      expect(chat).to be_a(Botiasloop::Chat)
+      expect(chat.current_conversation).to be_a(Botiasloop::Conversation)
     end
 
-    it "saves conversations to database via ConversationManager" do
-      conversation = channel.conversation_for("cli")
+    it "saves conversations to database via Chat" do
+      chat = channel.chat_for("cli")
+      conversation = chat.current_conversation
 
       # Verify via database
-      db_conv = Botiasloop::Conversation.find(id: conversation.uuid)
+      db_conv = Botiasloop::Conversation.find(id: conversation.id)
       expect(db_conv).not_to be_nil
-      expect(db_conv.user_id).to eq("cli")
     end
 
-    it "reuses existing conversation via ConversationManager" do
-      conversation1 = channel.conversation_for("cli")
+    it "reuses existing conversation via Chat" do
+      chat1 = channel.chat_for("cli")
+      conversation1 = chat1.current_conversation
 
-      # Create new channel instance - should get same conversation via ConversationManager
+      # Create new channel instance - should get same chat and conversation via Chat model
       channel2 = described_class.new
-      conversation2 = channel2.conversation_for("cli")
+      chat2 = channel2.chat_for("cli")
+      conversation2 = chat2.current_conversation
 
-      expect(conversation2.uuid).to eq(conversation1.uuid)
+      expect(conversation2.id).to eq(conversation1.id)
     end
   end
 
