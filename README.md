@@ -295,7 +295,7 @@ max_iterations: 20
 channels:
   telegram:
     bot_token: "your-telegram-bot-token"
-    allowed_users: []  # Empty = allow all, or list specific user IDs
+    allowed_users: ["your_telegram_username"]  # Required: must contain at least one username
 
 # Optional: Logging
 logger:
