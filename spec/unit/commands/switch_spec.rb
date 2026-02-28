@@ -119,5 +119,52 @@ RSpec.describe Botiasloop::Commands::Switch do
         expect(result).to include("Error")
       end
     end
+
+    context "format_time_ago" do
+      let(:target_conversation) { instance_double(Botiasloop::Conversation, uuid: "test-uuid", label: nil, label?: false) }
+
+      before do
+        allow(chat).to receive(:switch_conversation).and_return(target_conversation)
+        allow(target_conversation).to receive(:message_count).and_return(1)
+        allow(target_conversation).to receive(:label).and_return(nil)
+        allow(target_conversation).to receive(:label?).and_return(false)
+      end
+
+      it "shows 'just now' for recent times" do
+        allow(target_conversation).to receive(:last_activity).and_return(Time.now.utc.iso8601)
+        result = command.execute(context, "test-uuid")
+        expect(result).to include("just now")
+      end
+
+      it "shows minutes ago for times within an hour" do
+        allow(target_conversation).to receive(:last_activity).and_return((Time.now.utc - 1800).iso8601)
+        result = command.execute(context, "test-uuid")
+        expect(result).to include("minutes ago")
+      end
+
+      it "shows hours ago for times within a day" do
+        allow(target_conversation).to receive(:last_activity).and_return((Time.now.utc - 7200).iso8601)
+        result = command.execute(context, "test-uuid")
+        expect(result).to include("hours ago")
+      end
+
+      it "shows days ago for times within a week" do
+        allow(target_conversation).to receive(:last_activity).and_return((Time.now.utc - 172_800).iso8601)
+        result = command.execute(context, "test-uuid")
+        expect(result).to include("days ago")
+      end
+
+      it "shows formatted date for times older than a week" do
+        allow(target_conversation).to receive(:last_activity).and_return((Time.now.utc - 604_800 * 2).iso8601)
+        result = command.execute(context, "test-uuid")
+        expect(result).to include("UTC")
+      end
+
+      it "handles invalid timestamp gracefully" do
+        allow(target_conversation).to receive(:last_activity).and_return("invalid-timestamp")
+        result = command.execute(context, "test-uuid")
+        expect(result).to include("invalid-timestamp")
+      end
+    end
   end
 end

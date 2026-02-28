@@ -184,4 +184,165 @@ RSpec.describe Botiasloop::Agent do
       expect(described_class.active_loop_runs).to be_empty
     end
   end
+
+  describe "#provider_configured?" do
+    let(:agent) { described_class.allocate }
+
+    it "returns true for ollama with api_base" do
+      expect(agent.send(:provider_configured?, "ollama", {"api_base" => "http://localhost:11434"})).to be true
+    end
+
+    it "returns true for gpustack with api_base" do
+      expect(agent.send(:provider_configured?, "gpustack", {"api_base" => "http://localhost:8000"})).to be true
+    end
+
+    it "returns true with api_key" do
+      expect(agent.send(:provider_configured?, "openai", {"api_key" => "sk-test"})).to be true
+    end
+
+    it "returns true for vertexai with project_id" do
+      expect(agent.send(:provider_configured?, "vertexai", {"project_id" => "my-project"})).to be true
+    end
+
+    it "returns true for azure with api_base" do
+      expect(agent.send(:provider_configured?, "azure", {"api_base" => "https://example.openai.azure.com"})).to be true
+    end
+
+    it "returns false for unknown provider without config" do
+      expect(agent.send(:provider_configured?, "unknown", {})).to be false
+    end
+  end
+
+  describe "#configure_provider" do
+    let(:agent) { described_class.allocate }
+    let(:config) { double("RubyLLM::Config") }
+
+    it "configures openai with api_key" do
+      expect(config).to receive(:openai_api_key=).with("sk-test")
+      agent.send(:configure_provider, config, "openai", {"api_key" => "sk-test"})
+    end
+
+    it "configures openai with organization_id" do
+      expect(config).to receive(:openai_api_key=).with("sk-test")
+      expect(config).to receive(:openai_organization_id=).with("org-123")
+      agent.send(:configure_provider, config, "openai", {"api_key" => "sk-test", "organization_id" => "org-123"})
+    end
+
+    it "configures openai with project_id" do
+      expect(config).to receive(:openai_api_key=).with("sk-test")
+      expect(config).to receive(:openai_project_id=).with("proj-123")
+      agent.send(:configure_provider, config, "openai", {"api_key" => "sk-test", "project_id" => "proj-123"})
+    end
+
+    it "configures openai with api_base" do
+      expect(config).to receive(:openai_api_key=).with("sk-test")
+      expect(config).to receive(:openai_api_base=).with("https://custom.example.com")
+      agent.send(:configure_provider, config, "openai", {"api_key" => "sk-test", "api_base" => "https://custom.example.com"})
+    end
+
+    it "configures anthropic with api_key" do
+      expect(config).to receive(:anthropic_api_key=).with("sk-ant-test")
+      agent.send(:configure_provider, config, "anthropic", {"api_key" => "sk-ant-test"})
+    end
+
+    it "configures gemini with api_key" do
+      expect(config).to receive(:gemini_api_key=).with("gemini-key")
+      agent.send(:configure_provider, config, "gemini", {"api_key" => "gemini-key"})
+    end
+
+    it "configures gemini with api_base" do
+      expect(config).to receive(:gemini_api_key=).with("gemini-key")
+      expect(config).to receive(:gemini_api_base=).with("https://custom-gemini.example.com")
+      agent.send(:configure_provider, config, "gemini", {"api_key" => "gemini-key", "api_base" => "https://custom-gemini.example.com"})
+    end
+
+    it "configures vertexai with project_id" do
+      expect(config).to receive(:vertexai_project_id=).with("my-project")
+      agent.send(:configure_provider, config, "vertexai", {"project_id" => "my-project"})
+    end
+
+    it "configures vertexai with location" do
+      expect(config).to receive(:vertexai_project_id=).with("my-project")
+      expect(config).to receive(:vertexai_location=).with("us-central1")
+      agent.send(:configure_provider, config, "vertexai", {"project_id" => "my-project", "location" => "us-central1"})
+    end
+
+    it "configures deepseek with api_key" do
+      expect(config).to receive(:deepseek_api_key=).with("deepseek-key")
+      agent.send(:configure_provider, config, "deepseek", {"api_key" => "deepseek-key"})
+    end
+
+    it "configures mistral with api_key" do
+      expect(config).to receive(:mistral_api_key=).with("mistral-key")
+      agent.send(:configure_provider, config, "mistral", {"api_key" => "mistral-key"})
+    end
+
+    it "configures perplexity with api_key" do
+      expect(config).to receive(:perplexity_api_key=).with("perplexity-key")
+      agent.send(:configure_provider, config, "perplexity", {"api_key" => "perplexity-key"})
+    end
+
+    it "configures openrouter with api_key" do
+      expect(config).to receive(:openrouter_api_key=).with("openrouter-key")
+      agent.send(:configure_provider, config, "openrouter", {"api_key" => "openrouter-key"})
+    end
+
+    it "configures ollama with api_base" do
+      expect(config).to receive(:ollama_api_base=).with("http://localhost:11434/v1")
+      agent.send(:configure_provider, config, "ollama", {"api_base" => "http://localhost:11434/v1"})
+    end
+
+    it "configures ollama with default api_base" do
+      expect(config).to receive(:ollama_api_base=).with("http://localhost:11434/v1")
+      agent.send(:configure_provider, config, "ollama", {})
+    end
+
+    it "configures gpustack with api_base" do
+      expect(config).to receive(:gpustack_api_base=).with("http://localhost:8000")
+      agent.send(:configure_provider, config, "gpustack", {"api_base" => "http://localhost:8000"})
+    end
+
+    it "configures gpustack with api_key" do
+      expect(config).to receive(:gpustack_api_base=).with("http://localhost:8000")
+      expect(config).to receive(:gpustack_api_key=).with("gpustack-key")
+      agent.send(:configure_provider, config, "gpustack", {"api_base" => "http://localhost:8000", "api_key" => "gpustack-key"})
+    end
+
+    it "configures bedrock with api_key" do
+      expect(config).to receive(:bedrock_api_key=).with("bedrock-key")
+      agent.send(:configure_provider, config, "bedrock", {"api_key" => "bedrock-key"})
+    end
+
+    it "configures bedrock with secret_key" do
+      expect(config).to receive(:bedrock_secret_key=).with("secret-key")
+      agent.send(:configure_provider, config, "bedrock", {"secret_key" => "secret-key"})
+    end
+
+    it "configures bedrock with region" do
+      expect(config).to receive(:bedrock_region=).with("us-east-1")
+      agent.send(:configure_provider, config, "bedrock", {"region" => "us-east-1"})
+    end
+
+    it "configures bedrock with session_token" do
+      expect(config).to receive(:bedrock_session_token=).with("session-token")
+      agent.send(:configure_provider, config, "bedrock", {"session_token" => "session-token"})
+    end
+
+    it "configures azure with api_base" do
+      expect(config).to receive(:azure_api_base=).with("https://example.openai.azure.com")
+      agent.send(:configure_provider, config, "azure", {"api_base" => "https://example.openai.azure.com"})
+    end
+
+    it "configures azure with api_key" do
+      expect(config).to receive(:azure_api_base=).with("https://example.openai.azure.com")
+      expect(config).to receive(:azure_api_key=).with("azure-key")
+      agent.send(:configure_provider, config, "azure", {"api_base" => "https://example.openai.azure.com", "api_key" => "azure-key"})
+    end
+
+    it "configures azure with ai_auth_token" do
+      expect(config).to receive(:azure_api_base=).with("https://example.openai.azure.com")
+      expect(config).to receive(:azure_ai_auth_token=).with("auth-token")
+      agent.send(:configure_provider, config, "azure", {"api_base" => "https://example.openai.azure.com", "ai_auth_token" => "auth-token"})
+    end
+  end
 end

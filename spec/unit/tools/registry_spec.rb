@@ -40,8 +40,36 @@ RSpec.describe Botiasloop::Tools::Registry do
   end
 
   describe "#schemas" do
+    let(:mock_tool_class) do
+      Class.new do
+        def self.tool_name
+          "test_tool"
+        end
+
+        def initialize(arg1: nil)
+          @arg1 = arg1
+        end
+
+        def schema
+          {"type" => "object", "properties" => {}}
+        end
+      end
+    end
+
     it "returns hash of tool instances" do
       expect(registry.schemas).to be_a(Hash)
+    end
+
+    it "creates tool instances without arguments" do
+      registry.register(mock_tool_class)
+      schemas = registry.schemas
+      expect(schemas["test_tool"]).to be_a(mock_tool_class)
+    end
+
+    it "creates tool instances with arguments" do
+      registry.register(mock_tool_class, arg1: "value")
+      schemas = registry.schemas
+      expect(schemas["test_tool"]).to be_a(mock_tool_class)
     end
   end
 
