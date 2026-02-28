@@ -190,9 +190,19 @@ module Botiasloop
     # Generate the system prompt for this conversation
     # Includes current date/time and environment info
     #
+    # @param chat [Chat, nil] Optional chat context to include in environment
     # @return [String] System prompt
-    def system_prompt
+    def system_prompt(chat: nil)
       skills_registry = Skills::Registry.new
+
+      # Add chat context to environment if provided
+      chat_info = if chat
+        <<~CHATINFO
+          - Current Chat ID: #{chat.id}
+          - Channel: #{chat.channel}
+          - External ID: #{chat.external_id}
+        CHATINFO
+      end
 
       prompt = <<~PROMPT
         You are Botias, an autonomous AI agent.
@@ -203,6 +213,7 @@ module Botiasloop
         - Working Directory: #{Dir.pwd}
         - Date: #{Time.now.strftime("%Y-%m-%d")}
         - Time: #{Time.now.strftime("%H:%M:%S %Z")}
+        #{chat_info}
 
         You operate in a ReAct loop: Reason about the task, Act using tools, Observe results.
       PROMPT

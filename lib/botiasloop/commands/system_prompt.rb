@@ -13,7 +13,7 @@ module Botiasloop
       # @param _args [String, nil] Unused - command takes no arguments
       # @return [String] The system prompt
       def execute(context, _args = nil)
-        context.conversation.system_prompt
+        context.conversation.system_prompt(chat: context.chat)
       end
     end
   end

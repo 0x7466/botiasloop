@@ -33,6 +33,7 @@ RSpec.describe Botiasloop::Agent do
     let(:mock_model) { double("model") }
     let(:mock_registry) { double("registry") }
     let(:conversation) { instance_double(Botiasloop::Conversation, uuid: "test-uuid") }
+    let(:chat) { instance_double(Botiasloop::Chat, id: 123, channel: "telegram", external_id: "456") }
     let(:callback) { proc { |msg| } }
     let(:error_callback) { proc { |msg| } }
 
@@ -47,6 +48,7 @@ RSpec.describe Botiasloop::Agent do
 
     before do
       allow(Botiasloop::Conversation).to receive(:new).and_return(conversation)
+      allow(chat).to receive(:current_conversation).and_return(conversation)
       allow(conversation).to receive(:add)
       allow(conversation).to receive(:system_prompt).and_return("System prompt")
       allow(conversation).to receive(:history).and_return([])
@@ -64,12 +66,13 @@ RSpec.describe Botiasloop::Agent do
       agent.chat("Hello", callback: callback)
     end
 
-    it "uses provided conversation" do
+    it "uses chat's current conversation" do
       expect(Botiasloop::Conversation).not_to receive(:new)
+      allow(chat).to receive(:current_conversation).and_return(conversation)
       allow(mock_provider).to receive(:complete).and_return(
         double("response", tool_call?: false, content: "response", input_tokens: 0, output_tokens: 0)
       )
-      agent.chat("Hello", callback: callback, conversation: conversation)
+      agent.chat("Hello", callback: callback, chat: chat)
     end
 
     it "returns a Loop::Run instance" do
@@ -94,7 +97,7 @@ RSpec.describe Botiasloop::Agent do
         double("response", tool_call?: false, content: "response", input_tokens: 0, output_tokens: 0)
       )
       my_callback = proc { |msg| }
-      run = agent.chat("Hello", callback: my_callback, conversation: conversation)
+      run = agent.chat("Hello", callback: my_callback, chat: chat)
       expect(run.instance_variable_get(:@callback)).to eq(my_callback)
     end
 
@@ -103,7 +106,7 @@ RSpec.describe Botiasloop::Agent do
         double("response", tool_call?: false, content: "response", input_tokens: 0, output_tokens: 0)
       )
       my_error_callback = proc { |msg| }
-      run = agent.chat("Hello", callback: callback, error_callback: my_error_callback, conversation: conversation)
+      run = agent.chat("Hello", callback: callback, error_callback: my_error_callback, chat: chat)
       expect(run.instance_variable_get(:@error_callback)).to eq(my_error_callback)
     end
 
@@ -158,16 +161,17 @@ RSpec.describe Botiasloop::Agent do
     end
 
     it "delegates to the singleton instance" do
-      conversation = instance_double(Botiasloop::Conversation)
+      chat = instance_double(Botiasloop::Chat)
 
       expect(mock_instance).to receive(:chat).with(
         "Hello",
         callback: callback,
         error_callback: nil,
-        conversation: conversation
+        completion_callback: nil,
+        chat: chat
       ).and_return(double("run"))
 
-      described_class.chat("Hello", callback: callback, conversation: conversation)
+      described_class.chat("Hello", callback: callback, chat: chat)
     end
   end
 

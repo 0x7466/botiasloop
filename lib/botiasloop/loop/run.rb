@@ -7,7 +7,7 @@ module Botiasloop
     class Run
       attr_reader :id, :conversation
 
-      def initialize(provider:, model:, registry:, max_iterations:, conversation:, user_input:, callback:, error_callback:, completion_callback: nil)
+      def initialize(provider:, model:, registry:, max_iterations:, conversation:, user_input:, callback:, error_callback:, completion_callback: nil, chat: nil)
         @id = SecureRandom.uuid
         @conversation = conversation
         @status = :running
@@ -22,6 +22,7 @@ module Botiasloop
         @callback = callback
         @error_callback = error_callback
         @completion_callback = completion_callback
+        @chat = chat
       end
 
       def status
@@ -33,7 +34,7 @@ module Botiasloop
           loop = Loop.new(@provider, @model, @registry, max_iterations: @max_iterations)
 
           begin
-            result = loop.run(@conversation, @user_input, callback: @callback, error_callback: @error_callback)
+            result = loop.run(@conversation, @user_input, callback: @callback, error_callback: @error_callback, chat: @chat)
             @callback&.call(result)
           rescue MaxIterationsExceeded => e
             @error_callback&.call(e.message)

@@ -25,12 +25,14 @@ module Botiasloop
     # @param user_input [String] User input
     # @param callback [Proc] Callback for messages (verbose + final response)
     # @param error_callback [Proc, nil] Callback for errors
+    # @param chat [Chat, nil] Chat context for the conversation
     # @return [String] Final response
     # @raise [Error] If max iterations exceeded
-    def run(conversation, user_input, callback:, error_callback: nil)
+    def run(conversation, user_input, callback:, error_callback: nil, chat: nil)
       @conversation = conversation
       @callback = callback
       @error_callback = error_callback
+      @chat = chat
 
       conversation.add("user", user_input)
       messages = build_messages(conversation)
@@ -75,7 +77,7 @@ module Botiasloop
     def build_messages(conversation)
       system_prompt = [RubyLLM::Message.new(
         role: :system,
-        content: conversation.system_prompt
+        content: conversation.system_prompt(chat: @chat)
       )]
 
       system_prompt + conversation.history.map do |msg|

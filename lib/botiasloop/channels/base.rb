@@ -120,7 +120,7 @@ module Botiasloop
           completion_callback = proc { stop_typing(source_id) }
           start_typing(source_id)
           Agent.chat(content, callback: callback, error_callback: error_callback,
-            completion_callback: completion_callback, conversation: conversation)
+            completion_callback: completion_callback, chat: chat)
         end
 
         # Hook: Post-processing

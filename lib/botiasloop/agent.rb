@@ -25,11 +25,11 @@ module Botiasloop
       # @param callback [Proc] Callback for messages (verbose + final response)
       # @param error_callback [Proc, nil] Callback for errors
       # @param completion_callback [Proc, nil] Callback called when processing completes
-      # @param conversation [Conversation, nil] Existing conversation
+      # @param chat [Chat, nil] Chat context for the conversation
       # @return [Loop::Run] Run instance
-      def chat(message, callback:, error_callback: nil, completion_callback: nil, conversation: nil)
+      def chat(message, callback:, error_callback: nil, completion_callback: nil, chat: nil)
         instance.chat(message, callback: callback, error_callback: error_callback,
-          completion_callback: completion_callback, conversation: conversation)
+          completion_callback: completion_callback, chat: chat)
       end
 
       # Set the instance directly (primarily for testing)
@@ -52,10 +52,10 @@ module Botiasloop
     # @param callback [Proc] Callback for messages (verbose + final response)
     # @param error_callback [Proc, nil] Callback for errors
     # @param completion_callback [Proc, nil] Callback called when processing completes
-    # @param conversation [Conversation, nil] Existing conversation
+    # @param chat [Chat, nil] Chat context for the conversation
     # @return [Loop::Run] Run instance
-    def chat(message, callback:, error_callback: nil, completion_callback: nil, conversation: nil)
-      conversation ||= Conversation.new
+    def chat(message, callback:, error_callback: nil, completion_callback: nil, chat: nil)
+      conversation = chat&.current_conversation || Conversation.new
 
       run = Loop::Run.new(
         provider: @provider,
@@ -66,7 +66,8 @@ module Botiasloop
         user_input: message,
         callback: callback,
         error_callback: error_callback,
-        completion_callback: completion_callback
+        completion_callback: completion_callback,
+        chat: chat
       )
 
       self.class.active_loop_runs << run

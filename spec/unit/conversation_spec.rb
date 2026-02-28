@@ -394,6 +394,21 @@ RSpec.describe Botiasloop::Conversation do
       expect(prompt).to include("Time: 10:30:45")
     end
 
+    it "includes chat context when provided as parameter" do
+      chat = instance_double(Botiasloop::Chat, id: 123, channel: "telegram", external_id: "456")
+      prompt = conversation.system_prompt(chat: chat)
+      expect(prompt).to include("Current Chat ID: 123")
+      expect(prompt).to include("Channel: telegram")
+      expect(prompt).to include("External ID: 456")
+    end
+
+    it "excludes chat context when not provided" do
+      prompt = conversation.system_prompt
+      expect(prompt).not_to include("Current Chat ID:")
+      expect(prompt).not_to include("Channel:")
+      expect(prompt).not_to include("External ID:")
+    end
+
     context "with IDENTITY.md" do
       let(:identity_path) { File.expand_path("~/IDENTITY.md") }
       let(:operator_path) { File.expand_path("~/OPERATOR.md") }
