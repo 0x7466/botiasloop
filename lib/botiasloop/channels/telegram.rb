@@ -15,6 +15,8 @@ module Botiasloop
       channel_name :telegram
       requires_config :bot_token
 
+      TYPING_TIMEOUT = 60
+
       # Initialize Telegram channel
       #
       # @raise [Error] If bot_token is not configured
@@ -163,7 +165,13 @@ module Botiasloop
         return unless should_start
 
         thread = Thread.new do
+          start_time = Time.now
           loop do
+            if Time.now - start_time > TYPING_TIMEOUT
+              Logger.warn "[Telegram] Typing indicator timed out for #{chat_id}"
+              break
+            end
+
             # Read active flag outside mutex - safe for boolean
             break unless @typing_active[chat_id]
 

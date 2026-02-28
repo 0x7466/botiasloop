@@ -27,7 +27,7 @@ module Botiasloop
       # @param completion_callback [Proc, nil] Callback called when processing completes
       # @param conversation [Conversation, nil] Existing conversation
       # @return [Loop::Run] Run instance
-      def self.chat(message, callback:, error_callback: nil, completion_callback: nil, conversation: nil)
+      def chat(message, callback:, error_callback: nil, completion_callback: nil, conversation: nil)
         instance.chat(message, callback: callback, error_callback: error_callback,
           completion_callback: completion_callback, conversation: conversation)
       end

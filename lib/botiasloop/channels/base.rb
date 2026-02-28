@@ -98,6 +98,9 @@ module Botiasloop
         # Hook: Pre-processing
         before_process(source_id, user_id, content, raw_message)
 
+        # Stop any previous typing indicator when new message arrives
+        stop_typing(source_id)
+
         # Core processing logic
         chat = chat_for(source_id, user_identifier: user_id)
         conversation = chat.current_conversation
