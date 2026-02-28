@@ -385,26 +385,26 @@ RSpec.describe Botiasloop::Channels::Base do
       channel.instance_variable_set(:@conversation, chat.current_conversation)
     end
 
-    it "suppresses NO_OUTPUT response and stores stripped content" do
+    it "suppresses no_output response and stores stripped content" do
       allow(Botiasloop::Commands).to receive(:execute).and_return("NO_OUTPUT suppressed response")
       expect(channel).not_to receive(:deliver_message)
       channel.process_message("user123", "test")
       expect(channel.delivered_responses).to be_empty
     end
 
-    it "doesn't suppress normal responses" do
+    it "does not suppress normal responses" do
       allow(Botiasloop::Agent).to receive(:chat) { |*args, **kwargs| kwargs[:callback].call("normal response") }
       channel.process_message("user123", "test")
       expect(channel.delivered_responses).to include({source_id: "user123", content: "normal response"})
     end
 
-    it "suppresses NO_OUTPUT response in callback and stores stripped content" do
+    it "suppresses no_output response in callback and stores stripped content" do
       allow(Botiasloop::Agent).to receive(:chat) { |*args, **kwargs| kwargs[:callback].call("NO_OUTPUT suppressed response") }
       channel.process_message("user123", "test")
       expect(channel.delivered_responses).to be_empty
     end
 
-    it "doesn't suppress normal responses in callback" do
+    it "does not suppress normal responses in callback" do
       allow(Botiasloop::Agent).to receive(:chat) { |*args, **kwargs| kwargs[:callback].call("normal response") }
       expect(channel).to receive(:deliver_message).with("user123", "normal response")
       channel.process_message("user123", "test")
