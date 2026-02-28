@@ -11,6 +11,15 @@ require "bundler/setup"
 require "sequel"
 require "webmock/rspec"
 
+# Load and configure RubyLLM BEFORE loading botiasloop
+# This follows RubyLLM's test pattern - configure before any provider is created
+require "ruby_llm"
+RubyLLM.configure do |config|
+  config.openrouter_api_key = ENV.fetch("OPENROUTER_API_KEY", "test")
+  config.openai_api_key = ENV.fetch("OPENAI_API_KEY", "test")
+  config.anthropic_api_key = ENV.fetch("ANTHROPIC_API_KEY", "test")
+end
+
 # Set up in-memory database BEFORE loading botiasloop
 # Pre-create the Database class with in-memory database to prevent file-based auto-connect
 module Botiasloop
@@ -22,17 +31,8 @@ end
 require_relative "../lib/botiasloop/database"
 Botiasloop::Database.setup!
 
-# Now load the rest of botiasloop
+# Now load the rest of botiasloop (Agent.instance will use the pre-configured RubyLLM)
 require "botiasloop"
-
-# Configure RubyLLM with test values AFTER loading botiasloop
-# This follows the same pattern as RubyLLM's own test suite
-require "ruby_llm"
-RubyLLM.configure do |config|
-  config.openrouter_api_key = ENV.fetch("OPENROUTER_API_KEY", "test")
-  config.openai_api_key = ENV.fetch("OPENAI_API_KEY", "test")
-  config.anthropic_api_key = ENV.fetch("ANTHROPIC_API_KEY", "test")
-end
 
 require "vcr"
 
