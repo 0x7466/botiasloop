@@ -581,6 +581,30 @@ RSpec.describe Botiasloop::Channels::Telegram do
       expect(mock_api).not_to receive(:send_message)
       channel.deliver_message(chat_id, nil)
     end
+
+    context "when bot is not initialized (send-only mode)" do
+      let(:mock_client) { double("client", api: mock_api) }
+
+      before do
+        # Don't set @bot to simulate send-only mode
+        channel.instance_variable_set(:@bot, nil)
+        allow(Telegram::Bot::Client).to receive(:new).with("test-token-123").and_return(mock_client)
+      end
+
+      it "lazy initializes bot for sending" do
+        expect(Telegram::Bot::Client).to receive(:new).with("test-token-123").and_return(mock_client)
+        expect(mock_api).to receive(:send_message)
+        channel.deliver_message(chat_id, formatted_content)
+      end
+
+      it "reuses initialized bot on subsequent sends" do
+        expect(Telegram::Bot::Client).to receive(:new).once.and_return(mock_client)
+        expect(mock_api).to receive(:send_message).twice
+
+        channel.deliver_message(chat_id, formatted_content)
+        channel.deliver_message(chat_id, formatted_content)
+      end
+    end
   end
 
   describe "private #to_telegram_html" do

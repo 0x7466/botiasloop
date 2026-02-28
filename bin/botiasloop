@@ -29,9 +29,153 @@ def print_help
   puts "  enable           Install and enable systemd service (auto-start on login)"
   puts "  disable          Disable and uninstall systemd service"
   puts
+  puts "Agent Commands:"
+  puts "  send             Send a prompt to a chat"
+  puts
   puts "Logs Options:"
   puts "  -f, --follow     Follow log output in real-time"
   puts "  -n, --lines N    Show last N lines (default: 50)"
+end
+
+def agent_send
+  args = ARGV[2..]  # Skip "agent" and "send"
+  chat_id = nil
+  deliver_to_all = false
+  prompt = nil
+
+  # First pass: extract all flags
+  flag_args = []
+  non_flag_args = []
+  i = 0
+  while i < args.length
+    arg = args[i]
+    if arg.start_with?("-")
+      flag_args << arg
+      flag_args << args[i + 1] if args[i + 1] && !args[i + 1].start_with?("-")
+      i += args[i + 1] && !args[i + 1].start_with?("-") ? 2 : 1
+    else
+      non_flag_args << arg
+      i += 1
+    end
+  end
+
+  # Process flag args
+  i = 0
+  while i < flag_args.length
+    arg = flag_args[i]
+
+    case arg
+    when "--chat-id"
+      if i + 1 >= flag_args.length
+        puts "Error: --chat-id requires a value"
+        exit 1
+      end
+      chat_id = flag_args[i + 1].to_i
+      i += 2
+    when "--deliver-to-all-chats"
+      deliver_to_all = true
+      i += 1
+    when "-h", "--help"
+      puts <<~HELP
+        Usage: botiasloop agent send [OPTIONS] <prompt>
+
+        Send a prompt to a chat and get a response.
+
+        Options:
+          --chat-id ID              Deliver response to specific chat (by chat.id)
+          --deliver-to-all-chats    Deliver response to all chats
+          -h, --help                Show this help message
+
+        Examples:
+          botiasloop agent send "check server status" --chat-id 1
+          botiasloop agent send "check server status" --deliver-to-all-chats
+      HELP
+      exit 0
+    else
+      i += 1
+    end
+  end
+
+  # Remaining args are the prompt
+  prompt = non_flag_args.join(" ")
+
+  if prompt.nil? || prompt.empty?
+    puts "Error: Prompt is required"
+    exit 1
+  end
+
+  if !chat_id && !deliver_to_all
+    puts "Error: Either --chat-id or --deliver-to-all-chats is required"
+    exit 1
+  end
+
+  if chat_id && deliver_to_all
+    puts "Error: Cannot use both --chat-id and --deliver-to-all-chats"
+    exit 1
+  end
+
+  # Get chats to send to
+  chats = if deliver_to_all
+    # Get all non-CLI chats (CLI should never be used in agent send)
+    Botiasloop::Chat.all.reject { |c| c.channel == "cli" }
+  else
+    chat = Botiasloop::Chat[chat_id]
+    unless chat
+      puts "Error: Chat not found: #{chat_id}"
+      exit 1
+    end
+
+    # Validate chat is not CLI
+    if chat.channel == "cli"
+      puts "Error: Cannot send to CLI chat. Use --deliver-to-all-chats for non-CLI chats or specify a non-CLI chat ID."
+      exit 1
+    end
+
+    [chat]
+  end
+
+  if chats.empty?
+    puts "Error: No non-CLI chats found to deliver to."
+    exit 1
+  end
+
+  # Send prompt to each chat
+  chats.each do |chat|
+    send_prompt_to_chat(chat, prompt)
+  end
+end
+
+def send_prompt_to_chat(chat, prompt)
+  channel_class = Botiasloop::Channels.registry.channels[chat.channel.to_sym]
+  unless channel_class
+    $stderr.puts "Error: Unknown channel: #{chat.channel}"
+    return
+  end
+
+  channel = channel_class.new
+  conversation = chat.current_conversation
+
+  # Run agent synchronously
+  result = nil
+  completed = false
+
+  callback = proc { |message| result = message }
+  error_callback = proc { |_error| completed = true }
+  completion_callback = proc { completed = true }
+
+  Botiasloop::Agent.chat(
+    prompt,
+    callback: callback,
+    error_callback: error_callback,
+    completion_callback: completion_callback,
+    conversation: conversation
+  )
+
+  # Wait for completion (poll since agent runs in a thread)
+  sleep 0.1 until completed
+
+  # Deliver response via channel
+  channel.send_message(chat.external_id, result) if result
 end
 
 def start_gateway
@@ -193,6 +337,8 @@ elsif ARGV[0] == "cli"
   # CLI interactive mode
   cli_channel = Botiasloop::Channels::CLI.new
   cli_channel.start_listening
+elsif ARGV[0] == "agent" && ARGV[1] == "send"
+  agent_send
 elsif ARGV.empty? || ARGV[0] == "help"
   # Default to help when no args or explicit help command
   print_help

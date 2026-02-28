@@ -210,6 +210,9 @@ module Botiasloop
       def deliver_message(chat_id, formatted_content)
         return if formatted_content.nil? || formatted_content.empty?
 
+        # Lazy initialize bot if not already initialized (for send-only mode)
+        @bot ||= ::Telegram::Bot::Client.new(@bot_token)
+
         @bot.api.send_message(
           chat_id: chat_id.to_i,
           text: formatted_content,

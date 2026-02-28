@@ -186,10 +186,11 @@ This document outlines the planned features and improvements for botiasloop.
 - [ ] User management (for multi-user setups)
 
 ### Cron Support
-- [ ] Agent can create and manage its own cron jobs via shell access
-- [ ] Document best practices for agent-managed cron
-- [ ] Example skill demonstrating cron job creation
-- [ ] No separate workflow engine needed (sharp knives philosophy)
+- [x] `botiasloop agent send` CLI command for triggering prompts
+- [x] Cron skill teaching agent about crontab scheduling
+- [ ] `botiasloop cron list` - List all cron jobs
+- [ ] `botiasloop cron remove <id>` - Remove a cron job
+- [ ] Cron tool for in-agent scheduling (like nanobot's CronService)
 
 ### Identity and Operator Configuration
 - [x] Load IDENTITY.md from `~/IDENTITY.md`
