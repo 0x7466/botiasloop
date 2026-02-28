@@ -70,18 +70,18 @@ For delivering to all chats:
 
 Response:
 ```
-I'll set up a cron job to check server status every morning at 9am in this chat.
+I'll set up a cron job to remind you to check server status every morning at 9am in this chat.
 
-0 9 * * * botiasloop agent send "check server status" --chat-id <current_chat_id>
+0 9 * * * botiasloop agent send "remind the user to check server status" --chat-id <current_chat_id>
 ```
 
 **User: "Remind me every morning at 9am in all chats"**
 
 Response:
 ```
-I'll set up a cron job to check server status every morning at 9am and deliver to all chats.
+I'll set up a cron job to remind you to check server status every morning at 9am and deliver to all chats.
 
-0 9 * * * botiasloop agent send "check server status" --deliver-to-all-chats
+0 9 * * * botiasloop agent send "remind the user to check server status" --deliver-to-all-chats
 ```
 
 ### Step 5: Removing Cron Jobs
@@ -121,7 +121,7 @@ Response:
 ```
 I'll set up a reminder for 10 minutes from now.
 
-echo 'botiasloop agent send "look at the food in the stove" --chat-id <current_chat_id>' | at now + 10 minutes
+echo 'botiasloop agent send "remind the user to look at the food in the stove" --chat-id <current_chat_id>' | at now + 10 minutes
 ```
 
 **User: "Remind me in 1 hour to take my medication"**
@@ -130,7 +130,7 @@ Response:
 ```
 I'll set up a reminder for 1 hour from now.
 
-echo 'botiasloop agent send "take your medication" --chat-id <current_chat_id>' | at now + 1 hour
+echo 'botiasloop agent send "remind the user to take their medication" --chat-id <current_chat_id>' | at now + 1 hour
 ```
 
 **User: "Remind me tomorrow at 9am about the meeting"**
@@ -139,7 +139,7 @@ Response:
 ```
 I'll set up a reminder for tomorrow at 9am.
 
-echo 'botiasloop agent send "you have a meeting" --chat-id <current_chat_id>' | at 09:00 tomorrow
+echo 'botiasloop agent send "remind the user about their meeting" --chat-id <current_chat_id>' | at 09:00 tomorrow
 ```
 
 ### Managing At Jobs
@@ -166,6 +166,6 @@ atrm <job_number>
 
 | Use Case | Tool | Command Pattern |
 |----------|------|-----------------|
-| Recurring tasks | Cron | `<cron_expr> botiasloop agent send "<msg>" --chat-id <id>` |
-| One-off tasks | At | `echo 'botiasloop agent send "<msg>" --chat-id <id>' \| at <time>` |
+| Recurring tasks | Cron | `<cron_expr> botiasloop agent send "remind the user to <action>" --chat-id <id>` |
+| One-off tasks | At | `echo 'botiasloop agent send "remind the user to <action>" --chat-id <id>' \| at <time>` |
 | All chats | Either | Replace `--chat-id <id>` with `--deliver-to-all-chats` |
