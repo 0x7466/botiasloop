@@ -10,30 +10,37 @@ metadata:
 
 ## Purpose
 
-Schedule prompts to run automatically using system scheduling tools:
+Schedule tasks to run automatically using system scheduling tools:
 - **Cron**: For recurring tasks (daily, weekly, etc.)
 - **At**: For one-off tasks ("in 10 minutes", "tomorrow at 9am")
 
-## When to Use
+## Critical Understanding
 
-Activate this skill when:
-- User asks to schedule something for later
-- User wants automated recurring tasks
-- User mentions "cron", "schedule", "remind me", "every day/week/hour"
-- User mentions "in X minutes" or "tomorrow at X"
+**You are scheduling YOURSELF to run later.**
+
+The `botiasloop agent send` command is not a message to the user. It is a command that:
+1. Runs the agent (you) later with a prompt
+2. That prompt tells you what to DO when you wake up
+3. Your response to that prompt gets delivered to the chat
+
+**WRONG:** `botiasloop agent send "Take your medication!"`  
+This sends the literal text "Take your medication!" to the user, which makes no sense.
+
+**CORRECT:** `botiasloop agent send "remind the user to take their medication"`  
+This wakes you up, you read the instruction, and you compose an appropriate reminder message.
 
 ## Critical Rules
 
 1. **Use current chat if not specified** - If the user doesn't explicitly provide a chat_id or say "all chats", use the current chat (the chat the user is messaging from).
 2. **Choose the right tool** - Use `cron` for recurring tasks, use `at` for one-off tasks
-3. **Use the exact format** - Follow the command formats exactly
+3. **The prompt is your instruction** - Write what you should DO, not what you should SAY
 
 ## Part 1: Recurring Tasks (Cron)
 
 ### Step 1: Gather Requirements
 
 The user should provide:
-1. What prompt/message should run?
+1. What reminder/task should run?
 2. When should it run? (time, frequency)
 
 If the user doesn't specify which chat, use the current chat. If they want all chats, use `--deliver-to-all-chats`.
@@ -43,12 +50,12 @@ If the user doesn't specify which chat, use the current chat. If they want all c
 Use `crontab -e` to edit the crontab. Add entries in this format:
 
 ```
-<cron_expr> botiasloop agent send "<prompt>" --chat-id <chat_id>
+<cron_expr> botiasloop agent send "<what you should do>" --chat-id <chat_id>
 ```
 
 For delivering to all chats:
 ```
-<cron_expr> botiasloop agent send "<prompt>" --deliver-to-all-chats
+<cron_expr> botiasloop agent send "<what you should do>" --deliver-to-all-chats
 ```
 
 ### Step 3: Common Scheduling Patterns
@@ -67,6 +74,11 @@ For delivering to all chats:
 ### Step 4: Example Interactions
 
 **User: "Remind me to check server status every morning at 9am"**
+
+Analysis:
+- User wants: A reminder about checking server status
+- When: Every day at 9am
+- The prompt should tell ME what to do: "remind the user to check server status"
 
 Response:
 ```
@@ -110,12 +122,17 @@ Use `at` for tasks that run once at a specific time.
 
 Use this format:
 ```bash
-echo 'botiasloop agent send "<prompt>" --chat-id <chat_id>' | at <time>
+echo 'botiasloop agent send "<what you should do>" --chat-id <chat_id>' | at <time>
 ```
 
 ### Example Interactions
 
 **User: "Remind me in 10 minutes to look at the food in the stove"**
+
+Analysis:
+- User wants: A reminder to check the stove
+- When: In 10 minutes
+- The prompt should tell ME what to do: "remind the user to look at the food in the stove"
 
 Response:
 ```
@@ -126,6 +143,9 @@ echo 'botiasloop agent send "remind the user to look at the food in the stove" -
 
 **User: "Remind me in 1 hour to take my medication"**
 
+Analysis:
+- The prompt should be: "remind the user to take their medication" (not "take your medication!")
+
 Response:
 ```
 I'll set up a reminder for 1 hour from now.
@@ -134,6 +154,9 @@ echo 'botiasloop agent send "remind the user to take their medication" --chat-id
 ```
 
 **User: "Remind me tomorrow at 9am about the meeting"**
+
+Analysis:
+- The prompt should be: "remind the user about their meeting" (not "you have a meeting!")
 
 Response:
 ```
@@ -162,6 +185,17 @@ atrm <job_number>
 2. Does the user want it to happen **once** (in 10 minutes, tomorrow at 9am, etc.)?
    → Use **At**
 
+## Common Mistakes to Avoid
+
+❌ **WRONG:** `botiasloop agent send "Take your medication!"`  
+✅ **CORRECT:** `botiasloop agent send "remind the user to take their medication"`
+
+❌ **WRONG:** `botiasloop agent send "Check the stove!"`  
+✅ **CORRECT:** `botiasloop agent send "remind the user to check the stove"`
+
+❌ **WRONG:** `botiasloop agent send "Server status report"`  
+✅ **CORRECT:** `botiasloop agent send "check server status and report findings to the user"`
+
 ## Summary
 
 | Use Case | Tool | Command Pattern |
@@ -169,3 +203,5 @@ atrm <job_number>
 | Recurring tasks | Cron | `<cron_expr> botiasloop agent send "remind the user to <action>" --chat-id <id>` |
 | One-off tasks | At | `echo 'botiasloop agent send "remind the user to <action>" --chat-id <id>' \| at <time>` |
 | All chats | Either | Replace `--chat-id <id>` with `--deliver-to-all-chats` |
+
+**Remember: The prompt is YOUR instruction, not the message to the user!**
