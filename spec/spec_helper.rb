@@ -18,6 +18,10 @@ module Botiasloop
     @db = Sequel.sqlite
   end
 end
+
+# Set mock API key BEFORE loading botiasloop to prevent RubyLLM configuration errors
+ENV["OPENROUTER_API_KEY"] ||= "test-api-key"
+
 require_relative "../lib/botiasloop/database"
 Botiasloop::Database.setup!
 
