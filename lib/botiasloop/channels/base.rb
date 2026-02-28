@@ -114,17 +114,17 @@ module Botiasloop
           )
           response = Commands.execute(content, context)
           if should_suppress_response?(response)
-            stripped = response.sub(/^NO_OUTPUT\s*/, '').strip
-            conversation.add('assistant', stripped, input_tokens: 0, output_tokens: 0)
+            stripped = response.sub(/^NO_OUTPUT\s*/, "").strip
+            conversation.add("assistant", stripped, input_tokens: 0, output_tokens: 0)
             Logger.info "[#{self.class.channel_identifier}] Suppressed NO_OUTPUT response" if @conversation.verbose
             return
           end
           send_message(source_id, response)
         else
-          callback = proc { |message| 
+          callback = proc { |message|
             if should_suppress_response?(message)
-              stripped = message.sub(/^NO_OUTPUT\s*/, '').strip
-              conversation.add('assistant', stripped, input_tokens: 0, output_tokens: 0)
+              stripped = message.sub(/^NO_OUTPUT\s*/, "").strip
+              conversation.add("assistant", stripped, input_tokens: 0, output_tokens: 0)
               Logger.info "[#{self.class.channel_identifier}] Suppressed NO_OUTPUT response" if @conversation.verbose
               return
             end
@@ -178,7 +178,7 @@ module Botiasloop
       # @param response [String] Response content to check
       # @return [Boolean] True if response starts with 'NO_OUTPUT' and should be suppressed
       def should_suppress_response?(response)
-        response.to_s.start_with?('NO_OUTPUT')
+        response.to_s.start_with?("NO_OUTPUT")
       end
 
       # Hook called after processing a message

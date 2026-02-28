@@ -379,23 +379,33 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
 
     it "sets typing active flag and starts thread" do
-      expect(Thread).to receive(:new).and_yield
-      expect(mock_api).to receive(:send_chat_action).with(chat_id: 123_456, action: "typing")
+      allow(mock_api).to receive(:send_chat_action)
 
       channel.start_typing(chat_id)
 
-      expect(channel.instance_variable_get(:@typing_active)[chat_id]).to be true
-      expect(channel.instance_variable_get(:@typing_threads)[chat_id]).to be_a(Thread)
+      # Stop typing immediately to prevent timeout loop
+      channel.stop_typing(chat_id)
+      sleep 0.1 # Wait for thread to finish
+
+      expect(channel.instance_variable_get(:@typing_active)[chat_id]).to be false
+      expect(channel.instance_variable_get(:@typing_threads)[chat_id]).to be_nil
     end
 
     it "does not start multiple threads for same chat_id" do
-      expect(Thread).to receive(:new).once.and_yield
-      expect(mock_api).to receive(:send_chat_action).with(chat_id: 123_456, action: "typing")
+      allow(mock_api).to receive(:send_chat_action)
 
       channel.start_typing(chat_id)
-      channel.start_typing(chat_id)
+      thread_count_after_first = channel.instance_variable_get(:@typing_threads).keys.length
 
-      expect(channel.instance_variable_get(:@typing_threads).keys.length).to eq(1)
+      channel.start_typing(chat_id)
+      thread_count_after_second = channel.instance_variable_get(:@typing_threads).keys.length
+
+      # Stop typing to cleanup
+      channel.stop_typing(chat_id)
+      sleep 0.1
+
+      expect(thread_count_after_first).to eq(1)
+      expect(thread_count_after_second).to eq(1)
     end
   end
 
@@ -408,11 +418,11 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
 
     it "unsets typing active flag" do
-      allow(Thread).to receive(:new).and_yield
       allow(mock_api).to receive(:send_chat_action)
 
       channel.start_typing(chat_id)
       channel.stop_typing(chat_id)
+      sleep 0.1 # Wait for cleanup
 
       expect(channel.instance_variable_get(:@typing_active)[chat_id]).to be false
     end

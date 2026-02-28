@@ -183,7 +183,7 @@ RSpec.describe Botiasloop::Channels::CLI do
     it "processes non-command messages through agent" do
       expect(Botiasloop::Agent).to receive(:chat).with(
         "Hello",
-        hash_including(callback: kind_of(Proc), conversation: conversation)
+        hash_including(callback: kind_of(Proc), chat: kind_of(Botiasloop::Chat))
       )
       channel.process_message("cli", "Hello")
     end

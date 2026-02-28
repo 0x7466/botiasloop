@@ -60,14 +60,14 @@ RSpec.describe Botiasloop::Channels::Base do
     end
 
     it "suppresses NO_OUTPUT response in callback and stores stripped content" do
-      mock_agent_chat = double("agent_chat")
+      double("agent_chat")
       allow(Botiasloop::Agent).to receive(:chat).and_call_original
       channel.process_message("user123", "test")
       expect(channel.delivered_responses).to be_empty
     end
 
     it "doesn't suppress normal responses in callback" do
-      mock_agent_chat = double("agent_chat")
+      double("agent_chat")
       allow(Botiasloop::Agent).to receive(:chat).and_call_original
       channel.process_message("user123", "test")
       expect(channel.delivered_responses).to be_empty
