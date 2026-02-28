@@ -19,8 +19,11 @@ module Botiasloop
   end
 end
 
-# Set mock API key BEFORE loading botiasloop to prevent RubyLLM configuration errors
+# Set mock API key and configure RubyLLM BEFORE loading botiasloop to prevent configuration errors
 ENV["BOTIASLOOP_PROVIDERS_OPENROUTER_API_KEY"] ||= "test-api-key"
+
+require "ruby_llm"
+RubyLLM.config.openrouter_api_key = "test-api-key"
 
 require_relative "../lib/botiasloop/database"
 Botiasloop::Database.setup!
