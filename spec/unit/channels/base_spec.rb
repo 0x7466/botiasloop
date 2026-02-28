@@ -342,7 +342,136 @@ RSpec.describe Botiasloop::Channels::Base do
     end
   end
 
-  describe "class-level configuration" do
+
+
+  describe "NO_OUTPUT functionality" do
+    let(:process_test_channel_class) do
+      Class.new(described_class) do
+        channel_name :process_test_channel
+
+        attr_reader :delivered_responses
+
+        def initialize
+          super
+          @delivered_responses = []
+        end
+
+        def start_listening
+        end
+
+        def stop_listening
+        end
+
+        def running?
+          false
+        end
+
+        def extract_content(raw_message)
+          raw_message
+        end
+
+        def authorized?(_source_id)
+          true
+        end
+
+        def deliver_message(source_id, formatted_content)
+          @delivered_responses << {source_id: source_id, content: formatted_content}
+        end
+      end
+    end
+    let(:channel) { process_test_channel_class.new }
+
+    before do
+      allow(Botiasloop::Agent).to receive(:chat).and_return("Agent response")
+    end
+
+    it "suppresses NO_OUTPUT response and stores stripped content" do
+      allow(Commands).to receive(:execute).and_return("NO_OUTPUT suppressed response")
+      expect(channel).not_to receive(:deliver_message)
+      channel.process_message("user123", "test")
+      expect(channel.delivered_responses).to be_empty
+    end
+
+    it "doesn't suppress normal responses" do
+      allow(Commands).to receive(:execute).and_return("normal response")
+      expect(channel).to receive(:deliver_message).with("user123", "normal response")
+      channel.process_message("user123", "test")
+    end
+
+    it "suppresses NO_OUTPUT response in callback and stores stripped content" do
+      mock_agent_chat = double("agent_chat")
+      allow(Agent).to receive(:chat).and_yield("NO_OUTPUT suppressed response")
+      expect(channel).not_to receive(:deliver_message)
+      channel.process_message("user123", "test")
+      expect(channel.delivered_responses).to be_empty
+    end
+
+    it "doesn't suppress normal responses in callback" do
+      mock_agent_chat = double("agent_chat")
+      allow(Agent).to receive(:chat).and_yield("normal response")
+      expect(channel).to receive(:deliver_message).with("user123", "normal response")
+      channel.process_message("user123", "test")
+    end
+  end
+
+        def start_listening
+        end
+
+        def stop_listening
+        end
+
+        def running?
+          false
+        end
+
+        def extract_content(raw_message)
+          raw_message
+        end
+
+        def authorized?(_source_id)
+          true
+        end
+
+        def deliver_message(source_id, formatted_content)
+          @delivered_responses << {source_id: source_id, content: formatted_content}
+        end
+      end
+    end
+    let(:channel) { process_test_channel_class.new }
+
+    before do
+      allow(Botiasloop::Agent).to receive(:chat).and_return("Agent response")
+    end
+
+      it "suppresses NO_OUTPUT response and stores stripped content" do
+        allow(Commands).to receive(:execute).and_return("NO_OUTPUT suppressed response")
+        expect(channel).not_to receive(:deliver_message)
+        channel.process_message("user123", "test")
+        expect(channel.delivered_responses).to be_empty
+      end
+    end
+
+    it "doesn't suppress normal responses" do
+      allow(Commands).to receive(:execute).and_return("normal response")
+      expect(channel).to receive(:deliver_message).with("user123", "normal response")
+      channel.process_message("user123", "test")
+    end
+
+    it "suppresses NO_OUTPUT response in callback and stores stripped content" do
+      mock_agent_chat = double("agent_chat")
+      allow(Agent).to receive(:chat).and_yield("NO_OUTPUT suppressed response")
+      expect(channel).not_to receive(:deliver_message)
+      channel.process_message("user123", "test")
+      expect(channel.delivered_responses).to be_empty
+    end
+
+    it "doesn't suppress normal responses in callback" do
+      mock_agent_chat = double("agent_chat")
+      allow(Agent).to receive(:chat).and_yield("normal response")
+      expect(channel).to receive(:deliver_message).with("user123", "normal response")
+      channel.process_message("user123", "test")
+    end
+  end
     it "allows getting channel_name from class" do
       expect(test_channel_class.channel_identifier).to eq(:test_channel)
     end

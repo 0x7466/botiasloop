@@ -200,7 +200,6 @@ module Botiasloop
         <<~CHATINFO
           - Current Chat ID: #{chat.id}
           - Channel: #{chat.channel}
-          - External ID: #{chat.external_id}
         CHATINFO
       end
 
