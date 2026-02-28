@@ -20,7 +20,7 @@ module Botiasloop
 end
 
 # Set mock API key BEFORE loading botiasloop to prevent RubyLLM configuration errors
-ENV["OPENROUTER_API_KEY"] ||= "test-api-key"
+ENV["BOTIASLOOP_PROVIDERS_OPENROUTER_API_KEY"] ||= "test-api-key"
 
 require_relative "../lib/botiasloop/database"
 Botiasloop::Database.setup!
