@@ -87,23 +87,26 @@ module Botiasloop
     def configure_provider(config, provider_name, provider_config)
       case provider_name
       when "openai"
-        config.openai_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.openai_api_key = provider_config["api_key"]
         config.openai_organization_id = provider_config["organization_id"] if provider_config["organization_id"]
         config.openai_project_id = provider_config["project_id"] if provider_config["project_id"]
         config.openai_api_base = provider_config["api_base"] if provider_config["api_base"]
       when "anthropic"
-        config.anthropic_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.anthropic_api_key = provider_config["api_key"]
       when "gemini"
-        config.gemini_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.gemini_api_key = provider_config["api_key"]
         config.gemini_api_base = provider_config["api_base"] if provider_config["api_base"]
+      when "vertexai"
+        config.vertexai_project_id = provider_config["project_id"]
+        config.vertexai_location = provider_config["location"] if provider_config["location"]
       when "deepseek"
-        config.deepseek_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.deepseek_api_key = provider_config["api_key"]
       when "mistral"
-        config.mistral_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.mistral_api_key = provider_config["api_key"]
       when "perplexity"
-        config.perplexity_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.perplexity_api_key = provider_config["api_key"]
       when "openrouter"
-        config.openrouter_api_key = provider_config["api_key"] if provider_config["api_key"]
+        config.openrouter_api_key = provider_config["api_key"]
       when "ollama"
         config.ollama_api_base = provider_config["api_base"] || "http://localhost:11434/v1"
       when "gpustack"

@@ -19,17 +19,21 @@ module Botiasloop
   end
 end
 
-# Set mock API key and configure RubyLLM BEFORE loading botiasloop to prevent configuration errors
-ENV["BOTIASLOOP_PROVIDERS_OPENROUTER_API_KEY"] ||= "test-api-key"
-
-require "ruby_llm"
-RubyLLM.config.openrouter_api_key = "test-api-key"
-
 require_relative "../lib/botiasloop/database"
 Botiasloop::Database.setup!
 
 # Now load the rest of botiasloop
 require "botiasloop"
+
+# Configure RubyLLM with test values AFTER loading botiasloop
+# This follows the same pattern as RubyLLM's own test suite
+require "ruby_llm"
+RubyLLM.configure do |config|
+  config.openrouter_api_key = ENV.fetch("OPENROUTER_API_KEY", "test")
+  config.openai_api_key = ENV.fetch("OPENAI_API_KEY", "test")
+  config.anthropic_api_key = ENV.fetch("ANTHROPIC_API_KEY", "test")
+end
+
 require "vcr"
 
 # Load support files
