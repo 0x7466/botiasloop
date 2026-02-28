@@ -79,9 +79,22 @@ module Botiasloop
     def setup_ruby_llm
       provider_name, provider_config = Config.instance.active_provider
 
+      # Only configure RubyLLM if there are actual config values to apply.
+      # This preserves test configurations set before loading botiasloop.
+      return unless provider_configured?(provider_name, provider_config)
+
       RubyLLM.configure do |config|
         configure_provider(config, provider_name, provider_config)
       end
+    end
+
+    def provider_configured?(provider_name, provider_config)
+      return true if %w[ollama gpustack].include?(provider_name.to_s) && provider_config["api_base"]
+      return true if provider_config["api_key"]
+      return true if provider_name.to_s == "vertexai" && provider_config["project_id"]
+      return true if provider_name.to_s == "azure" && provider_config["api_base"]
+
+      false
     end
 
     def configure_provider(config, provider_name, provider_config)
