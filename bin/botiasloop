@@ -110,7 +110,7 @@ def agent_send
   end
 
   if chat_id && deliver_to_all
-    puts "Error: Cannot use both --chat-id and --deliver-to-all-chats"
+    $stderr.puts "Error: Cannot use both --chat-id and --deliver-to-all-chats"
     exit 1
   end
 
@@ -121,13 +121,13 @@ def agent_send
   else
     chat = Botiasloop::Chat[chat_id]
     unless chat
-      puts "Error: Chat not found: #{chat_id}"
+      $stderr.puts "Error: Chat not found: #{chat_id}"
       exit 1
     end
 
     # Validate chat is not CLI
     if chat.channel == "cli"
-      puts "Error: Cannot send to CLI chat. Use --deliver-to-all-chats for non-CLI chats or specify a non-CLI chat ID."
+      $stderr.puts "Error: Cannot send to CLI chat. Use --deliver-to-all-chats for non-CLI chats or specify a non-CLI chat ID."
       exit 1
     end
 
@@ -135,7 +135,7 @@ def agent_send
   end
 
   if chats.empty?
-    puts "Error: No non-CLI chats found to deliver to."
+    $stderr.puts "Error: No non-CLI chats found to deliver to."
     exit 1
   end
 
@@ -168,7 +168,7 @@ def send_prompt_to_chat(chat, prompt)
     callback: callback,
     error_callback: error_callback,
     completion_callback: completion_callback,
-    conversation: conversation
+    chat: chat
   )
 
   # Wait for completion (poll since agent runs in a thread)

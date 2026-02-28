@@ -127,16 +127,16 @@ RSpec.describe "botiasloop CLI" do
   describe "agent send" do
     let(:chat) { instance_double(Botiasloop::Chat) }
     let(:conversation) { instance_double(Botiasloop::Conversation) }
-    let(:channel_class) { class_double(Botiasloop::Channels::CLI) }
-    let(:channel_instance) { instance_double(Botiasloop::Channels::CLI) }
+    let(:channel_class) { class_double(Botiasloop::Channels::Telegram) }
+    let(:channel_instance) { instance_double(Botiasloop::Channels::Telegram) }
 
     before do
       allow(Botiasloop::Chat).to receive(:[]).and_return(chat)
       allow(Botiasloop::Chat).to receive(:all).and_return([chat])
       allow(chat).to receive(:current_conversation).and_return(conversation)
-      allow(chat).to receive(:channel).and_return("cli")
-      allow(chat).to receive(:external_id).and_return("cli")
-      allow(Botiasloop::Channels.registry).to receive(:channels).and_return(cli: channel_class)
+      allow(chat).to receive(:channel).and_return("telegram")
+      allow(chat).to receive(:external_id).and_return("123456")
+      allow(Botiasloop::Channels.registry).to receive(:channels).and_return(telegram: channel_class)
       allow(channel_class).to receive(:new).and_return(channel_instance)
       allow(channel_instance).to receive(:send_message)
       allow(Botiasloop::Agent).to receive(:chat)
@@ -169,15 +169,18 @@ RSpec.describe "botiasloop CLI" do
         expect(Botiasloop::Chat).to receive(:[]).with(1).and_return(chat)
         expect(Botiasloop::Agent).to receive(:chat).with(
           "hello world",
-          anything
-        )
+          hash_including(chat: chat)
+        ) do |_message, options|
+          # Simulate async completion
+          options[:completion_callback]&.call
+        end
 
         load File.expand_path("../../bin/botiasloop", __dir__)
       end
 
       it "fails when chat not found" do
         output = StringIO.new
-        allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+        allow($stderr).to receive(:puts) { |msg| output.puts(msg) }
         allow(Botiasloop::Chat).to receive(:[]).with(999).and_return(nil)
 
         ARGV.replace(["agent", "send", "hello", "--chat-id", "999"])
@@ -199,8 +202,11 @@ RSpec.describe "botiasloop CLI" do
         expect(Botiasloop::Chat).to receive(:all).and_return([chat])
         expect(Botiasloop::Agent).to receive(:chat).with(
           "hello world",
-          anything
-        )
+          hash_including(chat: chat)
+        ) do |_message, options|
+          # Simulate async completion
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "hello world", "--deliver-to-all-chats"])
 
@@ -211,7 +217,7 @@ RSpec.describe "botiasloop CLI" do
     describe "with both --chat-id and --deliver-to-all-chats" do
       it "prints error and exits" do
         output = StringIO.new
-        allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+        allow($stderr).to receive(:puts) { |msg| output.puts(msg) }
 
         ARGV.replace(["agent", "send", "hello", "--chat-id", "1", "--deliver-to-all-chats"])
 
@@ -245,7 +251,9 @@ RSpec.describe "botiasloop CLI" do
     describe "flag position" do
       it "accepts flags before prompt" do
         expect(Botiasloop::Chat).to receive(:[]).with(1).and_return(chat)
-        expect(Botiasloop::Agent).to receive(:chat)
+        expect(Botiasloop::Agent).to receive(:chat) do |_message, options|
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "--chat-id", "1", "hello"])
 
@@ -254,7 +262,9 @@ RSpec.describe "botiasloop CLI" do
 
       it "accepts flags after prompt" do
         expect(Botiasloop::Chat).to receive(:[]).with(1).and_return(chat)
-        expect(Botiasloop::Agent).to receive(:chat)
+        expect(Botiasloop::Agent).to receive(:chat) do |_message, options|
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "hello", "--chat-id", "1"])
 
@@ -266,7 +276,9 @@ RSpec.describe "botiasloop CLI" do
         expect(Botiasloop::Agent).to receive(:chat).with(
           "hello world test",
           anything
-        )
+        ) do |_message, options|
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "hello", "--chat-id", "1", "world test"])
 
@@ -350,7 +362,7 @@ RSpec.describe "botiasloop CLI" do
 
       it "rejects CLI chat when specified with --chat-id" do
         output = StringIO.new
-        allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+        allow($stderr).to receive(:puts) { |msg| output.puts(msg) }
         allow(Botiasloop::Chat).to receive(:[]).with(1).and_return(cli_chat)
 
         ARGV.replace(["agent", "send", "hello", "--chat-id", "1"])
@@ -371,7 +383,9 @@ RSpec.describe "botiasloop CLI" do
         expect(Botiasloop::Agent).to receive(:chat).with(
           "hello",
           anything
-        ).once
+        ).once do |_message, options|
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "hello", "--deliver-to-all-chats"])
 
@@ -380,7 +394,7 @@ RSpec.describe "botiasloop CLI" do
 
       it "errors when only CLI chats exist with --deliver-to-all-chats" do
         output = StringIO.new
-        allow($stdout).to receive(:puts) { |msg| output.puts(msg) }
+        allow($stderr).to receive(:puts) { |msg| output.puts(msg) }
         allow(Botiasloop::Chat).to receive(:all).and_return([cli_chat])
 
         ARGV.replace(["agent", "send", "hello", "--deliver-to-all-chats"])
@@ -406,7 +420,9 @@ RSpec.describe "botiasloop CLI" do
 
         allow(Botiasloop::Chat).to receive(:all).and_return([telegram_chat, telegram_chat2])
 
-        expect(Botiasloop::Agent).to receive(:chat).twice
+        expect(Botiasloop::Agent).to receive(:chat).twice do |_message, options|
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "hello", "--deliver-to-all-chats"])
 
@@ -422,7 +438,7 @@ RSpec.describe "botiasloop CLI" do
       before do
         allow(telegram_chat).to receive(:channel).and_return("telegram")
         allow(telegram_chat).to receive(:external_id).and_return("12345")
-        allow(telegram_chat).to receive(:current_id).and_return(1)
+        allow(telegram_chat).to receive(:id).and_return(1)
         allow(telegram_chat).to receive(:current_conversation).and_return(conversation)
         allow(Botiasloop::Channels.registry).to receive(:channels).and_return(telegram: telegram_channel)
         allow(telegram_channel).to receive(:new).and_return(telegram_instance)
@@ -433,6 +449,9 @@ RSpec.describe "botiasloop CLI" do
       it "produces no stdout output on success" do
         stdout_output = StringIO.new
         allow($stdout).to receive(:puts) { |msg| stdout_output.puts(msg) }
+        expect(Botiasloop::Agent).to receive(:chat) do |_message, options|
+          options[:completion_callback]&.call
+        end
 
         ARGV.replace(["agent", "send", "hello", "--chat-id", "1"])
 
@@ -456,8 +475,8 @@ RSpec.describe "botiasloop CLI" do
           # Expected
         end
 
-        # Error should go to stdout (our current implementation)
-        expect(stderr_output.string).to include("Error") | include("")
+        # Error output should include error message
+        expect(stderr_output.string).to include("Error")
       end
     end
   end
