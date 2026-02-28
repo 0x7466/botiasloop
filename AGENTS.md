@@ -306,18 +306,51 @@ The project uses GitHub Actions to automatically publish the gem to both RubyGem
    - RubyGems (https://rubygems.org/gems/botiasloop)
    - GitHub Packages
 
-### Required Secrets
+## Gateway Management
 
-The following secrets must be configured in the repository settings:
+The gateway runs as a systemd user service. To test changes locally:
 
-1. **RUBYGEMS_API_TOKEN** - RubyGems.org API token
-   - Get it from: https://rubygems.org/profile/api_keys
-   - Create a new API key with "Push" scope
+### Installing and Running
 
-2. **GITHUB_TOKEN** - automatically available (no setup needed)
+```bash
+# Install and enable (auto-start on login)
+botiasloop gateway enable
 
-Configure secrets at: `https://github.com/0x7466/botiasloop/settings/secrets/actions`
+# Start now
+botiasloop gateway start
+```
 
-## Philosophy
+### Restarting After Code Changes
+
+**Important**: The `botiasloop gateway restart` command may not work correctly in some environments. Use this process instead:
+
+```bash
+# 1. Kill any running gateway processes
+pkill -f "botiasloop gateway" || true
+
+# 2. Install the updated gem
+mise exec -- bundle exec rake install
+
+# 3. Start fresh (not restart - this ensures clean state)
+botiasloop gateway start
+```
+
+### Other Useful Commands
+
+```bash
+botiasloop gateway status   # Check if running
+botiasloop gateway logs     # View logs
+botiasloop gateway stop    # Stop the service
+botiasloop gateway disable # Disable auto-start
+```
+
+### Debugging
+
+If the gateway isn't responding, check:
+1. Is the service running? `botiasloop gateway status`
+2. Check logs: `botiasloop gateway logs`
+3. Kill stale processes: `pkill -f "botiasloop gateway"`
+ 4. Start fresh: `botiasloop gateway start`
+
 
 This gem follows the "sharp knives" philosophy - it provides full shell access without restrictions. This is intentional. The gem is designed for dedicated infrastructure, not personal devices.

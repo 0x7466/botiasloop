@@ -364,6 +364,72 @@ RSpec.describe Botiasloop::Channels::Telegram do
     end
   end
 
+  describe "#start_typing" do
+    let(:channel) { described_class.new }
+    let(:chat_id) { "123456" }
+
+    before do
+      channel.instance_variable_set(:@bot, mock_bot)
+    end
+
+    it "does nothing when bot is not running" do
+      channel.instance_variable_set(:@bot, nil)
+      expect { channel.start_typing(chat_id) }.not_to raise_error
+      expect(channel.instance_variable_get(:@typing_active)[chat_id]).to be_nil
+    end
+
+    it "sets typing active flag and starts thread" do
+      expect(Thread).to receive(:new).and_yield
+      expect(mock_api).to receive(:send_chat_action).with(chat_id: 123_456, action: "typing")
+
+      channel.start_typing(chat_id)
+
+      expect(channel.instance_variable_get(:@typing_active)[chat_id]).to be true
+      expect(channel.instance_variable_get(:@typing_threads)[chat_id]).to be_a(Thread)
+    end
+
+    it "does not start multiple threads for same chat_id" do
+      expect(Thread).to receive(:new).once.and_yield
+      expect(mock_api).to receive(:send_chat_action).with(chat_id: 123_456, action: "typing")
+
+      channel.start_typing(chat_id)
+      channel.start_typing(chat_id)
+
+      expect(channel.instance_variable_get(:@typing_threads).keys.length).to eq(1)
+    end
+  end
+
+  describe "#stop_typing" do
+    let(:channel) { described_class.new }
+    let(:chat_id) { "123456" }
+
+    before do
+      channel.instance_variable_set(:@bot, mock_bot)
+    end
+
+    it "unsets typing active flag" do
+      allow(Thread).to receive(:new).and_yield
+      allow(mock_api).to receive(:send_chat_action)
+
+      channel.start_typing(chat_id)
+      channel.stop_typing(chat_id)
+
+      expect(channel.instance_variable_get(:@typing_active)[chat_id]).to be false
+    end
+
+    it "kills the typing thread" do
+      mock_thread = instance_double(Thread)
+      allow(mock_thread).to receive(:kill)
+      channel.instance_variable_set(:@typing_active, {chat_id => true})
+      channel.instance_variable_set(:@typing_threads, {chat_id => mock_thread})
+
+      channel.stop_typing(chat_id)
+
+      expect(mock_thread).to have_received(:kill)
+      expect(channel.instance_variable_get(:@typing_threads)[chat_id]).to be_nil
+    end
+  end
+
   describe "#extract_content" do
     let(:channel) { described_class.new }
     let(:message_text) { "Hello bot" }

@@ -24,10 +24,12 @@ module Botiasloop
       # @param message [String] User message
       # @param callback [Proc] Callback for messages (verbose + final response)
       # @param error_callback [Proc, nil] Callback for errors
+      # @param completion_callback [Proc, nil] Callback called when processing completes
       # @param conversation [Conversation, nil] Existing conversation
       # @return [Loop::Run] Run instance
-      def chat(message, callback:, error_callback: nil, conversation: nil)
-        instance.chat(message, callback: callback, error_callback: error_callback, conversation: conversation)
+      def self.chat(message, callback:, error_callback: nil, completion_callback: nil, conversation: nil)
+        instance.chat(message, callback: callback, error_callback: error_callback,
+          completion_callback: completion_callback, conversation: conversation)
       end
 
       # Set the instance directly (primarily for testing)
@@ -49,9 +51,10 @@ module Botiasloop
     # @param message [String] User message
     # @param callback [Proc] Callback for messages (verbose + final response)
     # @param error_callback [Proc, nil] Callback for errors
+    # @param completion_callback [Proc, nil] Callback called when processing completes
     # @param conversation [Conversation, nil] Existing conversation
     # @return [Loop::Run] Run instance
-    def chat(message, callback:, error_callback: nil, conversation: nil)
+    def chat(message, callback:, error_callback: nil, completion_callback: nil, conversation: nil)
       conversation ||= Conversation.new
 
       run = Loop::Run.new(
@@ -62,7 +65,8 @@ module Botiasloop
         conversation: conversation,
         user_input: message,
         callback: callback,
-        error_callback: error_callback
+        error_callback: error_callback,
+        completion_callback: completion_callback
       )
 
       self.class.active_loop_runs << run

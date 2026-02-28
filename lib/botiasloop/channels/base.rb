@@ -114,7 +114,10 @@ module Botiasloop
         else
           callback = proc { |message| send_message(source_id, message) }
           error_callback = proc { |error| send_message(source_id, "Error: #{error}") }
-          Agent.chat(content, callback: callback, error_callback: error_callback, conversation: conversation)
+          completion_callback = proc { stop_typing(source_id) }
+          start_typing(source_id)
+          Agent.chat(content, callback: callback, error_callback: error_callback,
+            completion_callback: completion_callback, conversation: conversation)
         end
 
         # Hook: Post-processing
@@ -161,6 +164,22 @@ module Botiasloop
       # @param response [String] Response content
       # @param raw_message [Object] Raw message object
       def after_process(source_id, user_id, response, raw_message)
+        # No-op by default
+      end
+
+      # Start typing indicator for a source
+      # Override in subclasses to show "user is typing" indicator
+      #
+      # @param source_id [String] Source identifier
+      def start_typing(_source_id)
+        # No-op by default
+      end
+
+      # Stop typing indicator for a source
+      # Override in subclasses to hide "user is typing" indicator
+      #
+      # @param source_id [String] Source identifier
+      def stop_typing(_source_id)
         # No-op by default
       end
 

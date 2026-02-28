@@ -25,6 +25,9 @@ module Botiasloop
         @allowed_users = cfg["allowed_users"] || []
         @bot = nil
         @thread_id = nil
+        @typing_active = {}
+        @typing_threads = {}
+        @typing_mutex = Mutex.new
       end
 
       # Start the Telegram bot and listen for messages
@@ -57,6 +60,8 @@ module Botiasloop
       # the blocking listen loop.
       def stop_listening
         Logger.info "[Telegram] Stopping bot..."
+
+        stop_all_typing_indicators
 
         return unless @thread_id
 
@@ -139,6 +144,57 @@ module Botiasloop
         @allowed_users.include?(username)
       end
 
+      # Start typing indicator for a chat
+      #
+      # @param chat_id [String] Telegram chat ID
+      def start_typing(chat_id)
+        Logger.debug "[Telegram] start_typing for #{chat_id}"
+        return unless @bot
+
+        # Capture state before releasing mutex to avoid deadlock
+        should_start = false
+        @typing_mutex.synchronize do
+          @typing_active[chat_id] = true
+          return if @typing_threads[chat_id]
+
+          should_start = true
+        end
+
+        return unless should_start
+
+        thread = Thread.new do
+          loop do
+            # Read active flag outside mutex - safe for boolean
+            break unless @typing_active[chat_id]
+
+            begin
+              @bot.api.send_chat_action(chat_id: chat_id.to_i, action: "typing")
+              Logger.debug "[Telegram] Sent typing action to #{chat_id}"
+            rescue => e
+              Logger.warn "[Telegram] Failed to send typing action: #{e.message}"
+              break
+            end
+            sleep 4
+          end
+
+          @typing_mutex.synchronize { @typing_threads.delete(chat_id) }
+        end
+
+        @typing_mutex.synchronize { @typing_threads[chat_id] = thread }
+      end
+
+      # Stop typing indicator for a chat
+      #
+      # @param chat_id [String] Telegram chat ID
+      def stop_typing(chat_id)
+        Logger.debug "[Telegram] stop_typing for #{chat_id}"
+        @typing_mutex.synchronize do
+          @typing_active[chat_id] = false
+          thread = @typing_threads.delete(chat_id)
+          thread&.kill
+        end
+      end
+
       # Deliver a formatted message to Telegram
       #
       # @param chat_id [String] Telegram chat ID (as string)
@@ -164,6 +220,16 @@ module Botiasloop
       end
 
       private
+
+      # Stop all typing indicator threads
+      def stop_all_typing_indicators
+        @typing_mutex.synchronize do
+          @typing_active.each_key { |k| @typing_active[k] = false }
+          @typing_active.clear
+          @typing_threads.values.each(&:kill)
+          @typing_threads.clear
+        end
+      end
 
       # Register bot commands with Telegram
       def register_bot_commands

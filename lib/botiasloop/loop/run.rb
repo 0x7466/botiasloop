@@ -7,7 +7,7 @@ module Botiasloop
     class Run
       attr_reader :id, :conversation
 
-      def initialize(provider:, model:, registry:, max_iterations:, conversation:, user_input:, callback:, error_callback:)
+      def initialize(provider:, model:, registry:, max_iterations:, conversation:, user_input:, callback:, error_callback:, completion_callback: nil)
         @id = SecureRandom.uuid
         @conversation = conversation
         @status = :running
@@ -21,6 +21,7 @@ module Botiasloop
         @user_input = user_input
         @callback = callback
         @error_callback = error_callback
+        @completion_callback = completion_callback
       end
 
       def status
@@ -41,6 +42,7 @@ module Botiasloop
           ensure
             mark_completed
             Agent.active_loop_runs&.delete(self)
+            @completion_callback&.call
           end
         end
 
